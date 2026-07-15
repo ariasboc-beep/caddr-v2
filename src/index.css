@@ -2,6 +2,14 @@
 @tailwind components;
 @tailwind utilities;
 
+/* === Thèmes d'accent (pilotent la couleur --accent partout) === */
+:root { --accent-rgb: 47 176 166; --accent: #2FB0A6; }        /* Teal (défaut) */
+.theme-teal   { --accent-rgb: 47 176 166;  --accent: #2FB0A6; }
+.theme-blue   { --accent-rgb: 55 114 255;  --accent: #3772FF; }
+.theme-violet { --accent-rgb: 124 92 252;  --accent: #7C5CFC; }
+.theme-amber  { --accent-rgb: 245 144 12;  --accent: #F5900C; }
+.theme-rose   { --accent-rgb: 244 63 110;  --accent: #F43F6E; }
+
 body {
   font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
   transition: background-color 0.3s ease, color 0.3s ease;
@@ -24,6 +32,6 @@ body {
   width: 4px;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: #2FB0A6;
+  background: var(--accent);
   border-radius: 10px;
 }

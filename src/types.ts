@@ -76,5 +76,5 @@ export interface AppData {
   userProfile?: UserProfile;
 }
 
-export type TabType = 'routine' | 'stats' | 'schedule' | 'templates' | 'ai' | 'inbox';
+export type TabType = 'routine' | 'stats' | 'schedule' | 'templates' | 'ai' | 'inbox' | 'settings';
 export type TimeframeType = 'day' | 'week' | 'month' | 'year' | 'custom';

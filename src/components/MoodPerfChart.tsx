@@ -9,7 +9,7 @@ interface Props {
 
 const MOODS = [
   { key: 'great', label: 'Excellent', Icon: Laugh, color: '#22C55E' },
-  { key: 'good', label: 'Bien', Icon: Smile, color: '#2FB0A6' },
+  { key: 'good', label: 'Bien', Icon: Smile, color: 'var(--accent)' },
   { key: 'neutral', label: 'Neutre', Icon: Meh, color: '#FDCA40' },
   { key: 'bad', label: 'Difficile', Icon: Frown, color: '#EF4444' },
 ];

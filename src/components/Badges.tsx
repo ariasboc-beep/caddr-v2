@@ -61,7 +61,7 @@ const Badges: React.FC<Props> = ({ appData, bestStreak }) => {
     <div className="glass p-6 rounded-[2rem] space-y-5">
       <div className="flex items-center justify-between">
         <h2 className="font-black uppercase tracking-wider text-sm">Succès</h2>
-        <span className="text-[10px] font-black uppercase tracking-wider text-[#2FB0A6]">
+        <span className="text-[10px] font-black uppercase tracking-wider text-accent">
           {unlockedCount}/{badges.length} débloqués
         </span>
       </div>
@@ -73,14 +73,14 @@ const Badges: React.FC<Props> = ({ appData, bestStreak }) => {
             title={`${name} — ${desc}`}
             className={`flex flex-col items-center gap-2 p-3 rounded-2xl border transition-all ${
               unlocked
-                ? 'bg-[#2FB0A6]/10 border-[#2FB0A6]/20'
+                ? 'bg-accent/10 border-accent/20'
                 : 'bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 border-transparent opacity-40'
             }`}
           >
             <Icon
               size={22}
               strokeWidth={2}
-              className={unlocked ? 'text-[#2FB0A6]' : 'text-[#18181B]/60 dark:text-[#E6E8E6]/60'}
+              className={unlocked ? 'text-accent' : 'text-[#18181B]/60 dark:text-[#E6E8E6]/60'}
             />
             <span className="text-[8px] font-black uppercase tracking-wider text-center leading-tight">
               {name}

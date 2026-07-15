@@ -88,7 +88,7 @@ const DayTimeline: React.FC<Props> = ({ blocks, currentTime, dateKey }) => {
     return (
       <div className="glass p-6 rounded-[2rem]">
         <h2 className="font-black uppercase tracking-wider text-sm mb-2 flex items-center gap-2">
-          <Clock size={16} className="text-[#2FB0A6]" /> Agenda du jour
+          <Clock size={16} className="text-accent" /> Agenda du jour
         </h2>
         <p className="text-xs text-[#18181B]/50 dark:text-[#E6E8E6]/50 font-medium">
           Ajoutez une heure de début à vos tâches pour les voir apparaître sur la timeline.
@@ -105,7 +105,7 @@ const DayTimeline: React.FC<Props> = ({ blocks, currentTime, dateKey }) => {
   return (
     <div className="glass p-6 rounded-[2rem]">
       <h2 className="font-black uppercase tracking-wider text-sm mb-4 flex items-center gap-2">
-        <Clock size={16} className="text-[#2FB0A6]" /> Agenda du jour
+        <Clock size={16} className="text-accent" /> Agenda du jour
       </h2>
       <div className="relative ml-10" style={{ height: totalHeight }}>
         {/* Lignes horaires */}
@@ -142,7 +142,7 @@ const DayTimeline: React.FC<Props> = ({ blocks, currentTime, dateKey }) => {
               className={`absolute rounded-xl px-3 py-1.5 border overflow-hidden transition-all ${
                 done
                   ? 'bg-[#22C55E]/10 border-[#22C55E]/25'
-                  : 'bg-[#2FB0A6]/10 border-[#2FB0A6]/25'
+                  : 'bg-accent/10 border-accent/25'
               }`}
               style={{
                 top: Math.max(top, 0),

@@ -47,10 +47,10 @@ const YearHeatmap: React.FC<Props> = ({ history, streakCount, days = 365, title 
   const colorFor = (perf: number | null, future: boolean) => {
     if (future) return 'transparent';
     if (perf === null || perf === 0) return 'rgba(120,120,128,0.12)';
-    if (perf < 34) return 'rgba(47, 176, 166,0.25)';
-    if (perf < 67) return 'rgba(47, 176, 166,0.55)';
-    if (perf < 100) return 'rgba(47, 176, 166,0.8)';
-    return '#2FB0A6';
+    if (perf < 34) return 'rgb(var(--accent-rgb) / 0.25)';
+    if (perf < 67) return 'rgb(var(--accent-rgb) / 0.55)';
+    if (perf < 100) return 'rgb(var(--accent-rgb) / 0.8)';
+    return 'var(--accent)';
   };
 
   return (

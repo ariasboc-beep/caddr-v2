@@ -39,7 +39,7 @@ const FocusMode: React.FC<Props> = ({ task, blockTitle, onComplete, onClose }) =
         <X size={20} />
       </button>
 
-      <div className="flex items-center gap-2 mb-2 text-[#2FB0A6]">
+      <div className="flex items-center gap-2 mb-2 text-accent">
         <Timer size={16} />
         <span className="text-[10px] font-black uppercase tracking-[0.2em]">Mode Focus</span>
       </div>
@@ -51,7 +51,7 @@ const FocusMode: React.FC<Props> = ({ task, blockTitle, onComplete, onClose }) =
           <circle cx="140" cy="140" r={R} stroke="rgba(255,255,255,0.08)" strokeWidth="10" fill="none" />
           <circle
             cx="140" cy="140" r={R}
-            stroke={finished ? '#22C55E' : '#2FB0A6'}
+            style={{ stroke: finished ? '#22C55E' : 'var(--accent)' }}
             strokeWidth="10" fill="none" strokeLinecap="round"
             strokeDasharray={CIRC}
             strokeDashoffset={CIRC * (1 - progress)}
@@ -84,7 +84,7 @@ const FocusMode: React.FC<Props> = ({ task, blockTitle, onComplete, onClose }) =
           className={`flex items-center gap-3 px-8 py-5 rounded-full font-black uppercase tracking-wider text-sm transition-all shadow-2xl ${
             finished
               ? 'bg-[#22C55E] text-white shadow-[#22C55E]/30 scale-105'
-              : 'bg-[#2FB0A6] text-white shadow-[#2FB0A6]/30'
+              : 'bg-accent text-white shadow-accent/30'
           }`}
         >
           <CheckCircle2 size={20} />
