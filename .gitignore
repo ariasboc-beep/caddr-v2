@@ -1,0 +1,18 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+release/
+
+# Netlify
+.netlify/
+
+# Local env files (ne JAMAIS committer de secrets)
+.env
+.env.*
+!.env.example
+
+# Logs & OS
+*.log
+.DS_Store
