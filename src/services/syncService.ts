@@ -95,3 +95,47 @@ export const subscribeToDataChanges = (
 export const getCurrentUser = (): User | null => {
   return auth.currentUser;
 };
+
+// ---------------------------------------------------------------------------
+// Fusion locale ↔ cloud : évite le "dernier écrit gagne" destructeur.
+// Stratégie : union des journées / inbox / templates / objectifs (par clé ou id,
+// en gardant l'entrée la plus riche en cas de conflit), XP au maximum des deux.
+// ---------------------------------------------------------------------------
+
+const richness = (v: unknown): number => JSON.stringify(v ?? '').length;
+
+export const mergeAppData = (local: AppData, cloud: AppData): AppData => {
+  // Journées : union, conflit résolu au profit de l'entrée la plus riche
+  const days: AppData['days'] = { ...cloud.days };
+  Object.entries(local.days || {}).forEach(([key, localDay]) => {
+    if (!days[key] || richness(localDay) > richness(days[key])) {
+      days[key] = localDay;
+    }
+  });
+
+  const mergeById = <T extends { id: string }>(a: T[] = [], b: T[] = []): T[] => {
+    const map = new Map<string, T>();
+    b.forEach((item) => map.set(item.id, item));
+    a.forEach((item) => {
+      const existing = map.get(item.id);
+      if (!existing || richness(item) > richness(existing)) map.set(item.id, item);
+    });
+    return Array.from(map.values());
+  };
+
+  // Structure maîtresse (blocks) : on garde la plus riche des deux versions
+  const blocks = richness(local.blocks) >= richness(cloud.blocks) ? local.blocks : cloud.blocks;
+
+  const localXp = local.userProfile?.xp || 0;
+  const cloudXp = cloud.userProfile?.xp || 0;
+  const bestProfile = localXp >= cloudXp ? local.userProfile : cloud.userProfile;
+
+  return {
+    days,
+    blocks,
+    templates: mergeById(local.templates, cloud.templates),
+    recurringGoals: mergeById(local.recurringGoals, cloud.recurringGoals),
+    inboxTasks: mergeById(local.inboxTasks, cloud.inboxTasks),
+    userProfile: bestProfile || { xp: 0, level: 1 },
+  };
+};

@@ -1,0 +1,14 @@
+{
+  "name": "Caddr. — Routine & Performance",
+  "short_name": "Caddr.",
+  "description": "Votre routine quotidienne gamifiée : blocs, XP, stats et IA.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#080708",
+  "theme_color": "#080708",
+  "lang": "fr",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

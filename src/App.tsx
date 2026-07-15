@@ -25,8 +25,14 @@ import {
   signOut as firebaseSignOut, 
   onAuthChange, 
   saveDataToCloud, 
-  loadDataFromCloud
+  loadDataFromCloud,
+  mergeAppData
 } from './services/syncService';
+import YearHeatmap from './components/YearHeatmap';
+import MoodPerfChart from './components/MoodPerfChart';
+import Badges from './components/Badges';
+import FocusMode from './components/FocusMode';
+import DayTimeline from './components/DayTimeline';
 import { User } from 'firebase/auth';
 import { 
   CartesianGrid, Tooltip, ResponsiveContainer, 
@@ -131,8 +137,24 @@ const App: React.FC = () => {
           const cloudData = await loadDataFromCloud(firebaseUser.uid);
           
           if (cloudData) {
-            setAppData(cloudData);
-            console.log('Loaded data from cloud');
+            // Fusion intelligente : ne perd ni les données locales ni celles du cloud
+            const localRaw = localStorage.getItem(STORAGE_KEY);
+            if (localRaw) {
+              try {
+                const parsedLocal = JSON.parse(localRaw);
+                if (!parsedLocal.inboxTasks) parsedLocal.inboxTasks = [];
+                if (!parsedLocal.userProfile) parsedLocal.userProfile = { xp: 0, level: 1 };
+                const merged = mergeAppData(parsedLocal, cloudData);
+                setAppData(merged);
+                await saveDataToCloud(firebaseUser.uid, merged);
+                console.log('Loaded data from cloud (merged with local)');
+              } catch {
+                setAppData(cloudData);
+              }
+            } else {
+              setAppData(cloudData);
+              console.log('Loaded data from cloud');
+            }
           } else {
             const localData = localStorage.getItem(STORAGE_KEY);
             if (localData) {
@@ -1489,6 +1511,44 @@ const App: React.FC = () => {
     return { avg, history, totalDoneCount, totalScheduledCount, streakCount, bestDay, taskLog: taskLog.reverse(), sortedBlockStats, dailyBlockHistory };
   }, [appData.blocks, appData.days]);
 
+  // Stats sur 12 mois glissants : alimente la heatmap annuelle et les badges
+  const yearStats = useMemo(() => {
+    const end = new Date();
+    const start = new Date();
+    start.setFullYear(start.getFullYear() - 1);
+    return getPerfForRange(start, end);
+  }, [getPerfForRange]);
+
+  // --- Mode Focus ---
+  const [focusTarget, setFocusTarget] = useState<{ task: Task; blockId: string; blockTitle: string } | null>(null);
+
+  // Première tâche horodatée "active maintenant" et non complétée aujourd'hui
+  const activeTimedTask = useMemo(() => {
+    const todayKey = getKeyFromDate(new Date());
+    if (dateKey !== todayKey) return null;
+    for (const block of routineBlocks) {
+      for (const task of getVisibleTasks(block.tasks)) {
+        if (task.startTime && isTaskActive(task) && !(task.completedDates || []).includes(todayKey)) {
+          return { task, blockId: block.id, blockTitle: block.title };
+        }
+      }
+    }
+    return null;
+  }, [routineBlocks, currentTime, dateKey, getVisibleTasks]);
+
+  const handleFocusComplete = () => {
+    if (!focusTarget) return;
+    toggleTask(focusTarget.blockId, focusTarget.task.id); // XP normal de la tâche
+    updateAppData(prev => {
+      const { profile, leveledUp } = handleXpGain(prev.userProfile, 10); // bonus Focus
+      if (leveledUp) setShowLevelUpModal(profile.level);
+      return { ...prev, userProfile: profile };
+    });
+    setActiveNotification("Session Focus terminée ! +10 XP bonus 🎯");
+    setTimeout(() => setActiveNotification(null), 4000);
+    setFocusTarget(null);
+  };
+
   const statsData = useMemo(() => {
     let start = new Date(); 
     let end = new Date();
@@ -1959,6 +2019,9 @@ const App: React.FC = () => {
         {/* TAB: PLANNING / SCHEDULE */}
         {activeTab === 'schedule' && (
           <div className="space-y-8 animate-in slide-in-from-right-4 duration-500 pb-20">
+            {!templateEditState && (
+              <DayTimeline blocks={routineBlocks} currentTime={currentTime} dateKey={dateKey} />
+            )}
             {/* ... Existing Schedule Code ... */}
              {templateEditState ? (
               <div className="glass p-6 rounded-[2rem] space-y-4 border border-[#FDCA40]/20 bg-[#FDCA40]/5 animate-in slide-in-from-top-4">
@@ -2147,6 +2210,12 @@ const App: React.FC = () => {
         {/* TAB: ANALYTICS */}
         {activeTab === 'stats' && (
           <div className="space-y-8 animate-in fade-in duration-500 pb-20">
+            {/* Heatmap annuelle + Succès + Humeur */}
+            <YearHeatmap history={yearStats.history} streakCount={yearStats.streakCount} />
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <Badges appData={appData} bestStreak={yearStats.streakCount} />
+              <MoodPerfChart days={appData.days} history={yearStats.history} />
+            </div>
             {/* ... Existing Stats Code ... */}
             <div className="space-y-6">
                 {/* Timeframe Selector with PDF Download */}
@@ -2295,6 +2364,27 @@ const App: React.FC = () => {
       </nav>
 
       {/* MODAL: LEVEL UP */}
+      {/* Bouton Focus flottant : visible quand une tâche horodatée est en cours */}
+      {activeTimedTask && !focusTarget && (
+        <button
+          onClick={() => setFocusTarget(activeTimedTask)}
+          className="fixed bottom-24 right-5 z-[90] flex items-center gap-2 px-5 py-4 rounded-full bg-[#3772FF] text-white font-black uppercase tracking-wider text-[10px] shadow-2xl shadow-[#3772FF]/40 hover:scale-105 transition-all animate-in slide-in-from-bottom-4"
+        >
+          <Timer size={16} />
+          Focus : {activeTimedTask.task.title.length > 20 ? activeTimedTask.task.title.slice(0, 20) + '…' : activeTimedTask.task.title}
+        </button>
+      )}
+
+      {/* Overlay Mode Focus */}
+      {focusTarget && (
+        <FocusMode
+          task={focusTarget.task}
+          blockTitle={focusTarget.blockTitle}
+          onComplete={handleFocusComplete}
+          onClose={() => setFocusTarget(null)}
+        />
+      )}
+
       {showLevelUpModal && (
         <div className="fixed inset-0 z-[200] bg-[#080708]/90 backdrop-blur-2xl flex items-center justify-center p-6 animate-in zoom-in-50 duration-500">
            <div className="glass w-full max-w-sm p-10 rounded-[3.5rem] shadow-[0_0_50px_rgba(55,114,255,0.3)] border border-[#3772FF]/30 relative overflow-hidden group text-center space-y-6">
