@@ -412,7 +412,7 @@ const App: React.FC = () => {
     const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
     const stats = getPerfForRange(startOfMonth, endOfMonth);
     doc.setFontSize(22);
-    doc.setTextColor(55, 114, 255); // #3772FF
+    doc.setTextColor(47, 176, 166); // #2FB0A6
     doc.text("Caddr.", 14, 20);
     doc.setFontSize(14);
     doc.setTextColor(200, 200, 200);
@@ -433,7 +433,7 @@ const App: React.FC = () => {
         head: [['Métrique', 'Valeur']],
         body: statsData,
         theme: 'grid',
-        headStyles: { fillColor: [55, 114, 255] },
+        headStyles: { fillColor: [47, 176, 166] },
         styles: { font: "helvetica" }
     });
     const finalYAfterStats = (doc as any).lastAutoTable.finalY || 50;
@@ -536,7 +536,7 @@ const App: React.FC = () => {
 
   const getMoodIcon = (mood?: string) => {
     switch (mood) {
-      case 'great': return <Laugh className="text-[#3772FF]" size={20} />; 
+      case 'great': return <Laugh className="text-[#2FB0A6]" size={20} />; 
       case 'good': return <Smile className="text-[#18181B] dark:text-[#E6E8E6]" size={20} />; 
       case 'neutral': return <Meh className="text-[#FDCA40]" size={20} />; 
       case 'bad': return <Frown className="text-[#DF2935]" size={20} />; 
@@ -1611,7 +1611,7 @@ const App: React.FC = () => {
     }
   };
 
-  if (isLoading) return <div className="min-h-screen bg-[#F4F4F5] dark:bg-[#080708] flex items-center justify-center"><Loader2 className="animate-spin text-[#3772FF]" size={40} /></div>;
+  if (isLoading) return <div className="min-h-screen bg-[#F4F4F5] dark:bg-[#080708] flex items-center justify-center"><Loader2 className="animate-spin text-[#2FB0A6]" size={40} /></div>;
 
   return (
     <div className="min-h-screen bg-[#F4F4F5] dark:bg-[#080708] pb-32 text-[#18181B] dark:text-[#E6E8E6] font-['Plus_Jakarta_Sans'] transition-colors duration-300">
@@ -1619,7 +1619,7 @@ const App: React.FC = () => {
       {/* Active Notification Toast */}
       {activeNotification && (
         <div className="fixed top-24 left-1/2 -translate-x-1/2 z-[200] w-[90%] max-w-sm animate-in slide-in-from-top-4 duration-500">
-          <div className="bg-[#3772FF] p-5 rounded-3xl shadow-2xl flex items-center gap-4 border border-[#18181B]/10 dark:border-[#E6E8E6]/20">
+          <div className="bg-[#2FB0A6] p-5 rounded-3xl shadow-2xl flex items-center gap-4 border border-[#18181B]/10 dark:border-[#E6E8E6]/20">
             <div className="bg-white/20 p-3 rounded-2xl animate-bounce"><BellRing className="text-white" size={24} /></div>
             <div className="flex-1">
               <p className="text-[10px] font-black text-white/70 uppercase tracking-widest">Rappel Caddr.</p>
@@ -1636,7 +1636,7 @@ const App: React.FC = () => {
             <div className="flex items-center gap-2">
             <button onClick={() => { const d = new Date(currentDate); d.setDate(d.getDate()-1); setCurrentDate(d); }} className="p-2 text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-[#18181B] dark:hover:text-[#E6E8E6] transition-colors"><ChevronLeft size={20}/></button>
             <div className="text-center min-w-[80px]">
-                <span className="block text-[8px] font-black text-[#3772FF] uppercase tracking-widest">{currentDate.toLocaleDateString('fr-FR', { weekday: 'short' })}</span>
+                <span className="block text-[8px] font-black text-[#2FB0A6] uppercase tracking-widest">{currentDate.toLocaleDateString('fr-FR', { weekday: 'short' })}</span>
                 <span className="text-xs font-bold">{currentDate.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}</span>
             </div>
             <button onClick={() => { const d = new Date(currentDate); d.setDate(d.getDate()+1); setCurrentDate(d); }} className="p-2 text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-[#18181B] dark:hover:text-[#E6E8E6] transition-colors"><ChevronRight size={20}/></button>
@@ -1644,24 +1644,24 @@ const App: React.FC = () => {
             <div className="flex items-center gap-2">
             {/* Backup Actions */}
             <div className="flex items-center gap-1 border-r border-[#18181B]/10 dark:border-[#E6E8E6]/10 pr-2 mr-1">
-                <button onClick={handleUndo} disabled={history.length === 0} title="Annuler (Undo)" className={`p-2 rounded-xl transition-all ${history.length === 0 ? 'text-[#18181B]/20 dark:text-[#E6E8E6]/20 cursor-not-allowed bg-[#18181B]/5 dark:bg-[#E6E8E6]/5' : 'bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-white hover:bg-[#3772FF]'}`}>
+                <button onClick={handleUndo} disabled={history.length === 0} title="Annuler (Undo)" className={`p-2 rounded-xl transition-all ${history.length === 0 ? 'text-[#18181B]/20 dark:text-[#E6E8E6]/20 cursor-not-allowed bg-[#18181B]/5 dark:bg-[#E6E8E6]/5' : 'bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-white hover:bg-[#2FB0A6]'}`}>
                     <RotateCcw size={16} />
                 </button>
-                <button onClick={handleManualSave} title="Enregistrer tout (Persistance)" className="p-2 rounded-xl bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-white hover:bg-[#3772FF] transition-all">
+                <button onClick={handleManualSave} title="Enregistrer tout (Persistance)" className="p-2 rounded-xl bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-white hover:bg-[#2FB0A6] transition-all">
                 <Save size={16} />
                 </button>
-                <button onClick={handleExportData} title="Sauvegarder JSON" className="p-2 rounded-xl bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-white hover:bg-[#3772FF] transition-all">
+                <button onClick={handleExportData} title="Sauvegarder JSON" className="p-2 rounded-xl bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-white hover:bg-[#2FB0A6] transition-all">
                 <Download size={16} />
                 </button>
                 <input type="file" ref={backupInputRef} onChange={handleImportData} className="hidden" accept=".json" />
-                <button onClick={() => backupInputRef.current?.click()} title="Restaurer JSON" className="p-2 rounded-xl bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-white hover:bg-[#3772FF] transition-all">
+                <button onClick={() => backupInputRef.current?.click()} title="Restaurer JSON" className="p-2 rounded-xl bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-white hover:bg-[#2FB0A6] transition-all">
                 <Upload size={16} />
                 </button>
             </div>
             
             {/* Firebase Sync Status */}
             {user ? (
-              <div className="flex items-center gap-2 px-2 py-1 glass rounded-lg border-l-2 border-[#3772FF]">
+              <div className="flex items-center gap-2 px-2 py-1 glass rounded-lg border-l-2 border-[#2FB0A6]">
                 <Cloud className={`w-3.5 h-3.5 ${syncError ? 'text-red-500' : 'text-green-500'}`} />
                 <div className="flex flex-col">
                   <span className="text-[9px] font-bold truncate max-w-[100px]">
@@ -1692,7 +1692,7 @@ const App: React.FC = () => {
                 title="Se connecter pour synchroniser"
               >
                 {isSigningIn ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin text-[#3772FF]" />
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-[#2FB0A6]" />
                 ) : (
                   <CloudOff className="w-3.5 h-3.5 text-[#18181B]/60 dark:text-[#E6E8E6]/60" />
                 )}
@@ -1702,13 +1702,13 @@ const App: React.FC = () => {
               </button>
             )}
             
-            <button onClick={toggleTheme} className="p-2 rounded-xl text-[#18181B]/60 dark:text-[#E6E8E6]/60 bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 transition-all hover:text-[#3772FF]">
+            <button onClick={toggleTheme} className="p-2 rounded-xl text-[#18181B]/60 dark:text-[#E6E8E6]/60 bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 transition-all hover:text-[#2FB0A6]">
                 {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
             </button>
 
-            <button onClick={requestNotificationPermission} className={`p-2 rounded-xl transition-all ${notificationsEnabled ? 'text-[#3772FF] bg-[#3772FF]/10' : 'text-[#18181B]/60 dark:text-[#E6E8E6]/60 bg-[#18181B]/5 dark:bg-[#E6E8E6]/5'}`}>{notificationsEnabled ? <Bell size={16} /> : <BellOff size={16} />}</button>
-            {activeTab === 'routine' && <button onClick={() => setIsReorderMode(!isReorderMode)} className={`p-2 rounded-xl transition-all ${isReorderMode ? 'bg-[#3772FF] text-white' : 'bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 text-[#18181B]/60 dark:text-[#E6E8E6]/60'}`}><MoveVertical size={16} /></button>}
-            <div className="bg-[#3772FF]/10 px-3 py-1 rounded-full text-[10px] font-black text-[#3772FF] border border-[#3772FF]/20">{perfToday}%</div>
+            <button onClick={requestNotificationPermission} className={`p-2 rounded-xl transition-all ${notificationsEnabled ? 'text-[#2FB0A6] bg-[#2FB0A6]/10' : 'text-[#18181B]/60 dark:text-[#E6E8E6]/60 bg-[#18181B]/5 dark:bg-[#E6E8E6]/5'}`}>{notificationsEnabled ? <Bell size={16} /> : <BellOff size={16} />}</button>
+            {activeTab === 'routine' && <button onClick={() => setIsReorderMode(!isReorderMode)} className={`p-2 rounded-xl transition-all ${isReorderMode ? 'bg-[#2FB0A6] text-white' : 'bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 text-[#18181B]/60 dark:text-[#E6E8E6]/60'}`}><MoveVertical size={16} /></button>}
+            <div className="bg-[#2FB0A6]/10 px-3 py-1 rounded-full text-[10px] font-black text-[#2FB0A6] border border-[#2FB0A6]/20">{perfToday}%</div>
             </div>
         </div>
 
@@ -1744,12 +1744,12 @@ const App: React.FC = () => {
                </div>
             )}
 
-            <div className={`glass p-6 rounded-3xl flex items-center gap-4 border-l-4 transition-all ${currentDayData.goalCompleted ? 'border-l-[#3772FF] bg-[#3772FF]/5' : 'border-l-[#3772FF]'}`}>
-              <button onClick={toggleDailyGoal} className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all ${currentDayData.goalCompleted ? 'bg-[#3772FF] shadow-lg shadow-[#3772FF]/20 text-white' : 'bg-[#3772FF]/10 text-[#3772FF]'}`}>{currentDayData.goalCompleted ? <Check size={24} /> : <Target size={24} />}</button>
+            <div className={`glass p-6 rounded-3xl flex items-center gap-4 border-l-4 transition-all ${currentDayData.goalCompleted ? 'border-l-[#2FB0A6] bg-[#2FB0A6]/5' : 'border-l-[#2FB0A6]'}`}>
+              <button onClick={toggleDailyGoal} className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all ${currentDayData.goalCompleted ? 'bg-[#2FB0A6] shadow-lg shadow-[#2FB0A6]/20 text-white' : 'bg-[#2FB0A6]/10 text-[#2FB0A6]'}`}>{currentDayData.goalCompleted ? <Check size={24} /> : <Target size={24} />}</button>
               <div className="flex-1">
                 <div className="text-[8px] font-black text-[#18181B]/60 dark:text-[#E6E8E6]/60 uppercase tracking-widest mb-1 flex items-center justify-between">
-                    <span className="flex items-center gap-1">Objectif Prioritaire {currentGoal && <Repeat size={8} className="text-[#3772FF]" />} {currentGoalReminder && <Clock size={8} className="text-[#3772FF] ml-1" />} <span className="text-[#3772FF] normal-case ml-1 font-black">{currentGoalReminder}</span></span>
-                    <button onClick={() => { const id = generateId(); updateAppData(prev => { const existingGoal = (prev.recurringGoals || []).find(g => isDateInRange(currentDate, g.recurrence, g.specificDate, g.startDate, g.endDate)); if (existingGoal) { setConfigModal({ type: 'goal', id: existingGoal.id }); return prev; } setConfigModal({ type: 'goal', id }); return { ...prev, recurringGoals: [...(prev.recurringGoals || []), { id, title: currentGoal || "Nouvel Objectif", recurrence: 'specific', specificDate: dateKey }] }; }); }} className="text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-[#3772FF] transition-colors"><Clock size={12} /></button>
+                    <span className="flex items-center gap-1">Objectif Prioritaire {currentGoal && <Repeat size={8} className="text-[#2FB0A6]" />} {currentGoalReminder && <Clock size={8} className="text-[#2FB0A6] ml-1" />} <span className="text-[#2FB0A6] normal-case ml-1 font-black">{currentGoalReminder}</span></span>
+                    <button onClick={() => { const id = generateId(); updateAppData(prev => { const existingGoal = (prev.recurringGoals || []).find(g => isDateInRange(currentDate, g.recurrence, g.specificDate, g.startDate, g.endDate)); if (existingGoal) { setConfigModal({ type: 'goal', id: existingGoal.id }); return prev; } setConfigModal({ type: 'goal', id }); return { ...prev, recurringGoals: [...(prev.recurringGoals || []), { id, title: currentGoal || "Nouvel Objectif", recurrence: 'specific', specificDate: dateKey }] }; }); }} className="text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-[#2FB0A6] transition-colors"><Clock size={12} /></button>
                 </div>
                 <input className="bg-transparent w-full text-lg font-bold outline-none placeholder-[#18181B]/30 dark:placeholder-[#E6E8E6]/30 text-[#18181B] dark:text-[#E6E8E6]" placeholder="Focus du jour..." value={currentGoal} onChange={e => updateAppData(prev => ({ ...prev, days: { ...prev.days, [dateKey]: { ...currentDayData, dailyGoalOverride: e.target.value } } }))} />
               </div>
@@ -1757,10 +1757,10 @@ const App: React.FC = () => {
 
             {/* Daily Summary Card if review exists */}
             {currentDayData.reflection && (
-               <div className="glass p-6 rounded-[2.5rem] border border-[#3772FF]/10 bg-[#3772FF]/[0.02] space-y-4 animate-in zoom-in-95">
+               <div className="glass p-6 rounded-[2.5rem] border border-[#2FB0A6]/10 bg-[#2FB0A6]/[0.02] space-y-4 animate-in zoom-in-95">
                   <div className="flex items-center justify-between">
                      <div className="flex items-center gap-2">
-                        <Quote size={14} className="text-[#3772FF] fill-[#3772FF]" />
+                        <Quote size={14} className="text-[#2FB0A6] fill-[#2FB0A6]" />
                         <h3 className="text-[10px] font-black text-[#18181B]/60 dark:text-[#E6E8E6]/60 uppercase tracking-widest">Bilan de performance</h3>
                      </div>
                      {getMoodIcon(currentDayData.mood)}
@@ -1795,10 +1795,10 @@ const App: React.FC = () => {
                         <p className="text-xs font-medium text-[#18181B]/50 dark:text-[#E6E8E6]/50">Commencez par créer votre système ou chargez un modèle.</p>
                     </div>
                     <div className="flex gap-3">
-                        <button onClick={() => setActiveTab('schedule')} className="px-6 py-3 bg-[#3772FF] rounded-xl text-[#ffffff] text-[10px] font-black uppercase tracking-widest hover:bg-[#3772FF]/80 transition-all shadow-lg shadow-[#3772FF]/20">
+                        <button onClick={() => setActiveTab('schedule')} className="px-6 py-3 bg-[#2FB0A6] rounded-xl text-[#ffffff] text-[10px] font-black uppercase tracking-widest hover:bg-[#2FB0A6]/80 transition-all shadow-lg shadow-[#2FB0A6]/20">
                             Créer une routine
                         </button>
-                        <button onClick={() => setActiveTab('templates')} className="px-6 py-3 bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 rounded-xl text-[#18181B]/60 dark:text-[#E6E8E6]/60 text-[10px] font-black uppercase tracking-widest hover:bg-[#3772FF] hover:text-white transition-all">
+                        <button onClick={() => setActiveTab('templates')} className="px-6 py-3 bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 rounded-xl text-[#18181B]/60 dark:text-[#E6E8E6]/60 text-[10px] font-black uppercase tracking-widest hover:bg-[#2FB0A6] hover:text-white transition-all">
                             Voir les modèles
                         </button>
                     </div>
@@ -1818,27 +1818,27 @@ const App: React.FC = () => {
                             <div className="flex items-center justify-between">
                               <div className="flex flex-col flex-1">
                                 <button onClick={() => toggleBlockCollapse(block.id)} className="text-left flex items-center gap-2 group/title focus:outline-none">
-                                   <span className="p-1 rounded-lg bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 text-[#18181B]/60 dark:text-[#E6E8E6]/60 group-hover/title:bg-[#3772FF] group-hover/title:text-white transition-all">
+                                   <span className="p-1 rounded-lg bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 text-[#18181B]/60 dark:text-[#E6E8E6]/60 group-hover/title:bg-[#2FB0A6] group-hover/title:text-white transition-all">
                                       {block.isCollapsed ? <ChevronRight size={12} /> : <ChevronDown size={12} />}
                                    </span>
-                                   <span className="text-[10px] font-black text-[#18181B]/60 dark:text-[#E6E8E6]/60 uppercase tracking-widest flex items-center gap-2"><span className="w-1.5 h-1.5 bg-[#3772FF] rounded-full" /> {block.title}</span>
+                                   <span className="text-[10px] font-black text-[#18181B]/60 dark:text-[#E6E8E6]/60 uppercase tracking-widest flex items-center gap-2"><span className="w-1.5 h-1.5 bg-[#2FB0A6] rounded-full" /> {block.title}</span>
                                 </button>
                                 {block.description && !block.isCollapsed && <p className="text-[8px] text-[#18181B]/50 dark:text-[#E6E8E6]/50 font-medium ml-8 mt-0.5 whitespace-pre-wrap break-words animate-in slide-in-from-top-1 pr-4">{block.description}</p>}
                               </div>
                               <div className="flex items-center gap-3">
-                                <span className="text-[9px] font-black text-[#3772FF]/80 uppercase tracking-wider">{blockPercentage}%</span>
+                                <span className="text-[9px] font-black text-[#2FB0A6]/80 uppercase tracking-wider">{blockPercentage}%</span>
                                 {!block.isCollapsed && (
                                   <div className="flex gap-1 animate-in zoom-in-50">
-                                    <button onClick={() => setConfigModal({ type: 'block', id: block.id })} className="p-1 text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-[#3772FF] transition-colors" title="Configurer le bloc"><Settings2 size={14} /></button>
+                                    <button onClick={() => setConfigModal({ type: 'block', id: block.id })} className="p-1 text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-[#2FB0A6] transition-colors" title="Configurer le bloc"><Settings2 size={14} /></button>
                                     <button onClick={() => { saveToHistory(); handleRoutineStructureChange(blocks => blocks.filter(b => b.id !== block.id)); }} className="p-1 text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-[#DF2935] transition-colors" title="Supprimer le bloc (ce jour uniquement)"><Trash2 size={14} /></button>
-                                    <button onClick={() => addTaskToBlock(block.id)} className="p-1 text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-[#3772FF] transition-colors"><Plus size={14} /></button>
-                                    <button onClick={() => handleDuplicate('block', block.id)} className="p-1 text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-[#3772FF] transition-colors"><Copy size={14} /></button>
-                                    {isReorderMode && <div className="flex gap-1"><button onClick={() => moveBlockSmart(block.id, 'up')} className="p-1 text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-[#3772FF] disabled:opacity-0" disabled={bIdx === 0}><ChevronUp size={14} /></button><button onClick={() => moveBlockSmart(block.id, 'down')} className="p-1 text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-[#3772FF] disabled:opacity-0" disabled={bIdx === routineBlocks.length - 1}><ChevronDown size={14} /></button></div>}
+                                    <button onClick={() => addTaskToBlock(block.id)} className="p-1 text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-[#2FB0A6] transition-colors"><Plus size={14} /></button>
+                                    <button onClick={() => handleDuplicate('block', block.id)} className="p-1 text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-[#2FB0A6] transition-colors"><Copy size={14} /></button>
+                                    {isReorderMode && <div className="flex gap-1"><button onClick={() => moveBlockSmart(block.id, 'up')} className="p-1 text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-[#2FB0A6] disabled:opacity-0" disabled={bIdx === 0}><ChevronUp size={14} /></button><button onClick={() => moveBlockSmart(block.id, 'down')} className="p-1 text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-[#2FB0A6] disabled:opacity-0" disabled={bIdx === routineBlocks.length - 1}><ChevronDown size={14} /></button></div>}
                                   </div>
                                 )}
                               </div>
                             </div>
-                            <div className="w-full h-1 bg-[#18181B]/10 dark:bg-[#E6E8E6]/10 rounded-full overflow-hidden"><div className="h-full bg-[#3772FF] transition-all duration-500 ease-out shadow-[0_0_8px_rgba(55,114,255,0.5)]" style={{ width: `${blockPercentage}%` }} /></div>
+                            <div className="w-full h-1 bg-[#18181B]/10 dark:bg-[#E6E8E6]/10 rounded-full overflow-hidden"><div className="h-full bg-[#2FB0A6] transition-all duration-500 ease-out shadow-[0_0_8px_rgba(47, 176, 166,0.5)]" style={{ width: `${blockPercentage}%` }} /></div>
                           </div>
                           {!block.isCollapsed && (
                             <div className="glass rounded-[2rem] overflow-hidden divide-y divide-[#18181B]/5 dark:divide-[#E6E8E6]/5 animate-in slide-in-from-top-2 duration-300">
@@ -1848,9 +1848,9 @@ const App: React.FC = () => {
                                 const hasLogToday = !!task.executionNotes?.[dateKey];
                                 
                                 return (
-                                  <div key={task.id} className={active ? 'bg-[#3772FF]/5' : ''}>
+                                  <div key={task.id} className={active ? 'bg-[#2FB0A6]/5' : ''}>
                                     <div className={`flex items-center p-5 gap-4 group transition-colors ${isReorderMode ? 'bg-[#18181B]/[0.01] dark:bg-[#E6E8E6]/[0.01]' : 'cursor-pointer hover:bg-[#18181B]/[0.02] dark:hover:bg-[#E6E8E6]/[0.02]'}`} onClick={() => toggleTask(block.id, task.id)}>
-                                      <div className={`w-6 h-6 rounded-xl border-2 flex items-center justify-center transition-all ${task.completedDates?.includes(dateKey) ? 'bg-[#3772FF] border-[#3772FF]' : 'border-[#18181B]/20 dark:border-[#E6E8E6]/20'}`}>{task.completedDates?.includes(dateKey) && <Check size={14} className="text-white" strokeWidth={3} />}</div>
+                                      <div className={`w-6 h-6 rounded-xl border-2 flex items-center justify-center transition-all ${task.completedDates?.includes(dateKey) ? 'bg-[#2FB0A6] border-[#2FB0A6]' : 'border-[#18181B]/20 dark:border-[#E6E8E6]/20'}`}>{task.completedDates?.includes(dateKey) && <Check size={14} className="text-white" strokeWidth={3} />}</div>
                                       <div className="flex-1 min-w-0">
                                           <div className="flex items-center gap-2 mb-0.5">
                                             <input 
@@ -1862,7 +1862,7 @@ const App: React.FC = () => {
                                                   handleRoutineStructureChange(blocks => blocks.map(b => b.id === block.id ? { ...b, tasks: b.tasks.map(t => t.id === task.id ? { ...t, title: v } : t) } : b));
                                               }}
                                             />
-                                            {hasLogToday && <BookOpen size={10} className="text-[#3772FF] shrink-0" />}
+                                            {hasLogToday && <BookOpen size={10} className="text-[#2FB0A6] shrink-0" />}
                                             {!task.completedDates?.includes(dateKey) && task.priority && task.priority !== 'medium' && (
                                               <span className={`text-[7px] font-black uppercase px-1.5 py-0.5 rounded-md ${priorityInfo.bg} ${priorityInfo.color} tracking-widest shrink-0`}>
                                                 {priorityInfo.label}
@@ -1874,25 +1874,25 @@ const App: React.FC = () => {
                                               {task.description}
                                             </p>
                                           )}
-                                          {task.startTime && <span className={`text-[9px] font-black flex items-center gap-1 mt-0.5 ${active ? 'text-[#3772FF]' : 'text-[#18181B]/60 dark:text-[#E6E8E6]/60'} uppercase tracking-widest`}><Clock size={10} /> {formatTaskTime(task.startTime, task.duration)}{active && <span className="ml-2 flex h-1.5 w-1.5 rounded-full bg-[#3772FF] animate-pulse"></span>}</span>}
+                                          {task.startTime && <span className={`text-[9px] font-black flex items-center gap-1 mt-0.5 ${active ? 'text-[#2FB0A6]' : 'text-[#18181B]/60 dark:text-[#E6E8E6]/60'} uppercase tracking-widest`}><Clock size={10} /> {formatTaskTime(task.startTime, task.duration)}{active && <span className="ml-2 flex h-1.5 w-1.5 rounded-full bg-[#2FB0A6] animate-pulse"></span>}</span>}
                                       </div>
                                       <div className="flex items-center gap-2">
                                         <button 
                                           onClick={(e) => { e.stopPropagation(); openLogModal(task, block.id); }}
-                                          className={`opacity-0 group-hover:opacity-100 p-2 transition-all ${hasLogToday ? 'text-[#3772FF]' : 'text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-[#3772FF]'}`}
+                                          className={`opacity-0 group-hover:opacity-100 p-2 transition-all ${hasLogToday ? 'text-[#2FB0A6]' : 'text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-[#2FB0A6]'}`}
                                           title="Journal de bord"
                                         >
                                           <BookOpen size={16} />
                                         </button>
                                         <button 
                                           onClick={(e) => { e.stopPropagation(); setConfigModal({ type: 'task', id: task.id, blockId: block.id }); }}
-                                          className="opacity-0 group-hover:opacity-100 p-2 text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-[#3772FF] transition-all"
+                                          className="opacity-0 group-hover:opacity-100 p-2 text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-[#2FB0A6] transition-all"
                                         >
                                           <Settings2 size={16} />
                                         </button>
                                         <button 
                                           onClick={(e) => { e.stopPropagation(); handleDuplicate('task', task.id, block.id); }}
-                                          className="opacity-0 group-hover:opacity-100 p-2 text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-[#3772FF] transition-all"
+                                          className="opacity-0 group-hover:opacity-100 p-2 text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-[#2FB0A6] transition-all"
                                           title="Dupliquer"
                                         >
                                           <Copy size={16} />
@@ -1908,7 +1908,7 @@ const App: React.FC = () => {
                                         >
                                           <Trash2 size={16} />
                                         </button>
-                                        {isReorderMode && <div className="flex gap-1 flex-col"><button onClick={(e) => { e.stopPropagation(); moveTaskSmart(block.id, task.id, 'up'); }} className="text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-[#3772FF] disabled:opacity-0" disabled={tIdx === 0}><ChevronUp size={12}/></button><button onClick={(e) => { e.stopPropagation(); moveTaskSmart(block.id, task.id, 'down'); }} className="text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-[#3772FF] disabled:opacity-0" disabled={tIdx === visibleTasks.length - 1}><ChevronDown size={12}/></button></div>}
+                                        {isReorderMode && <div className="flex gap-1 flex-col"><button onClick={(e) => { e.stopPropagation(); moveTaskSmart(block.id, task.id, 'up'); }} className="text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-[#2FB0A6] disabled:opacity-0" disabled={tIdx === 0}><ChevronUp size={12}/></button><button onClick={(e) => { e.stopPropagation(); moveTaskSmart(block.id, task.id, 'down'); }} className="text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-[#2FB0A6] disabled:opacity-0" disabled={tIdx === visibleTasks.length - 1}><ChevronDown size={12}/></button></div>}
                                       </div>
                                     </div>
                                     {visibleSubTasks.length > 0 && <div className="pl-14 pr-5 pb-5 space-y-3">{visibleSubTasks.map(st => {
@@ -1917,7 +1917,7 @@ const App: React.FC = () => {
                                       return (
                                         <div key={st.id} className="flex flex-col gap-1 group/sub cursor-pointer" onClick={(e) => { e.stopPropagation(); toggleTask(block.id, st.id, task.id); }}>
                                           <div className="flex items-center gap-3">
-                                            <div className={`w-4 h-4 rounded-lg border flex items-center justify-center transition-all ${st.completedDates?.includes(dateKey) ? 'bg-[#3772FF]/80 border-[#3772FF]' : 'border-[#18181B]/20 dark:border-[#E6E8E6]/20'}`}>{st.completedDates?.includes(dateKey) && <Check size={10} className="text-white" strokeWidth={3} />}</div>
+                                            <div className={`w-4 h-4 rounded-lg border flex items-center justify-center transition-all ${st.completedDates?.includes(dateKey) ? 'bg-[#2FB0A6]/80 border-[#2FB0A6]' : 'border-[#18181B]/20 dark:border-[#E6E8E6]/20'}`}>{st.completedDates?.includes(dateKey) && <Check size={10} className="text-white" strokeWidth={3} />}</div>
                                             <input 
                                               className={`bg-transparent text-xs font-medium flex-1 transition-all truncate outline-none ${st.completedDates?.includes(dateKey) ? 'line-through text-[#18181B]/40 dark:text-[#E6E8E6]/40' : 'text-[#18181B]/80 dark:text-[#E6E8E6]/80'}`}
                                               value={st.title}
@@ -1930,23 +1930,23 @@ const App: React.FC = () => {
                                                       } : b));
                                               }}
                                             />
-                                            {stHasLog && <BookOpen size={8} className="text-[#3772FF] shrink-0" />}
+                                            {stHasLog && <BookOpen size={8} className="text-[#2FB0A6] shrink-0" />}
                                             <div className="flex items-center gap-2">
                                               <button 
                                                   onClick={(e) => { e.stopPropagation(); openLogModal(st, block.id, task.id); }}
-                                                  className={`opacity-0 group-hover/sub:opacity-100 p-1.5 transition-all ${stHasLog ? 'text-[#3772FF]' : 'text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-[#3772FF]'}`}
+                                                  className={`opacity-0 group-hover/sub:opacity-100 p-1.5 transition-all ${stHasLog ? 'text-[#2FB0A6]' : 'text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-[#2FB0A6]'}`}
                                               >
                                                   <BookOpen size={14} />
                                               </button>
                                               <button 
                                                   onClick={(e) => { e.stopPropagation(); setConfigModal({ type: 'task', id: st.id, blockId: block.id, parentTaskId: task.id }); }}
-                                                  className="opacity-0 group-hover/sub:opacity-100 p-1.5 text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-[#3772FF] transition-all"
+                                                  className="opacity-0 group-hover/sub:opacity-100 p-1.5 text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-[#2FB0A6] transition-all"
                                               >
                                                   <Settings2 size={14} />
                                               </button>
                                               <button 
                                                   onClick={(e) => { e.stopPropagation(); handleDuplicate('subtask', st.id, task.id, block.id); }}
-                                                  className="opacity-0 group-hover/sub:opacity-100 p-1.5 text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-[#3772FF] transition-all"
+                                                  className="opacity-0 group-hover/sub:opacity-100 p-1.5 text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-[#2FB0A6] transition-all"
                                                   title="Dupliquer"
                                               >
                                                   <Copy size={14} />
@@ -1988,7 +1988,7 @@ const App: React.FC = () => {
                     <div className="pt-2 pb-2 animate-in slide-in-from-bottom-2">
                         <button 
                             onClick={addLocalBlock}
-                            className="w-full py-4 border-2 border-dashed border-[#3772FF]/20 rounded-[2rem] text-[10px] font-black text-[#3772FF] uppercase hover:bg-[#3772FF]/10 transition-all flex items-center justify-center gap-2"
+                            className="w-full py-4 border-2 border-dashed border-[#2FB0A6]/20 rounded-[2rem] text-[10px] font-black text-[#2FB0A6] uppercase hover:bg-[#2FB0A6]/10 transition-all flex items-center justify-center gap-2"
                         >
                             <Plus size={14} /> Ajouter un bloc exceptionnel pour aujourd'hui
                         </button>
@@ -1998,10 +1998,10 @@ const App: React.FC = () => {
                       <div className="pt-4 animate-in slide-in-from-bottom-4">
                         <button 
                           onClick={() => setShowReviewModal(true)}
-                          className="w-full glass p-8 rounded-[2.5rem] border-2 border-dashed border-[#3772FF]/20 hover:border-[#3772FF]/50 transition-all group flex flex-col items-center gap-4"
+                          className="w-full glass p-8 rounded-[2.5rem] border-2 border-dashed border-[#2FB0A6]/20 hover:border-[#2FB0A6]/50 transition-all group flex flex-col items-center gap-4"
                         >
-                           <div className="w-14 h-14 bg-[#3772FF]/10 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform">
-                              <ClipboardCheck className="text-[#3772FF]" size={28} />
+                           <div className="w-14 h-14 bg-[#2FB0A6]/10 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                              <ClipboardCheck className="text-[#2FB0A6]" size={28} />
                            </div>
                            <div className="text-center">
                               <p className="text-sm font-black uppercase tracking-widest text-[#18181B] dark:text-[#E6E8E6]">{currentDayData.reflection ? "Mettre à jour le bilan" : "Terminer la journée"}</p>
@@ -2041,28 +2041,28 @@ const App: React.FC = () => {
                 </div>
               </div>
             ) : (
-              <div className="glass p-6 rounded-[2rem] flex items-center justify-between border border-[#3772FF]/20 bg-[#3772FF]/5">
+              <div className="glass p-6 rounded-[2rem] flex items-center justify-between border border-[#2FB0A6]/20 bg-[#2FB0A6]/5">
                 <div><h2 className="font-black uppercase tracking-wider text-sm text-[#18181B] dark:text-[#E6E8E6]">PLANNING CADDR.</h2><p className="text-[9px] text-[#18181B]/60 dark:text-[#E6E8E6]/60 font-bold uppercase">Structure & Objectifs</p></div>
                 <div className="flex gap-2">
-                  <button onClick={() => setTemplateModal(true)} title="Enregistrer comme modèle" className="p-3 bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 rounded-2xl text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-white hover:bg-[#3772FF] transition-all"><Save size={20} /></button>
+                  <button onClick={() => setTemplateModal(true)} title="Enregistrer comme modèle" className="p-3 bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 rounded-2xl text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-white hover:bg-[#2FB0A6] transition-all"><Save size={20} /></button>
                   <button onClick={() => setShowAiGen(true)} title="Générer avec IA" className="p-3 bg-[#FDCA40] rounded-2xl text-[#080708] shadow-lg"><Wand2 size={20} /></button>
                   <input type="file" ref={fileInputRef} onChange={handleVisionImport} className="hidden" accept="image/*" />
-                  <button onClick={() => fileInputRef.current?.click()} title="Importer image" className="p-3 bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 rounded-2xl text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-white hover:bg-[#3772FF]"><Camera size={20} /></button>
+                  <button onClick={() => fileInputRef.current?.click()} title="Importer image" className="p-3 bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 rounded-2xl text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-white hover:bg-[#2FB0A6]"><Camera size={20} /></button>
                   <button onClick={() => setShowResetModal(true)} title="Arrêter / Changer de Routine" className="p-3 bg-[#DF2935]/10 border border-[#DF2935]/20 rounded-2xl text-[#DF2935] hover:bg-[#DF2935] hover:text-white transition-all"><Power size={20} /></button>
-                  <button onClick={() => updateAppData(prev => ({ ...prev, blocks: [...prev.blocks, { id: generateId(), title: "Nouveau Bloc", tasks: [], recurrence: 'daily', isCollapsed: true }] }))} className="p-3 bg-[#3772FF] rounded-2xl text-white shadow-lg"><Plus size={20} /></button>
+                  <button onClick={() => updateAppData(prev => ({ ...prev, blocks: [...prev.blocks, { id: generateId(), title: "Nouveau Bloc", tasks: [], recurrence: 'daily', isCollapsed: true }] }))} className="p-3 bg-[#2FB0A6] rounded-2xl text-white shadow-lg"><Plus size={20} /></button>
                 </div>
               </div>
             )}
             
             {/* Recurring Goals Section */}
             <div className="glass p-6 rounded-[2.5rem] space-y-4">
-               <div className="flex items-center justify-between px-2"><h3 className="text-[10px] font-black text-[#18181B]/60 dark:text-[#E6E8E6]/60 uppercase tracking-widest flex items-center gap-2"><Target size={12} className="text-[#3772FF]" /> Objectifs Programmés</h3><button onClick={() => updateAppData(prev => ({ ...prev, recurringGoals: [...(prev.recurringGoals || []), { id: generateId(), title: "Objectif Sport", recurrence: 'daily' }] }))} className="p-2 text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-[#3772FF]"><Plus size={16} /></button></div>
+               <div className="flex items-center justify-between px-2"><h3 className="text-[10px] font-black text-[#18181B]/60 dark:text-[#E6E8E6]/60 uppercase tracking-widest flex items-center gap-2"><Target size={12} className="text-[#2FB0A6]" /> Objectifs Programmés</h3><button onClick={() => updateAppData(prev => ({ ...prev, recurringGoals: [...(prev.recurringGoals || []), { id: generateId(), title: "Objectif Sport", recurrence: 'daily' }] }))} className="p-2 text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-[#2FB0A6]"><Plus size={16} /></button></div>
                <div className="space-y-2">
                   {(appData.recurringGoals || []).map(goal => (
                     <div key={goal.id} className="flex flex-col gap-2 bg-[#18181B]/[0.03] dark:bg-[#E6E8E6]/[0.03] p-4 rounded-3xl border border-[#18181B]/5 dark:border-[#E6E8E6]/5">
                       <div className="flex items-center gap-3">
-                        <div className="flex-1 flex flex-col"><input className="bg-transparent text-xs font-bold outline-none text-[#18181B] dark:text-[#E6E8E6]" value={goal.title} onChange={e => updateAppData(prev => ({ ...prev, recurringGoals: prev.recurringGoals.map(g => g.id === goal.id ? { ...g, title: e.target.value } : g) }))} /><div className="flex items-center gap-2 mt-1"><span className="text-[7px] font-black text-[#18181B]/60 dark:text-[#E6E8E6]/60 uppercase tracking-widest bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 px-1.5 py-0.5 rounded-full">{goal.recurrence}</span>{goal.reminderTime && (<span className="flex items-center gap-1 text-[7px] font-black text-[#3772FF] uppercase bg-[#3772FF]/10 px-1.5 py-0.5 rounded-full"><Clock size={8} /> {goal.reminderTime}</span>)}</div></div>
-                        <button onClick={() => setConfigModal({ type: 'goal', id: goal.id })} className="p-2 bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 rounded-xl text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-[#3772FF]"><Settings2 size={14} /></button>
+                        <div className="flex-1 flex flex-col"><input className="bg-transparent text-xs font-bold outline-none text-[#18181B] dark:text-[#E6E8E6]" value={goal.title} onChange={e => updateAppData(prev => ({ ...prev, recurringGoals: prev.recurringGoals.map(g => g.id === goal.id ? { ...g, title: e.target.value } : g) }))} /><div className="flex items-center gap-2 mt-1"><span className="text-[7px] font-black text-[#18181B]/60 dark:text-[#E6E8E6]/60 uppercase tracking-widest bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 px-1.5 py-0.5 rounded-full">{goal.recurrence}</span>{goal.reminderTime && (<span className="flex items-center gap-1 text-[7px] font-black text-[#2FB0A6] uppercase bg-[#2FB0A6]/10 px-1.5 py-0.5 rounded-full"><Clock size={8} /> {goal.reminderTime}</span>)}</div></div>
+                        <button onClick={() => setConfigModal({ type: 'goal', id: goal.id })} className="p-2 bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 rounded-xl text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-[#2FB0A6]"><Settings2 size={14} /></button>
                         <button onClick={() => { saveToHistory(); updateAppData(prev => ({ ...prev, recurringGoals: prev.recurringGoals.filter(g => g.id !== goal.id) })); }} className="text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-[#DF2935] p-2"><Trash2 size={14}/></button>
                       </div>
                     </div>
@@ -2072,33 +2072,33 @@ const App: React.FC = () => {
 
             <div className="space-y-6">
               {appData.blocks.map((block, bIdx) => (
-                <div key={block.id} className={`glass p-6 rounded-[2.5rem] space-y-4 group transition-all ${block.isLocked ? 'border-[#3772FF]/20 bg-[#3772FF]/[0.02]' : ''}`}>
+                <div key={block.id} className={`glass p-6 rounded-[2.5rem] space-y-4 group transition-all ${block.isLocked ? 'border-[#2FB0A6]/20 bg-[#2FB0A6]/[0.02]' : ''}`}>
                   <div className="flex flex-col gap-1">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3 flex-1">
                         <div className="flex flex-col gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                          <button onClick={() => { const n = [...appData.blocks]; if (bIdx > 0) [n[bIdx], n[bIdx-1]] = [n[bIdx-1], n[bIdx]]; updateAppData(prev => ({...prev, blocks: n})); }} className="text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-[#3772FF] disabled:opacity-0" disabled={bIdx === 0}><ChevronUp size={14}/></button>
-                          <button onClick={() => { const n = [...appData.blocks]; if (bIdx < n.length-1) [n[bIdx], n[bIdx+1]] = [n[bIdx+1], n[bIdx]]; updateAppData(prev => ({...prev, blocks: n})); }} className="text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-[#3772FF] disabled:opacity-0" disabled={bIdx === appData.blocks.length - 1}><ChevronDown size={14}/></button>
+                          <button onClick={() => { const n = [...appData.blocks]; if (bIdx > 0) [n[bIdx], n[bIdx-1]] = [n[bIdx-1], n[bIdx]]; updateAppData(prev => ({...prev, blocks: n})); }} className="text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-[#2FB0A6] disabled:opacity-0" disabled={bIdx === 0}><ChevronUp size={14}/></button>
+                          <button onClick={() => { const n = [...appData.blocks]; if (bIdx < n.length-1) [n[bIdx], n[bIdx+1]] = [n[bIdx+1], n[bIdx]]; updateAppData(prev => ({...prev, blocks: n})); }} className="text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-[#2FB0A6] disabled:opacity-0" disabled={bIdx === appData.blocks.length - 1}><ChevronDown size={14}/></button>
                         </div>
                         <div className="flex-1 flex flex-col">
                           <div className="flex items-center gap-2">
-                             <button onClick={() => toggleBlockCollapse(block.id)} className="p-1 rounded-lg bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:bg-[#3772FF] hover:text-white transition-all">
+                             <button onClick={() => toggleBlockCollapse(block.id)} className="p-1 rounded-lg bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:bg-[#2FB0A6] hover:text-white transition-all">
                                 {block.isCollapsed ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
                              </button>
-                             <input className="bg-transparent font-black text-sm outline-none border-b border-transparent focus:border-[#3772FF] w-full text-[#18181B] dark:text-[#E6E8E6]" value={block.title} readOnly={block.isLocked} onChange={e => updateAppData(prev => ({ ...prev, blocks: prev.blocks.map(b => b.id === block.id ? { ...b, title: e.target.value } : b) }))} />
-                             {block.isLocked && <Lock size={12} className="text-[#3772FF]/60 shrink-0" />}
+                             <input className="bg-transparent font-black text-sm outline-none border-b border-transparent focus:border-[#2FB0A6] w-full text-[#18181B] dark:text-[#E6E8E6]" value={block.title} readOnly={block.isLocked} onChange={e => updateAppData(prev => ({ ...prev, blocks: prev.blocks.map(b => b.id === block.id ? { ...b, title: e.target.value } : b) }))} />
+                             {block.isLocked && <Lock size={12} className="text-[#2FB0A6]/60 shrink-0" />}
                           </div>
                           {block.description && !block.isCollapsed && <p className="text-[10px] text-[#18181B]/60 dark:text-[#E6E8E6]/60 font-medium whitespace-pre-wrap break-words mt-1 ml-8">{block.description}</p>}
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        <button onClick={() => updateAppData(prev => ({...prev, blocks: prev.blocks.map(b => b.id === block.id ? {...b, isLocked: !b.isLocked} : b)}))} className={`p-2 rounded-xl transition-all ${block.isLocked ? 'text-[#3772FF] bg-[#3772FF]/10' : 'text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-[#E6E8E6] bg-[#18181B]/5 dark:bg-[#E6E8E6]/5'}`} title={block.isLocked ? "Déverrouiller" : "Verrouiller"}>
+                        <button onClick={() => updateAppData(prev => ({...prev, blocks: prev.blocks.map(b => b.id === block.id ? {...b, isLocked: !b.isLocked} : b)}))} className={`p-2 rounded-xl transition-all ${block.isLocked ? 'text-[#2FB0A6] bg-[#2FB0A6]/10' : 'text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-[#E6E8E6] bg-[#18181B]/5 dark:bg-[#E6E8E6]/5'}`} title={block.isLocked ? "Déverrouiller" : "Verrouiller"}>
                              {block.isLocked ? <Lock size={18} /> : <LockOpen size={18} />}
                         </button>
                         {!block.isLocked && (
                             <>
-                                <button onClick={() => setConfigModal({ type: 'block', id: block.id })} className="px-3 py-1.5 bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 rounded-xl text-[9px] font-black text-[#18181B]/60 dark:text-[#E6E8E6]/60 uppercase transition-colors hover:text-[#3772FF]">Config</button>
-                                <button onClick={() => handleDuplicate('block', block.id)} className="p-2 text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-[#3772FF] transition-colors"><Copy size={18} /></button>
+                                <button onClick={() => setConfigModal({ type: 'block', id: block.id })} className="px-3 py-1.5 bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 rounded-xl text-[9px] font-black text-[#18181B]/60 dark:text-[#E6E8E6]/60 uppercase transition-colors hover:text-[#2FB0A6]">Config</button>
+                                <button onClick={() => handleDuplicate('block', block.id)} className="p-2 text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-[#2FB0A6] transition-colors"><Copy size={18} /></button>
                                 <button onClick={() => { saveToHistory(); updateAppData(prev => ({ ...prev, blocks: prev.blocks.filter(b => b.id !== block.id) })); }} className="p-2 text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-[#DF2935] transition-colors"><Trash2 size={18}/></button>
                             </>
                         )}
@@ -2113,8 +2113,8 @@ const App: React.FC = () => {
                           <div className="flex items-center gap-4 bg-[#18181B]/[0.03] dark:bg-[#E6E8E6]/[0.03] p-4 rounded-2xl border border-[#18181B]/5 dark:border-[#E6E8E6]/5 group/task relative">
                             {!block.isLocked && (
                                 <div className="flex flex-col gap-1 items-center justify-center -ml-2 shrink-0">
-                                <button onClick={() => moveTaskInEngine(block.id, task.id, 'up')} className="text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-[#3772FF] disabled:opacity-0" disabled={tIdx === 0}><ChevronUp size={12} /></button>
-                                <button onClick={() => moveTaskInEngine(block.id, task.id, 'down')} className="text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-[#3772FF] disabled:opacity-0" disabled={tIdx === block.tasks.length - 1}><ChevronDown size={12} /></button>
+                                <button onClick={() => moveTaskInEngine(block.id, task.id, 'up')} className="text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-[#2FB0A6] disabled:opacity-0" disabled={tIdx === 0}><ChevronUp size={12} /></button>
+                                <button onClick={() => moveTaskInEngine(block.id, task.id, 'down')} className="text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-[#2FB0A6] disabled:opacity-0" disabled={tIdx === block.tasks.length - 1}><ChevronDown size={12} /></button>
                                 </div>
                             )}
                             <div className="flex-1 min-w-0">
@@ -2125,13 +2125,13 @@ const App: React.FC = () => {
                                   )}
                               </div>
                               {task.description && <p className="text-[9px] text-[#18181B]/60 dark:text-[#E6E8E6]/60 truncate mt-0.5">{task.description}</p>}
-                              {task.startTime && (<div className="flex items-center gap-2 mt-1"><span className="text-[7px] font-black text-[#3772FF] uppercase tracking-widest bg-[#3772FF]/10 px-1.5 py-0.5 rounded-full flex items-center gap-1"><Clock size={8} /> {task.startTime}{task.duration && <span className="text-[#3772FF]/60 ml-1">({task.duration}m)</span>}</span></div>)}
+                              {task.startTime && (<div className="flex items-center gap-2 mt-1"><span className="text-[7px] font-black text-[#2FB0A6] uppercase tracking-widest bg-[#2FB0A6]/10 px-1.5 py-0.5 rounded-full flex items-center gap-1"><Clock size={8} /> {task.startTime}{task.duration && <span className="text-[#2FB0A6]/60 ml-1">({task.duration}m)</span>}</span></div>)}
                             </div>
                             {!block.isLocked && (
                                 <div className="flex items-center gap-1">
-                                <button onClick={() => updateAppData(prev => ({ ...prev, blocks: prev.blocks.map(b => b.id === block.id ? { ...b, tasks: [...b.tasks, { id: generateId(), title: "Nouvelle tâche", completedDates: [], recurrence: 'daily', subTasks: [] }] } : b) }))} title="Ajouter sous-tâche" className="text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-[#3772FF] transition-colors p-1"><ListPlus size={16}/></button>
-                                <button onClick={() => setConfigModal({ type: 'task', id: task.id, blockId: block.id })} title="Paramètres" className="text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-[#3772FF] transition-colors p-1"><Settings2 size={16}/></button>
-                                <button onClick={() => handleDuplicate('task', task.id, block.id)} title="Dupliquer" className="text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-[#3772FF] transition-colors p-1"><Copy size={16}/></button>
+                                <button onClick={() => updateAppData(prev => ({ ...prev, blocks: prev.blocks.map(b => b.id === block.id ? { ...b, tasks: [...b.tasks, { id: generateId(), title: "Nouvelle tâche", completedDates: [], recurrence: 'daily', subTasks: [] }] } : b) }))} title="Ajouter sous-tâche" className="text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-[#2FB0A6] transition-colors p-1"><ListPlus size={16}/></button>
+                                <button onClick={() => setConfigModal({ type: 'task', id: task.id, blockId: block.id })} title="Paramètres" className="text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-[#2FB0A6] transition-colors p-1"><Settings2 size={16}/></button>
+                                <button onClick={() => handleDuplicate('task', task.id, block.id)} title="Dupliquer" className="text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-[#2FB0A6] transition-colors p-1"><Copy size={16}/></button>
                                 <button onClick={() => { saveToHistory(); updateAppData(prev => ({ ...prev, blocks: prev.blocks.map(b => b.id === block.id ? { ...b, tasks: b.tasks.filter(t => t.id !== task.id) } : b) })); }} title="Supprimer" className="text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-[#DF2935] transition-colors p-1"><X size={16}/></button>
                                 </div>
                             )}
@@ -2140,8 +2140,8 @@ const App: React.FC = () => {
                             <div key={st.id} className="ml-10 flex items-center gap-3 bg-[#18181B]/[0.01] dark:bg-[#E6E8E6]/[0.01] p-3 rounded-xl border border-[#18181B]/5 dark:border-[#E6E8E6]/5 group/subtask">
                               {!block.isLocked && (
                                 <div className="flex flex-col gap-0.5 shrink-0">
-                                    <button onClick={() => moveTaskInEngine(block.id, st.id, 'up', task.id)} className="text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-[#3772FF] disabled:opacity-0" disabled={stIdx === 0}><ChevronUp size={10} /></button>
-                                    <button onClick={() => moveTaskInEngine(block.id, st.id, 'down', task.id)} className="text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-[#3772FF] disabled:opacity-0" disabled={stIdx === (task.subTasks?.length || 0) - 1}><ChevronDown size={10} /></button>
+                                    <button onClick={() => moveTaskInEngine(block.id, st.id, 'up', task.id)} className="text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-[#2FB0A6] disabled:opacity-0" disabled={stIdx === 0}><ChevronUp size={10} /></button>
+                                    <button onClick={() => moveTaskInEngine(block.id, st.id, 'down', task.id)} className="text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-[#2FB0A6] disabled:opacity-0" disabled={stIdx === (task.subTasks?.length || 0) - 1}><ChevronDown size={10} /></button>
                                 </div>
                               )}
                               <div className="flex-1 flex flex-col min-w-0">
@@ -2150,8 +2150,8 @@ const App: React.FC = () => {
                               </div>
                               {!block.isLocked && (
                                 <>
-                                    <button onClick={() => setConfigModal({ type: 'task', id: st.id, blockId: block.id, parentTaskId: task.id })} className="text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-[#3772FF] p-1"><Settings2 size={12}/></button>
-                                    <button onClick={() => handleDuplicate('subtask', st.id, task.id, block.id)} className="text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-[#3772FF] p-1"><Copy size={12}/></button>
+                                    <button onClick={() => setConfigModal({ type: 'task', id: st.id, blockId: block.id, parentTaskId: task.id })} className="text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-[#2FB0A6] p-1"><Settings2 size={12}/></button>
+                                    <button onClick={() => handleDuplicate('subtask', st.id, task.id, block.id)} className="text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-[#2FB0A6] p-1"><Copy size={12}/></button>
                                     <button onClick={() => { saveToHistory(); updateAppData(prev => ({ ...prev, blocks: prev.blocks.map(b => b.id === block.id ? { ...b, tasks: b.tasks.map(t => t.id === task.id ? { ...t, subTasks: (t.subTasks || []).filter(s => s.id !== st.id) } : t) } : b) })); }} className="text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-[#DF2935] p-1"><X size={14}/></button>
                                 </>
                               )}
@@ -2160,7 +2160,7 @@ const App: React.FC = () => {
                         </div>
                       ))}
                       {!block.isLocked && (
-                        <button onClick={() => updateAppData(prev => ({ ...prev, blocks: prev.blocks.map(b => b.id === block.id ? { ...b, tasks: [...b.tasks, { id: generateId(), title: "Nouvelle tâche", completedDates: [], recurrence: 'daily', subTasks: [] }] } : b) }))} className="w-full py-3 border-2 border-dashed border-[#18181B]/5 dark:border-[#E6E8E6]/5 rounded-2xl text-[9px] font-black text-[#18181B]/60 dark:text-[#E6E8E6]/60 uppercase hover:text-[#3772FF] transition-all">+ Ajouter Tâche</button>
+                        <button onClick={() => updateAppData(prev => ({ ...prev, blocks: prev.blocks.map(b => b.id === block.id ? { ...b, tasks: [...b.tasks, { id: generateId(), title: "Nouvelle tâche", completedDates: [], recurrence: 'daily', subTasks: [] }] } : b) }))} className="w-full py-3 border-2 border-dashed border-[#18181B]/5 dark:border-[#E6E8E6]/5 rounded-2xl text-[9px] font-black text-[#18181B]/60 dark:text-[#E6E8E6]/60 uppercase hover:text-[#2FB0A6] transition-all">+ Ajouter Tâche</button>
                       )}
                     </div>
                   )}
@@ -2180,16 +2180,16 @@ const App: React.FC = () => {
         {activeTab === 'inbox' && (
           <div className="space-y-6 animate-in slide-in-from-left-4 duration-500 pb-20">
             {/* ... Existing Inbox Code ... */}
-            <div className="glass p-8 rounded-[2.5rem] space-y-4 border border-[#3772FF]/20 bg-[#3772FF]/5">
-              <div className="flex items-center gap-3"><div className="w-12 h-12 bg-[#3772FF]/10 rounded-2xl flex items-center justify-center"><Archive className="text-[#3772FF]" size={24} /></div><div><h2 className="font-black text-lg uppercase leading-tight text-[#18181B] dark:text-[#E6E8E6]">Boîte de tâches</h2><p className="text-[9px] text-[#18181B]/60 dark:text-[#E6E8E6]/60 uppercase font-black">Capturer vos idées en un clin d'œil</p></div></div>
-              <div className="flex gap-2 pt-2"><input className="flex-1 bg-white dark:bg-[#080708] p-4 rounded-2xl text-sm font-bold border border-[#18181B]/5 dark:border-[#E6E8E6]/5 outline-none focus:border-[#3772FF] transition-all text-[#18181B] dark:text-[#E6E8E6]" placeholder="Nouvelle idée de tâche..." value={newInboxTitle} onChange={e => setNewInboxTitle(e.target.value)} onKeyDown={e => e.key === 'Enter' && addInboxTask()} /><button onClick={addInboxTask} className="p-4 bg-[#3772FF] rounded-2xl text-white shadow-lg shadow-[#3772FF]/20 active:scale-95 transition-all"><Plus size={20} /></button></div>
+            <div className="glass p-8 rounded-[2.5rem] space-y-4 border border-[#2FB0A6]/20 bg-[#2FB0A6]/5">
+              <div className="flex items-center gap-3"><div className="w-12 h-12 bg-[#2FB0A6]/10 rounded-2xl flex items-center justify-center"><Archive className="text-[#2FB0A6]" size={24} /></div><div><h2 className="font-black text-lg uppercase leading-tight text-[#18181B] dark:text-[#E6E8E6]">Boîte de tâches</h2><p className="text-[9px] text-[#18181B]/60 dark:text-[#E6E8E6]/60 uppercase font-black">Capturer vos idées en un clin d'œil</p></div></div>
+              <div className="flex gap-2 pt-2"><input className="flex-1 bg-white dark:bg-[#080708] p-4 rounded-2xl text-sm font-bold border border-[#18181B]/5 dark:border-[#E6E8E6]/5 outline-none focus:border-[#2FB0A6] transition-all text-[#18181B] dark:text-[#E6E8E6]" placeholder="Nouvelle idée de tâche..." value={newInboxTitle} onChange={e => setNewInboxTitle(e.target.value)} onKeyDown={e => e.key === 'Enter' && addInboxTask()} /><button onClick={addInboxTask} className="p-4 bg-[#2FB0A6] rounded-2xl text-white shadow-lg shadow-[#2FB0A6]/20 active:scale-95 transition-all"><Plus size={20} /></button></div>
             </div>
             <div className="space-y-3">
                {(!appData.inboxTasks || appData.inboxTasks.length === 0) ? (
                  <div className="text-center py-20 glass rounded-[3rem] border-2 border-dashed border-[#18181B]/20 dark:border-[#E6E8E6]/20"><Inbox className="text-[#18181B]/20 dark:text-[#E6E8E6]/20 mx-auto mb-4" size={48} /><p className="text-[#18181B]/40 dark:text-[#E6E8E6]/40 text-sm font-black uppercase tracking-widest">Boîte vide</p></div>
                ) : (
                  appData.inboxTasks.map(task => (
-                   <div key={task.id} className="glass p-5 rounded-[2rem] flex items-center justify-between group hover:border-[#3772FF]/30 transition-all"><p className="text-sm font-bold text-[#18181B] dark:text-[#E6E8E6]">{task.title}</p><div className="flex items-center gap-2"><button onClick={() => setTransferTask(task)} className="p-2.5 bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 rounded-xl text-[#3772FF] hover:bg-[#3772FF] hover:text-white transition-all shadow-md"><Send size={16} /></button><button onClick={() => { saveToHistory(); updateAppData(prev => ({ ...prev, inboxTasks: (prev.inboxTasks || []).filter(t => t.id !== task.id) })); }} className="p-2.5 bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 rounded-xl text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-[#DF2935] transition-all"><Trash2 size={16} /></button></div></div>
+                   <div key={task.id} className="glass p-5 rounded-[2rem] flex items-center justify-between group hover:border-[#2FB0A6]/30 transition-all"><p className="text-sm font-bold text-[#18181B] dark:text-[#E6E8E6]">{task.title}</p><div className="flex items-center gap-2"><button onClick={() => setTransferTask(task)} className="p-2.5 bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 rounded-xl text-[#2FB0A6] hover:bg-[#2FB0A6] hover:text-white transition-all shadow-md"><Send size={16} /></button><button onClick={() => { saveToHistory(); updateAppData(prev => ({ ...prev, inboxTasks: (prev.inboxTasks || []).filter(t => t.id !== task.id) })); }} className="p-2.5 bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 rounded-xl text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-[#DF2935] transition-all"><Trash2 size={16} /></button></div></div>
                  ))
                )}
             </div>
@@ -2201,29 +2201,27 @@ const App: React.FC = () => {
         {activeTab === 'templates' && (
           <div className="space-y-6 animate-in fade-in duration-500 pb-20">
             {/* ... Existing Templates Code ... */}
-            <div className="flex items-center justify-between"><div><h2 className="font-black text-lg uppercase text-[#18181B] dark:text-[#E6E8E6]">Architectures</h2><p className="text-[9px] text-[#18181B]/60 dark:text-[#E6E8E6]/60 uppercase font-black">Sauvegardes personnalisées</p></div><div className="flex items-center gap-2"><input type="file" ref={templateInputRef} onChange={handleTemplateUpload} className="hidden" accept=".json" /><button onClick={() => templateInputRef.current?.click()} className="p-3 bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 rounded-2xl text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-white hover:bg-[#3772FF] transition-all"><Upload size={18} /></button><Sparkles size={24} className="text-[#FDCA40]" /></div></div>
-            {(!appData.templates || appData.templates.length === 0) ? (<div className="text-center py-24 glass rounded-[3rem] border-2 border-dashed border-[#18181B]/20 dark:border-[#E6E8E6]/20"><p className="text-[#18181B]/40 dark:text-[#E6E8E6]/40 text-sm font-medium">Aucun modèle disponible.</p></div>) : (<div className="grid gap-4">{appData.templates.map(tpl => (<div key={tpl.id} className="glass p-6 rounded-[2.5rem] flex items-center justify-between group hover:border-[#3772FF]/40 transition-all"><div className="flex-1"><h4 className="font-black text-base text-[#18181B] dark:text-[#E6E8E6]">{tpl.name}</h4>{tpl.templateGoal && <p className="text-[10px] text-[#3772FF] font-bold flex items-center gap-1 mt-1"><Target size={10} /> {tpl.templateGoal}</p>}</div><div className="flex gap-2"><button onClick={() => applyTemplate(tpl.id)} className="bg-[#3772FF] px-5 py-2 rounded-2xl text-[10px] font-black uppercase shadow-lg shadow-[#3772FF]/20 active:scale-95 transition-all text-white">Charger</button><button onClick={() => startTemplateEditing(tpl.id)} className="p-2 text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-[#3772FF] bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 rounded-xl"><Pencil size={16} /></button><button onClick={() => handleTemplateDownload(tpl)} className="p-2 text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-[#3772FF] bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 rounded-xl"><Download size={16} /></button><button onClick={() => updateAppData(prev => ({ ...prev, templates: prev.templates.filter(t => t.id !== tpl.id) }))} className="p-2 text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-[#DF2935]"><Trash2 size={18} /></button></div></div>))}</div>)}
+            <div className="flex items-center justify-between"><div><h2 className="font-black text-lg uppercase text-[#18181B] dark:text-[#E6E8E6]">Architectures</h2><p className="text-[9px] text-[#18181B]/60 dark:text-[#E6E8E6]/60 uppercase font-black">Sauvegardes personnalisées</p></div><div className="flex items-center gap-2"><input type="file" ref={templateInputRef} onChange={handleTemplateUpload} className="hidden" accept=".json" /><button onClick={() => templateInputRef.current?.click()} className="p-3 bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 rounded-2xl text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-white hover:bg-[#2FB0A6] transition-all"><Upload size={18} /></button><Sparkles size={24} className="text-[#FDCA40]" /></div></div>
+            {(!appData.templates || appData.templates.length === 0) ? (<div className="text-center py-24 glass rounded-[3rem] border-2 border-dashed border-[#18181B]/20 dark:border-[#E6E8E6]/20"><p className="text-[#18181B]/40 dark:text-[#E6E8E6]/40 text-sm font-medium">Aucun modèle disponible.</p></div>) : (<div className="grid gap-4">{appData.templates.map(tpl => (<div key={tpl.id} className="glass p-6 rounded-[2.5rem] flex items-center justify-between group hover:border-[#2FB0A6]/40 transition-all"><div className="flex-1"><h4 className="font-black text-base text-[#18181B] dark:text-[#E6E8E6]">{tpl.name}</h4>{tpl.templateGoal && <p className="text-[10px] text-[#2FB0A6] font-bold flex items-center gap-1 mt-1"><Target size={10} /> {tpl.templateGoal}</p>}</div><div className="flex gap-2"><button onClick={() => applyTemplate(tpl.id)} className="bg-[#2FB0A6] px-5 py-2 rounded-2xl text-[10px] font-black uppercase shadow-lg shadow-[#2FB0A6]/20 active:scale-95 transition-all text-white">Charger</button><button onClick={() => startTemplateEditing(tpl.id)} className="p-2 text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-[#2FB0A6] bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 rounded-xl"><Pencil size={16} /></button><button onClick={() => handleTemplateDownload(tpl)} className="p-2 text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-[#2FB0A6] bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 rounded-xl"><Download size={16} /></button><button onClick={() => updateAppData(prev => ({ ...prev, templates: prev.templates.filter(t => t.id !== tpl.id) }))} className="p-2 text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-[#DF2935]"><Trash2 size={18} /></button></div></div>))}</div>)}
           </div>
         )}
 
         {/* ... (Existing Analytics Tab) */}
         {/* TAB: ANALYTICS */}
         {activeTab === 'stats' && (
-          <div className="space-y-8 animate-in fade-in duration-500 pb-20">
-            {/* Heatmap annuelle + Succès + Humeur */}
-            <YearHeatmap history={yearStats.history} streakCount={yearStats.streakCount} />
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Badges appData={appData} bestStreak={yearStats.streakCount} />
-              <MoodPerfChart days={appData.days} history={yearStats.history} />
+          <div className="space-y-6 animate-in fade-in duration-500 pb-20">
+            {/* Titre */}
+            <div className="px-2">
+              <h1 className="text-2xl font-black text-[#18181B] dark:text-[#E6E8E6]">Analytics</h1>
+              <p className="text-xs font-bold text-[#18181B]/50 dark:text-[#E6E8E6]/50 mt-1">Ta discipline, mesurée.</p>
             </div>
-            {/* ... Existing Stats Code ... */}
             <div className="space-y-6">
                 {/* Timeframe Selector with PDF Download */}
                 <div className="flex items-center justify-between gap-4">
-                    <div className="flex justify-center p-1 bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 rounded-[2rem] border border-[#18181B]/5 dark:border-[#E6E8E6]/5 shadow-inner flex-1">{(['day', 'week', 'month', 'year', 'custom'] as TimeframeType[]).map((t) => (<button key={t} onClick={() => setStatsTimeframe(t)} className={`flex-1 py-3 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest transition-all ${statsTimeframe === t ? 'bg-[#3772FF] text-white shadow-lg shadow-[#3772FF]/20' : 'text-[#18181B]/60 dark:text-[#E6E8E6]/60'}`}>{t === 'day' ? 'Auj.' : t === 'week' ? 'Sem.' : t === 'month' ? 'Mois' : t === 'year' ? 'Ann.' : 'Perso.'}</button>))}</div>
+                    <div className="flex justify-center p-1 bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 rounded-[2rem] border border-[#18181B]/5 dark:border-[#E6E8E6]/5 shadow-inner flex-1">{(['day', 'week', 'month', 'year', 'custom'] as TimeframeType[]).map((t) => (<button key={t} onClick={() => setStatsTimeframe(t)} className={`flex-1 py-3 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest transition-all ${statsTimeframe === t ? 'bg-[#2FB0A6] text-white shadow-lg shadow-[#2FB0A6]/20' : 'text-[#18181B]/60 dark:text-[#E6E8E6]/60'}`}>{t === 'day' ? 'Auj.' : t === 'week' ? 'Sem.' : t === 'month' ? 'Mois' : t === 'year' ? 'Ann.' : 'Perso.'}</button>))}</div>
                     <button 
                       onClick={handleDownloadPDF} 
-                      className="p-3 bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 rounded-2xl text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-white hover:bg-[#3772FF] transition-all flex items-center justify-center shadow-lg"
+                      className="p-3 bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 rounded-2xl text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-white hover:bg-[#2FB0A6] transition-all flex items-center justify-center shadow-lg"
                       title="Télécharger le rapport mensuel PDF"
                     >
                       <FileText size={20} />
@@ -2233,13 +2231,24 @@ const App: React.FC = () => {
                 {statsTimeframe === 'custom' && (<div className="grid grid-cols-2 gap-4 animate-in slide-in-from-top-2"><div className="space-y-1"><label className="text-[8px] font-black text-[#18181B]/60 dark:text-[#E6E8E6]/60 uppercase ml-2">Début</label><input type="date" value={customRange.start} onChange={e => setCustomRange(prev => ({ ...prev, start: e.target.value }))} className="w-full bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 p-3 rounded-2xl text-xs font-bold border border-[#18181B]/5 dark:border-[#E6E8E6]/5 outline-none [color-scheme:dark] text-[#18181B] dark:text-[#E6E8E6]" /></div><div className="space-y-1"><label className="text-[8px] font-black text-[#18181B]/60 dark:text-[#E6E8E6]/60 uppercase ml-2">Fin</label><input type="date" value={customRange.end} onChange={e => setCustomRange(prev => ({ ...prev, end: e.target.value }))} className="w-full bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 p-3 rounded-2xl text-xs font-bold border border-[#18181B]/5 dark:border-[#E6E8E6]/5 outline-none [color-scheme:dark] text-[#18181B] dark:text-[#E6E8E6]" /></div></div>)}
 
                 {/* Global Stats Grid */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4"><div className="glass p-5 rounded-[2rem] flex flex-col items-center justify-center space-y-2"><div className="w-10 h-10 bg-[#3772FF]/10 rounded-xl flex items-center justify-center"><TrendingUp size={20} className="text-[#3772FF]" /></div><span className="text-xl font-black text-[#18181B] dark:text-[#E6E8E6]">{statsData.avg}%</span><span className="text-[8px] font-black text-[#18181B]/60 dark:text-[#E6E8E6]/60 uppercase tracking-widest text-center leading-tight">Constance Moyenne</span></div><div className="glass p-5 rounded-[2rem] flex flex-col items-center justify-center space-y-2"><div className="w-10 h-10 bg-[#FDCA40]/10 rounded-xl flex items-center justify-center"><Flame size={20} className="text-[#FDCA40]" /></div><span className="text-xl font-black text-[#18181B] dark:text-[#E6E8E6]">{statsData.streakCount} j</span><span className="text-[8px] font-black text-[#18181B]/60 dark:text-[#E6E8E6]/60 uppercase tracking-widest text-center leading-tight">Série Parfaite</span></div><div className="glass p-5 rounded-[2rem] flex flex-col items-center justify-center space-y-2"><div className="w-10 h-10 bg-[#18181B]/10 dark:bg-[#E6E8E6]/10 rounded-xl flex items-center justify-center"><Trophy size={20} className="text-[#18181B] dark:text-[#E6E8E6]" /></div><span className="text-xl font-black text-[#18181B] dark:text-[#E6E8E6]">{statsData.totalDoneCount}</span><span className="text-[8px] font-black text-[#18181B]/60 dark:text-[#E6E8E6]/60 uppercase tracking-widest text-center leading-tight">Succès Totaux</span></div><div className="glass p-5 rounded-[2rem] flex flex-col items-center justify-center space-y-2"><div className="w-10 h-10 bg-[#FDCA40]/10 rounded-xl flex items-center justify-center"><Star size={20} className="text-[#FDCA40]" /></div><span className="text-xl font-black text-[#18181B] dark:text-[#E6E8E6]">{statsData.bestDay.val}%</span><span className="text-[8px] font-black text-[#18181B]/60 dark:text-[#E6E8E6]/60 uppercase tracking-widest text-center leading-tight">Record Période</span></div></div>
-            
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4"><div className="glass p-5 rounded-[2rem] flex flex-col items-center justify-center space-y-2"><div className="w-10 h-10 bg-[#2FB0A6]/10 rounded-xl flex items-center justify-center"><TrendingUp size={20} className="text-[#2FB0A6]" /></div><span className="text-xl font-black text-[#18181B] dark:text-[#E6E8E6]">{statsData.avg}%</span><span className="text-[8px] font-black text-[#18181B]/60 dark:text-[#E6E8E6]/60 uppercase tracking-widest text-center leading-tight">Constance Moyenne</span></div><div className="glass p-5 rounded-[2rem] flex flex-col items-center justify-center space-y-2"><div className="w-10 h-10 bg-[#FDCA40]/10 rounded-xl flex items-center justify-center"><Flame size={20} className="text-[#FDCA40]" /></div><span className="text-xl font-black text-[#18181B] dark:text-[#E6E8E6]">{statsData.streakCount} j</span><span className="text-[8px] font-black text-[#18181B]/60 dark:text-[#E6E8E6]/60 uppercase tracking-widest text-center leading-tight">Série Parfaite</span></div><div className="glass p-5 rounded-[2rem] flex flex-col items-center justify-center space-y-2"><div className="w-10 h-10 bg-[#18181B]/10 dark:bg-[#E6E8E6]/10 rounded-xl flex items-center justify-center"><Trophy size={20} className="text-[#18181B] dark:text-[#E6E8E6]" /></div><span className="text-xl font-black text-[#18181B] dark:text-[#E6E8E6]">{statsData.totalDoneCount}</span><span className="text-[8px] font-black text-[#18181B]/60 dark:text-[#E6E8E6]/60 uppercase tracking-widest text-center leading-tight">Succès Totaux</span></div><div className="glass p-5 rounded-[2rem] flex flex-col items-center justify-center space-y-2"><div className="w-10 h-10 bg-[#FDCA40]/10 rounded-xl flex items-center justify-center"><Star size={20} className="text-[#FDCA40]" /></div><span className="text-xl font-black text-[#18181B] dark:text-[#E6E8E6]">{statsData.bestDay.val}%</span><span className="text-[8px] font-black text-[#18181B]/60 dark:text-[#E6E8E6]/60 uppercase tracking-widest text-center leading-tight">Record Période</span></div></div>
+
+                {/* Heatmap — fenêtre pilotée par le sélecteur de période */}
+                {(() => {
+                  const winDays: Record<TimeframeType, number> = { day: 1, week: 7, month: 30, year: 365, custom: 30 };
+                  const winTitle: Record<TimeframeType, string> = { day: "Aujourd'hui", week: '7 derniers jours', month: '30 derniers jours', year: '12 derniers mois', custom: 'Période perso.' };
+                  return <YearHeatmap history={statsData.history} streakCount={yearStats.streakCount} days={winDays[statsTimeframe]} title={winTitle[statsTimeframe]} />;
+                })()}
+
                 {/* Global Performance Graph */}
                 <div className="glass p-8 rounded-[3rem] space-y-4">
-                    <div className="flex items-center justify-between mb-4"><p className="text-[10px] font-black text-[#18181B]/40 dark:text-[#E6E8E6]/40 uppercase tracking-widest px-2">Discipline au jour le jour (Tâches)</p><div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-[#3772FF]" /><span className="text-[8px] font-black text-[#18181B]/60 dark:text-[#E6E8E6]/60 uppercase">Score %</span></div></div>
-                    <div className="relative h-48 w-full overflow-hidden"><ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}><AreaChart data={statsData.history} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}><defs><linearGradient id="colorVal" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#3772FF" stopOpacity={0.3}/><stop offset="95%" stopColor="#3772FF" stopOpacity={0}/></linearGradient></defs><Tooltip contentStyle={{ background: '#080708', border: '1px solid rgba(230, 232, 230, 0.1)', borderRadius: '1rem', fontSize: '10px', fontWeight: 'bold' }} itemStyle={{ color: '#3772FF' }} /><Area type="monotone" dataKey="val" stroke="#3772FF" strokeWidth={3} fillOpacity={1} fill="url(#colorVal)" /></AreaChart></ResponsiveContainer></div>
+                    <div className="flex items-center justify-between mb-4"><p className="text-[10px] font-black text-[#18181B]/40 dark:text-[#E6E8E6]/40 uppercase tracking-widest px-2">Constance au fil des jours</p><div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-[#2FB0A6]" /><span className="text-[8px] font-black text-[#18181B]/60 dark:text-[#E6E8E6]/60 uppercase">Score %</span></div></div>
+                    <div className="relative h-48 w-full overflow-hidden"><ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}><AreaChart data={statsData.history} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}><defs><linearGradient id="colorVal" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#2FB0A6" stopOpacity={0.3}/><stop offset="95%" stopColor="#2FB0A6" stopOpacity={0}/></linearGradient></defs><Tooltip contentStyle={{ background: '#080708', border: '1px solid rgba(230, 232, 230, 0.1)', borderRadius: '1rem', fontSize: '10px', fontWeight: 'bold' }} itemStyle={{ color: '#2FB0A6' }} /><Area type="monotone" dataKey="val" stroke="#2FB0A6" strokeWidth={3} fillOpacity={1} fill="url(#colorVal)" /></AreaChart></ResponsiveContainer></div>
                 </div>
+
+                {/* Succès + Humeur */}
+                <Badges appData={appData} bestStreak={yearStats.streakCount} />
+                <MoodPerfChart days={appData.days} history={statsData.history} />
 
                 {/* NEW: Block Validation Graph */}
                 <div className="glass p-8 rounded-[3rem] space-y-4">
@@ -2263,7 +2272,7 @@ const App: React.FC = () => {
                                         return null;
                                     }}
                                 />
-                                <Bar dataKey="validated" fill="#3772FF" radius={[4, 4, 4, 4]} barSize={8} />
+                                <Bar dataKey="validated" fill="#2FB0A6" radius={[4, 4, 4, 4]} barSize={8} />
                             </BarChart>
                         </ResponsiveContainer>
                     </div>
@@ -2273,7 +2282,7 @@ const App: React.FC = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="glass p-6 rounded-[2.5rem] space-y-4">
                         <div className="flex items-center gap-2 mb-2">
-                            <Layout size={16} className="text-[#3772FF]" />
+                            <Layout size={16} className="text-[#2FB0A6]" />
                             <h3 className="text-xs font-black uppercase tracking-widest text-[#18181B] dark:text-[#E6E8E6]">Habitudes de Blocs</h3>
                         </div>
                         <div className="space-y-3 max-h-64 overflow-y-auto custom-scrollbar pr-2">
@@ -2284,11 +2293,11 @@ const App: React.FC = () => {
                                     <div key={idx} className="space-y-1">
                                         <div className="flex justify-between items-center text-[10px] font-bold text-[#18181B] dark:text-[#E6E8E6]">
                                             <span>{stat.title}</span>
-                                            <span className={`${stat.rate >= 80 ? 'text-[#3772FF]' : stat.rate >= 50 ? 'text-[#FDCA40]' : 'text-[#18181B]/40 dark:text-[#E6E8E6]/40'}`}>{stat.rate}%</span>
+                                            <span className={`${stat.rate >= 80 ? 'text-[#2FB0A6]' : stat.rate >= 50 ? 'text-[#FDCA40]' : 'text-[#18181B]/40 dark:text-[#E6E8E6]/40'}`}>{stat.rate}%</span>
                                         </div>
                                         <div className="h-2 w-full bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 rounded-full overflow-hidden">
                                             <div 
-                                                className={`h-full rounded-full transition-all duration-500 ${stat.rate >= 80 ? 'bg-[#3772FF]' : stat.rate >= 50 ? 'bg-[#FDCA40]' : 'bg-[#18181B]/20 dark:bg-[#E6E8E6]/20'}`} 
+                                                className={`h-full rounded-full transition-all duration-500 ${stat.rate >= 80 ? 'bg-[#2FB0A6]' : stat.rate >= 50 ? 'bg-[#FDCA40]' : 'bg-[#18181B]/20 dark:bg-[#E6E8E6]/20'}`} 
                                                 style={{ width: `${stat.rate}%` }} 
                                             />
                                         </div>
@@ -2300,14 +2309,14 @@ const App: React.FC = () => {
 
                     <div className="flex flex-col gap-4">
                         {statsData.sortedBlockStats.length > 0 && statsData.sortedBlockStats[0].rate > 0 && (
-                            <div className="flex-1 glass p-5 rounded-[2rem] flex items-center gap-4 bg-[#3772FF]/5 border border-[#3772FF]/20">
-                                <div className="w-10 h-10 bg-[#3772FF]/10 rounded-xl flex items-center justify-center shrink-0">
-                                    <Trophy size={20} className="text-[#3772FF]" />
+                            <div className="flex-1 glass p-5 rounded-[2rem] flex items-center gap-4 bg-[#2FB0A6]/5 border border-[#2FB0A6]/20">
+                                <div className="w-10 h-10 bg-[#2FB0A6]/10 rounded-xl flex items-center justify-center shrink-0">
+                                    <Trophy size={20} className="text-[#2FB0A6]" />
                                 </div>
                                 <div>
                                     <p className="text-[8px] font-black text-[#18181B]/60 dark:text-[#E6E8E6]/60 uppercase tracking-widest">Point Fort</p>
                                     <p className="text-xs font-bold text-[#18181B] dark:text-[#E6E8E6]">{statsData.sortedBlockStats[0].title}</p>
-                                    <p className="text-[9px] text-[#3772FF] font-medium mt-0.5">Validé {statsData.sortedBlockStats[0].fullyValidated} fois</p>
+                                    <p className="text-[9px] text-[#2FB0A6] font-medium mt-0.5">Validé {statsData.sortedBlockStats[0].fullyValidated} fois</p>
                                 </div>
                             </div>
                         )}
@@ -2328,8 +2337,8 @@ const App: React.FC = () => {
 
                 {/* Task Log */}
                 <div className="space-y-4">
-                    <div className="flex items-center gap-2 px-4"><ListChecks size={18} className="text-[#3772FF]" /><h3 className="text-xs font-black uppercase tracking-widest text-[#18181B] dark:text-[#E6E8E6]">Journal des activités</h3></div>
-                    <div className="space-y-2">{statsData.taskLog.length === 0 ? (<div className="glass p-12 rounded-[2.5rem] text-center italic text-[#18181B]/60 dark:text-[#E6E8E6]/60 text-xs">Aucune activité enregistrée sur cette période.</div>) : (statsData.taskLog.map((log, idx) => { const prio = getPriorityInfo(log.priority); return (<div key={idx} className="glass p-4 rounded-3xl flex items-center gap-4 group hover:border-[#18181B]/10 dark:hover:border-[#E6E8E6]/10 transition-colors"><div className={`w-8 h-8 rounded-xl flex items-center justify-center ${log.completed ? 'bg-[#3772FF]/10 text-[#3772FF]' : 'bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 text-[#18181B]/60 dark:text-[#E6E8E6]/60'}`}>{log.completed ? <Check size={16} /> : <X size={16} />}</div><div className="flex-1 overflow-hidden"><div className="flex items-center gap-2"><p className="text-xs font-bold text-[#18181B] dark:text-[#E6E8E6] truncate">{log.title}</p>{log.priority && log.priority !== 'medium' && (<div className={`w-1 h-1 rounded-full ${prio.color.replace('text', 'bg')}`} />)}</div><p className="text-[9px] font-black text-[#18181B]/60 dark:text-[#E6E8E6]/60 uppercase tracking-widest truncate">{log.block}</p></div><div className="text-right shrink-0"><p className="text-[9px] font-black text-[#3772FF] uppercase">{new Date(log.date).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })}</p><p className="text-[8px] font-black text-[#18181B]/60 dark:text-[#E6E8E6]/60 uppercase">{new Date(log.date).toLocaleDateString('fr-FR', { weekday: 'short' })}</p></div></div>);}))}</div>
+                    <div className="flex items-center gap-2 px-4"><ListChecks size={18} className="text-[#2FB0A6]" /><h3 className="text-xs font-black uppercase tracking-widest text-[#18181B] dark:text-[#E6E8E6]">Journal des activités</h3></div>
+                    <div className="space-y-2">{statsData.taskLog.length === 0 ? (<div className="glass p-12 rounded-[2.5rem] text-center italic text-[#18181B]/60 dark:text-[#E6E8E6]/60 text-xs">Aucune activité enregistrée sur cette période.</div>) : (statsData.taskLog.map((log, idx) => { const prio = getPriorityInfo(log.priority); return (<div key={idx} className="glass p-4 rounded-3xl flex items-center gap-4 group hover:border-[#18181B]/10 dark:hover:border-[#E6E8E6]/10 transition-colors"><div className={`w-8 h-8 rounded-xl flex items-center justify-center ${log.completed ? 'bg-[#2FB0A6]/10 text-[#2FB0A6]' : 'bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 text-[#18181B]/60 dark:text-[#E6E8E6]/60'}`}>{log.completed ? <Check size={16} /> : <X size={16} />}</div><div className="flex-1 overflow-hidden"><div className="flex items-center gap-2"><p className="text-xs font-bold text-[#18181B] dark:text-[#E6E8E6] truncate">{log.title}</p>{log.priority && log.priority !== 'medium' && (<div className={`w-1 h-1 rounded-full ${prio.color.replace('text', 'bg')}`} />)}</div><p className="text-[9px] font-black text-[#18181B]/60 dark:text-[#E6E8E6]/60 uppercase tracking-widest truncate">{log.block}</p></div><div className="text-right shrink-0"><p className="text-[9px] font-black text-[#2FB0A6] uppercase">{new Date(log.date).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })}</p><p className="text-[8px] font-black text-[#18181B]/60 dark:text-[#E6E8E6]/60 uppercase">{new Date(log.date).toLocaleDateString('fr-FR', { weekday: 'short' })}</p></div></div>);}))}</div>
                 </div>
             </div>
           </div>
@@ -2339,7 +2348,7 @@ const App: React.FC = () => {
         {activeTab === 'ai' && (
            <div className="space-y-6 animate-in zoom-in-95 duration-500 pb-20">
             {/* Same AI view */}
-            <div className="glass p-8 rounded-[3.5rem] text-center space-y-6"><div className="w-20 h-20 bg-gradient-to-br from-[#FDCA40] to-[#3772FF] rounded-3xl flex items-center justify-center mx-auto shadow-2xl"><BrainCircuit size={40} className="text-white" /></div><h2 className="text-2xl font-black text-[#18181B] dark:text-[#E6E8E6]">Caddr. IA</h2>{!aiAdvice && !isAiLoading && <button onClick={async () => { setIsAiLoading(true); setAiAdvice(await getRoutineAdvice(routineBlocks, perfToday)); setIsAiLoading(false); }} className="bg-[#18181B] dark:bg-[#E6E8E6] text-white dark:text-[#080708] px-8 py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest">Lancer l'Analyse</button>}{isAiLoading && <Loader2 className="animate-spin text-[#FDCA40] mx-auto" size={32} />}{aiAdvice && (<div className="text-left space-y-4 animate-in fade-in slide-in-from-top-4"><div className="p-5 bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 rounded-2xl border border-[#18181B]/5 dark:border-[#E6E8E6]/5"><p className="text-[8px] font-black text-[#FDCA40] uppercase tracking-widest mb-1">Conseil IA</p><p className="text-sm text-[#18181B] dark:text-[#E6E8E6] font-medium">{aiAdvice.advice}</p></div><div className="p-5 bg-[#3772FF]/10 rounded-2xl border border-[#3772FF]/10"><p className="text-[8px] font-black text-[#3772FF] uppercase tracking-widest mb-1">Action Recommandée</p><p className="text-sm font-bold flex items-center gap-2 text-[#18181B] dark:text-[#E6E8E6]"><ArrowRight size={14} /> {aiAdvice.powerTask}</p></div></div>)}</div>
+            <div className="glass p-8 rounded-[3.5rem] text-center space-y-6"><div className="w-20 h-20 bg-gradient-to-br from-[#FDCA40] to-[#2FB0A6] rounded-3xl flex items-center justify-center mx-auto shadow-2xl"><BrainCircuit size={40} className="text-white" /></div><h2 className="text-2xl font-black text-[#18181B] dark:text-[#E6E8E6]">Caddr. IA</h2>{!aiAdvice && !isAiLoading && <button onClick={async () => { setIsAiLoading(true); setAiAdvice(await getRoutineAdvice(routineBlocks, perfToday)); setIsAiLoading(false); }} className="bg-[#18181B] dark:bg-[#E6E8E6] text-white dark:text-[#080708] px-8 py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest">Lancer l'Analyse</button>}{isAiLoading && <Loader2 className="animate-spin text-[#FDCA40] mx-auto" size={32} />}{aiAdvice && (<div className="text-left space-y-4 animate-in fade-in slide-in-from-top-4"><div className="p-5 bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 rounded-2xl border border-[#18181B]/5 dark:border-[#E6E8E6]/5"><p className="text-[8px] font-black text-[#FDCA40] uppercase tracking-widest mb-1">Conseil IA</p><p className="text-sm text-[#18181B] dark:text-[#E6E8E6] font-medium">{aiAdvice.advice}</p></div><div className="p-5 bg-[#2FB0A6]/10 rounded-2xl border border-[#2FB0A6]/10"><p className="text-[8px] font-black text-[#2FB0A6] uppercase tracking-widest mb-1">Action Recommandée</p><p className="text-sm font-bold flex items-center gap-2 text-[#18181B] dark:text-[#E6E8E6]"><ArrowRight size={14} /> {aiAdvice.powerTask}</p></div></div>)}</div>
           </div>
         )}
       </main>
@@ -2355,7 +2364,7 @@ const App: React.FC = () => {
             { id: 'templates', icon: Copy, label: 'Modèles' },
             { id: 'stats', icon: BarChart3, label: 'Analytics' }
           ].map(tab => (
-            <button key={tab.id} onClick={() => { setActiveTab(tab.id as TabType); setIsReorderMode(false); }} className={`flex flex-col items-center gap-2 transition-all px-2 ${activeTab === tab.id ? 'text-[#3772FF] scale-110' : 'text-[#18181B]/60 dark:text-[#E6E8E6]/60'}`}>
+            <button key={tab.id} onClick={() => { setActiveTab(tab.id as TabType); setIsReorderMode(false); }} className={`flex flex-col items-center gap-2 transition-all px-2 ${activeTab === tab.id ? 'text-[#2FB0A6] scale-110' : 'text-[#18181B]/60 dark:text-[#E6E8E6]/60'}`}>
               <tab.icon size={20} strokeWidth={activeTab === tab.id ? 2.5 : 2} />
               <span className="text-[8px] font-black uppercase tracking-widest whitespace-nowrap">{tab.label}</span>
             </button>
@@ -2368,7 +2377,7 @@ const App: React.FC = () => {
       {activeTimedTask && !focusTarget && (
         <button
           onClick={() => setFocusTarget(activeTimedTask)}
-          className="fixed bottom-24 right-5 z-[90] flex items-center gap-2 px-5 py-4 rounded-full bg-[#3772FF] text-white font-black uppercase tracking-wider text-[10px] shadow-2xl shadow-[#3772FF]/40 hover:scale-105 transition-all animate-in slide-in-from-bottom-4"
+          className="fixed bottom-24 right-5 z-[90] flex items-center gap-2 px-5 py-4 rounded-full bg-[#2FB0A6] text-white font-black uppercase tracking-wider text-[10px] shadow-2xl shadow-[#2FB0A6]/40 hover:scale-105 transition-all animate-in slide-in-from-bottom-4"
         >
           <Timer size={16} />
           Focus : {activeTimedTask.task.title.length > 20 ? activeTimedTask.task.title.slice(0, 20) + '…' : activeTimedTask.task.title}
@@ -2387,12 +2396,12 @@ const App: React.FC = () => {
 
       {showLevelUpModal && (
         <div className="fixed inset-0 z-[200] bg-[#080708]/90 backdrop-blur-2xl flex items-center justify-center p-6 animate-in zoom-in-50 duration-500">
-           <div className="glass w-full max-w-sm p-10 rounded-[3.5rem] shadow-[0_0_50px_rgba(55,114,255,0.3)] border border-[#3772FF]/30 relative overflow-hidden group text-center space-y-6">
+           <div className="glass w-full max-w-sm p-10 rounded-[3.5rem] shadow-[0_0_50px_rgba(47, 176, 166,0.3)] border border-[#2FB0A6]/30 relative overflow-hidden group text-center space-y-6">
               {/* Confetti / Rays effect bg */}
-              <div className="absolute inset-0 bg-gradient-to-tr from-[#3772FF]/20 via-transparent to-[#FDCA40]/20 animate-pulse" />
+              <div className="absolute inset-0 bg-gradient-to-tr from-[#2FB0A6]/20 via-transparent to-[#FDCA40]/20 animate-pulse" />
               
               <div className="relative z-10">
-                 <div className="w-24 h-24 bg-gradient-to-tr from-[#3772FF] to-[#FDCA40] rounded-[2.5rem] flex items-center justify-center mx-auto mb-6 shadow-2xl rotate-3 group-hover:rotate-6 transition-transform duration-500">
+                 <div className="w-24 h-24 bg-gradient-to-tr from-[#2FB0A6] to-[#FDCA40] rounded-[2.5rem] flex items-center justify-center mx-auto mb-6 shadow-2xl rotate-3 group-hover:rotate-6 transition-transform duration-500">
                     <Crown size={48} className="text-white drop-shadow-md" />
                  </div>
                  <h2 className="text-3xl font-black italic uppercase text-white tracking-tighter mb-1">Niveau Supérieur !</h2>
@@ -2419,8 +2428,8 @@ const App: React.FC = () => {
         <div className="fixed inset-0 z-[110] bg-[#F4F4F5]/95 dark:bg-[#080708]/95 backdrop-blur-xl flex items-center justify-center p-6 animate-in fade-in">
            <div className="glass w-full max-w-sm p-10 rounded-[3rem] space-y-6">
               <div className="text-center">
-                 <div className="w-16 h-16 bg-[#3772FF]/10 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                    <BookOpen className="text-[#3772FF]" size={24} />
+                 <div className="w-16 h-16 bg-[#2FB0A6]/10 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                    <BookOpen className="text-[#2FB0A6]" size={24} />
                  </div>
                  <h3 className="text-xl font-black uppercase text-[#18181B] dark:text-[#E6E8E6]">Journal de bord</h3>
                  <p className="text-[10px] text-[#18181B]/60 dark:text-[#E6E8E6]/60 font-bold uppercase tracking-widest italic px-4 mt-2">"{logModal.task.title}"</p>
@@ -2428,7 +2437,7 @@ const App: React.FC = () => {
               <div className="space-y-2">
                  <p className="text-[8px] font-black text-[#18181B]/60 dark:text-[#E6E8E6]/60 uppercase px-2">Notes d'exécution</p>
                  <textarea 
-                    className="w-full bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 p-4 rounded-2xl text-xs font-semibold border border-[#18181B]/10 dark:border-[#E6E8E6]/10 outline-none focus:border-[#3772FF] transition-all text-[#18181B] dark:text-[#E6E8E6] h-32 resize-none"
+                    className="w-full bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 p-4 rounded-2xl text-xs font-semibold border border-[#18181B]/10 dark:border-[#E6E8E6]/10 outline-none focus:border-[#2FB0A6] transition-all text-[#18181B] dark:text-[#E6E8E6] h-32 resize-none"
                     placeholder="Comment s'est passée cette tâche ? Détails, obstacles, réussites..."
                     value={currentLogText}
                     onChange={(e) => setCurrentLogText(e.target.value)}
@@ -2438,7 +2447,7 @@ const App: React.FC = () => {
               <div className="flex gap-3 pt-2">
                  <button 
                    onClick={saveLogText}
-                   className="flex-1 bg-[#3772FF] py-4 rounded-[2rem] text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-[#3772FF]/20"
+                   className="flex-1 bg-[#2FB0A6] py-4 rounded-[2rem] text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-[#2FB0A6]/20"
                  >
                     Enregistrer
                  </button>
@@ -2463,7 +2472,7 @@ const App: React.FC = () => {
               <div className="space-y-2">
                 <p className="text-[8px] font-black text-[#18181B]/60 dark:text-[#E6E8E6]/60 uppercase px-2">Désignation</p>
                 <input 
-                  className="w-full bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 p-4 rounded-2xl text-sm font-bold border border-[#18181B]/10 dark:border-[#E6E8E6]/10 outline-none focus:border-[#3772FF] transition-all text-[#18181B] dark:text-[#E6E8E6]"
+                  className="w-full bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 p-4 rounded-2xl text-sm font-bold border border-[#18181B]/10 dark:border-[#E6E8E6]/10 outline-none focus:border-[#2FB0A6] transition-all text-[#18181B] dark:text-[#E6E8E6]"
                   placeholder="Titre..."
                   value={
                     configModal.type === 'goal' 
@@ -2499,7 +2508,7 @@ const App: React.FC = () => {
                 <div className="space-y-2 animate-in slide-in-from-top-2">
                   <p className="text-[8px] font-black text-[#18181B]/60 dark:text-[#E6E8E6]/60 uppercase px-2 flex items-center gap-1"><Info size={10} /> Description / Notes</p>
                   <textarea 
-                    className="w-full bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 p-4 rounded-2xl text-xs font-semibold border border-[#18181B]/10 dark:border-[#E6E8E6]/10 outline-none focus:border-[#3772FF] transition-all text-[#18181B] dark:text-[#E6E8E6] h-24 resize-none"
+                    className="w-full bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 p-4 rounded-2xl text-xs font-semibold border border-[#18181B]/10 dark:border-[#E6E8E6]/10 outline-none focus:border-[#2FB0A6] transition-all text-[#18181B] dark:text-[#E6E8E6] h-24 resize-none"
                     placeholder="Détails supplémentaires, conseils..."
                     value={
                       configModal.type === 'block'
@@ -2534,7 +2543,7 @@ const App: React.FC = () => {
                   <div className="space-y-2">
                     <p className="text-[8px] font-black text-[#18181B]/60 dark:text-[#E6E8E6]/60 uppercase px-2">Heure du rappel / début</p>
                     <div className="flex items-center gap-3 bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 p-4 rounded-3xl border border-[#18181B]/10 dark:border-[#E6E8E6]/10">
-                      <Clock size={18} className="text-[#3772FF]" />
+                      <Clock size={18} className="text-[#2FB0A6]" />
                       <input 
                         type="time" 
                         className="bg-transparent flex-1 font-black text-lg outline-none text-[#18181B] dark:text-[#E6E8E6] [color-scheme:dark]" 
@@ -2565,7 +2574,7 @@ const App: React.FC = () => {
                     <>
                       <div className="space-y-2">
                         <p className="text-[8px] font-black text-[#18181B]/60 dark:text-[#E6E8E6]/60 uppercase px-2">Durée estimée (minutes)</p>
-                        <div className="flex items-center gap-3 bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 p-4 rounded-3xl border border-[#18181B]/10 dark:border-[#E6E8E6]/10"><Timer size={18} className="text-[#3772FF]" /><input type="number" min="0" placeholder="Ex: 30" className="bg-transparent flex-1 font-black text-lg outline-none text-[#18181B] dark:text-[#E6E8E6]" value={(configModal.parentTaskId ? (activeTab === 'routine' && appData.days[dateKey]?.blocks ? appData.days[dateKey].blocks?.find(b => b.id === configModal.blockId) : appData.blocks.find(b => b.id === configModal.blockId))?.tasks.find(t => t.id === configModal.parentTaskId)?.subTasks?.find(s => s.id === configModal.id)?.duration : (activeTab === 'routine' && appData.days[dateKey]?.blocks ? appData.days[dateKey].blocks?.find(b => b.id === configModal.blockId) : appData.blocks.find(b => b.id === configModal.blockId))?.tasks.find(t => t.id === configModal.id)?.duration) || ""} onChange={(e) => updateConfiguredItem('duration', parseInt(e.target.value) || 0)} /></div>
+                        <div className="flex items-center gap-3 bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 p-4 rounded-3xl border border-[#18181B]/10 dark:border-[#E6E8E6]/10"><Timer size={18} className="text-[#2FB0A6]" /><input type="number" min="0" placeholder="Ex: 30" className="bg-transparent flex-1 font-black text-lg outline-none text-[#18181B] dark:text-[#E6E8E6]" value={(configModal.parentTaskId ? (activeTab === 'routine' && appData.days[dateKey]?.blocks ? appData.days[dateKey].blocks?.find(b => b.id === configModal.blockId) : appData.blocks.find(b => b.id === configModal.blockId))?.tasks.find(t => t.id === configModal.parentTaskId)?.subTasks?.find(s => s.id === configModal.id)?.duration : (activeTab === 'routine' && appData.days[dateKey]?.blocks ? appData.days[dateKey].blocks?.find(b => b.id === configModal.blockId) : appData.blocks.find(b => b.id === configModal.blockId))?.tasks.find(t => t.id === configModal.id)?.duration) || ""} onChange={(e) => updateConfiguredItem('duration', parseInt(e.target.value) || 0)} /></div>
                       </div>
                       <div className="space-y-2">
                         <p className="text-[8px] font-black text-[#18181B]/60 dark:text-[#E6E8E6]/60 uppercase px-2">Priorité</p>
@@ -2617,7 +2626,7 @@ const App: React.FC = () => {
                                   updateConfiguredItem('endDate', dateKey);
                               }
                           }
-                      }} className="p-5 bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 rounded-2xl font-black text-xs uppercase hover:bg-[#3772FF]/20 border border-transparent transition-all text-[#18181B] dark:text-[#E6E8E6]" > {opt.label} </button>))}
+                      }} className="p-5 bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 rounded-2xl font-black text-xs uppercase hover:bg-[#2FB0A6]/20 border border-transparent transition-all text-[#18181B] dark:text-[#E6E8E6]" > {opt.label} </button>))}
                     </div>
 
                     {configItem && configItem.recurrence === 'specific' && (
@@ -2625,7 +2634,7 @@ const App: React.FC = () => {
                            <p className="text-[8px] font-black text-[#18181B]/60 dark:text-[#E6E8E6]/60 uppercase px-2 mb-1">Date précise</p>
                            <input 
                               type="date" 
-                              className="w-full bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 p-4 rounded-2xl text-sm font-bold border border-[#18181B]/10 dark:border-[#E6E8E6]/10 outline-none focus:border-[#3772FF] transition-all text-[#18181B] dark:text-[#E6E8E6] [color-scheme:dark]" 
+                              className="w-full bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 p-4 rounded-2xl text-sm font-bold border border-[#18181B]/10 dark:border-[#E6E8E6]/10 outline-none focus:border-[#2FB0A6] transition-all text-[#18181B] dark:text-[#E6E8E6] [color-scheme:dark]" 
                               value={configItem.specificDate || ''} 
                               onChange={(e) => updateConfiguredItem('specificDate', e.target.value)}
                            />
@@ -2638,7 +2647,7 @@ const App: React.FC = () => {
                               <p className="text-[8px] font-black text-[#18181B]/60 dark:text-[#E6E8E6]/60 uppercase px-2 mb-1">Début</p>
                               <input 
                                   type="date" 
-                                  className="w-full bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 p-4 rounded-2xl text-sm font-bold border border-[#18181B]/10 dark:border-[#E6E8E6]/10 outline-none focus:border-[#3772FF] transition-all text-[#18181B] dark:text-[#E6E8E6] [color-scheme:dark]" 
+                                  className="w-full bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 p-4 rounded-2xl text-sm font-bold border border-[#18181B]/10 dark:border-[#E6E8E6]/10 outline-none focus:border-[#2FB0A6] transition-all text-[#18181B] dark:text-[#E6E8E6] [color-scheme:dark]" 
                                   value={configItem.startDate || ''} 
                                   onChange={(e) => updateConfiguredItem('startDate', e.target.value)}
                               />
@@ -2647,7 +2656,7 @@ const App: React.FC = () => {
                               <p className="text-[8px] font-black text-[#18181B]/60 dark:text-[#E6E8E6]/60 uppercase px-2 mb-1">Fin</p>
                               <input 
                                   type="date" 
-                                  className="w-full bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 p-4 rounded-2xl text-sm font-bold border border-[#18181B]/10 dark:border-[#E6E8E6]/10 outline-none focus:border-[#3772FF] transition-all text-[#18181B] dark:text-[#E6E8E6] [color-scheme:dark]" 
+                                  className="w-full bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 p-4 rounded-2xl text-sm font-bold border border-[#18181B]/10 dark:border-[#E6E8E6]/10 outline-none focus:border-[#2FB0A6] transition-all text-[#18181B] dark:text-[#E6E8E6] [color-scheme:dark]" 
                                   value={configItem.endDate || ''} 
                                   onChange={(e) => updateConfiguredItem('endDate', e.target.value)}
                               />
@@ -2764,8 +2773,8 @@ const App: React.FC = () => {
         <div className="fixed inset-0 z-[120] bg-[#F4F4F5]/95 dark:bg-[#080708]/95 backdrop-blur-3xl flex items-center justify-center p-6 animate-in fade-in">
            <div className="glass w-full max-sm p-10 rounded-[3.5rem] space-y-6">
               <div className="text-center space-y-2">
-                 <div className="w-16 h-16 bg-[#3772FF]/10 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                    <Send className="text-[#3772FF]" size={24} />
+                 <div className="w-16 h-16 bg-[#2FB0A6]/10 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                    <Send className="text-[#2FB0A6]" size={24} />
                  </div>
                  <h3 className="text-xl font-black uppercase text-[#18181B] dark:text-[#E6E8E6]">Déployer la tâche</h3>
                  <p className="text-[10px] text-[#18181B]/60 dark:text-[#E6E8E6]/60 font-bold uppercase tracking-widest italic px-4">"{transferTask.title}"</p>
@@ -2776,9 +2785,9 @@ const App: React.FC = () => {
                    <button 
                      key={block.id}
                      onClick={() => deployInboxTask(block.id)}
-                     className="w-full flex items-center gap-3 p-4 bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 hover:bg-[#3772FF]/20 rounded-2xl border border-transparent hover:border-[#3772FF]/50 transition-all text-left"
+                     className="w-full flex items-center gap-3 p-4 bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 hover:bg-[#2FB0A6]/20 rounded-2xl border border-transparent hover:border-[#2FB0A6]/50 transition-all text-left"
                    >
-                      <Circle size={8} className="text-[#3772FF] fill-[#3772FF]" />
+                      <Circle size={8} className="text-[#2FB0A6] fill-[#2FB0A6]" />
                       <span className="text-xs font-black uppercase tracking-wider text-[#18181B] dark:text-[#E6E8E6]">{block.title}</span>
                    </button>
                  ))}
@@ -2795,8 +2804,8 @@ const App: React.FC = () => {
               <button onClick={() => setShowReviewModal(false)} className="absolute top-8 right-8 text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-[#18181B] dark:hover:text-[#E6E8E6] transition-colors p-2 bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 rounded-full"><X size={20}/></button>
               
               <div className="text-center space-y-2">
-                 <div className="w-20 h-20 bg-[#3772FF]/10 rounded-[2rem] flex items-center justify-center mx-auto mb-6">
-                    <Star className="text-[#3772FF] fill-[#3772FF]" size={32} />
+                 <div className="w-20 h-20 bg-[#2FB0A6]/10 rounded-[2rem] flex items-center justify-center mx-auto mb-6">
+                    <Star className="text-[#2FB0A6] fill-[#2FB0A6]" size={32} />
                  </div>
                  <h3 className="text-2xl font-black uppercase tracking-tight text-[#18181B] dark:text-[#E6E8E6]">Bilan de la journée</h3>
                  <p className="text-xs font-bold text-[#18181B]/60 dark:text-[#E6E8E6]/60 uppercase tracking-widest">Une minute pour grandir demain</p>
@@ -2804,7 +2813,7 @@ const App: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-4">
                  <div className="glass p-6 rounded-3xl text-center space-y-1">
-                    <span className="text-4xl font-black text-[#3772FF]">{perfToday}%</span>
+                    <span className="text-4xl font-black text-[#2FB0A6]">{perfToday}%</span>
                     <p className="text-[8px] font-black text-[#18181B]/60 dark:text-[#E6E8E6]/60 uppercase tracking-widest">Score de Routine</p>
                  </div>
                  <div className="glass p-6 rounded-3xl flex flex-col items-center justify-center gap-2">
@@ -2819,7 +2828,7 @@ const App: React.FC = () => {
                          <button 
                            key={m.id} 
                            onClick={() => updateAppData(prev => ({ ...prev, days: { ...prev.days, [dateKey]: { ...currentDayData, mood: m.id } } }))}
-                           className={`p-2 rounded-xl transition-all ${currentDayData.mood === m.id ? 'bg-[#3772FF] text-white scale-110 shadow-lg shadow-[#3772FF]/20' : 'bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 text-[#18181B]/60 dark:text-[#E6E8E6]/60'}`}
+                           className={`p-2 rounded-xl transition-all ${currentDayData.mood === m.id ? 'bg-[#2FB0A6] text-white scale-110 shadow-lg shadow-[#2FB0A6]/20' : 'bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 text-[#18181B]/60 dark:text-[#E6E8E6]/60'}`}
                          >
                            <m.icon size={20} />
                          </button>
@@ -2831,7 +2840,7 @@ const App: React.FC = () => {
               <div className="space-y-4">
                  <p className="text-[10px] font-black text-[#18181B]/60 dark:text-[#E6E8E6]/60 uppercase tracking-widest ml-2 italic">Réflexion & Gratitude</p>
                  <textarea 
-                   className="w-full bg-[#18181B]/5 dark:bg-[#080708]/50 p-6 rounded-[2rem] text-sm font-semibold border border-[#18181B]/5 dark:border-[#E6E8E6]/5 outline-none focus:border-[#3772FF] h-32 transition-all text-[#18181B] dark:text-[#E6E8E6]"
+                   className="w-full bg-[#18181B]/5 dark:bg-[#080708]/50 p-6 rounded-[2rem] text-sm font-semibold border border-[#18181B]/5 dark:border-[#E6E8E6]/5 outline-none focus:border-[#2FB0A6] h-32 transition-all text-[#18181B] dark:text-[#E6E8E6]"
                    placeholder="Qu'avez-vous appris aujourd'hui ? Qu'allez-vous améliorer ?"
                    value={currentDayData.reflection || ""}
                    onChange={e => updateAppData(prev => ({ ...prev, days: { ...prev.days, [dateKey]: { ...currentDayData, reflection: e.target.value } } }))}
@@ -2839,11 +2848,11 @@ const App: React.FC = () => {
               </div>
 
               {currentDayData.aiFeedback ? (
-                <div className="bg-[#3772FF]/10 p-6 rounded-3xl border border-[#3772FF]/20 animate-in slide-in-from-top-2">
-                   <p className="text-[9px] font-black text-[#3772FF] uppercase tracking-widest mb-2 flex items-center gap-2"><BrainCircuit size={12}/> Caddr. AI Insight</p>
+                <div className="bg-[#2FB0A6]/10 p-6 rounded-3xl border border-[#2FB0A6]/20 animate-in slide-in-from-top-2">
+                   <p className="text-[9px] font-black text-[#2FB0A6] uppercase tracking-widest mb-2 flex items-center gap-2"><BrainCircuit size={12}/> Caddr. AI Insight</p>
                    <p className="text-sm font-medium text-[#18181B] dark:text-[#E6E8E6] italic mb-4">"{currentDayData.aiFeedback.feedback}"</p>
-                   <div className="bg-[#3772FF]/20 p-4 rounded-2xl flex items-center gap-3">
-                      <Zap size={16} className="text-[#3772FF]" />
+                   <div className="bg-[#2FB0A6]/20 p-4 rounded-2xl flex items-center gap-3">
+                      <Zap size={16} className="text-[#2FB0A6]" />
                       <div>
                         <p className="text-[8px] font-black text-[#18181B]/60 dark:text-[#E6E8E6]/60 uppercase">Focus Demain</p>
                         <p className="text-xs font-bold text-[#18181B] dark:text-[#E6E8E6]">{currentDayData.aiFeedback.focusTomorrow}</p>
@@ -2854,7 +2863,7 @@ const App: React.FC = () => {
                 <button 
                   onClick={handleReviewAI}
                   disabled={isReviewAiLoading || !currentDayData.reflection}
-                  className="w-full bg-[#3772FF] py-5 rounded-[2rem] text-xs font-black uppercase shadow-xl shadow-[#3772FF]/30 flex items-center justify-center gap-3 disabled:opacity-50 text-white"
+                  className="w-full bg-[#2FB0A6] py-5 rounded-[2rem] text-xs font-black uppercase shadow-xl shadow-[#2FB0A6]/30 flex items-center justify-center gap-3 disabled:opacity-50 text-white"
                 >
                   {isReviewAiLoading ? <Loader2 className="animate-spin" size={18} /> : <><Sparkles size={18}/> Analyser ma journée</> }
                 </button>
@@ -2874,18 +2883,18 @@ const App: React.FC = () => {
         <div className="fixed inset-0 z-[100] bg-[#F4F4F5]/95 dark:bg-[#080708]/95 backdrop-blur-xl flex items-center justify-center p-6 animate-in zoom-in-95 duration-300">
           <div className="glass w-full max-sm p-10 rounded-[3rem] space-y-6 shadow-2xl">
             <div className="text-center space-y-2">
-              <div className="w-16 h-16 bg-[#3772FF]/10 rounded-3xl flex items-center justify-center mx-auto mb-4">
-                <Save className="text-[#3772FF]" size={24} />
+              <div className="w-16 h-16 bg-[#2FB0A6]/10 rounded-3xl flex items-center justify-center mx-auto mb-4">
+                <Save className="text-[#2FB0A6]" size={24} />
               </div>
               <h3 className="text-xl font-black uppercase text-[#18181B] dark:text-[#E6E8E6]">{editingTemplateId ? "Modifier le modèle" : "Nouveau modèle"}</h3>
             </div>
             <div className="space-y-4">
-                <input autoFocus className="w-full bg-[#18181B]/5 dark:bg-[#080708] p-4 rounded-2xl text-sm border border-[#18181B]/5 dark:border-[#E6E8E6]/5 outline-none focus:border-[#3772FF] transition-all font-bold text-[#18181B] dark:text-[#E6E8E6]" placeholder="Nom du modèle" value={newTplName} onChange={e => setNewTplName(e.target.value)} />
-                <input className="w-full bg-[#18181B]/5 dark:bg-[#080708] p-4 rounded-2xl text-sm border border-[#18181B]/5 dark:border-[#E6E8E6]/5 outline-none focus:border-[#3772FF] transition-all font-bold text-[#18181B] dark:text-[#E6E8E6]" placeholder="Objectif par défaut" value={newTplGoal} onChange={e => setNewTplGoal(e.target.value)} />
+                <input autoFocus className="w-full bg-[#18181B]/5 dark:bg-[#080708] p-4 rounded-2xl text-sm border border-[#18181B]/5 dark:border-[#E6E8E6]/5 outline-none focus:border-[#2FB0A6] transition-all font-bold text-[#18181B] dark:text-[#E6E8E6]" placeholder="Nom du modèle" value={newTplName} onChange={e => setNewTplName(e.target.value)} />
+                <input className="w-full bg-[#18181B]/5 dark:bg-[#080708] p-4 rounded-2xl text-sm border border-[#18181B]/5 dark:border-[#E6E8E6]/5 outline-none focus:border-[#2FB0A6] transition-all font-bold text-[#18181B] dark:text-[#E6E8E6]" placeholder="Objectif par défaut" value={newTplGoal} onChange={e => setNewTplGoal(e.target.value)} />
             </div>
             <div className="flex gap-4">
               <button onClick={() => { setTemplateModal(false); setEditingTemplateId(null); setNewTplName(""); setNewTplGoal(""); }} className="flex-1 py-5 text-[#18181B]/60 dark:text-[#E6E8E6]/60 font-black uppercase text-[10px] tracking-widest">Annuler</button>
-              <button onClick={handleSaveTemplate} className="flex-1 bg-[#3772FF] py-5 rounded-[2rem] text-[10px] font-black uppercase shadow-xl shadow-[#3772FF]/30 tracking-widest text-white">{editingTemplateId ? "Mettre à jour" : "Enregistrer"}</button>
+              <button onClick={handleSaveTemplate} className="flex-1 bg-[#2FB0A6] py-5 rounded-[2rem] text-[10px] font-black uppercase shadow-xl shadow-[#2FB0A6]/30 tracking-widest text-white">{editingTemplateId ? "Mettre à jour" : "Enregistrer"}</button>
             </div>
           </div>
         </div>

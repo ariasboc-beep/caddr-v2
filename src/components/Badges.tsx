@@ -1,5 +1,9 @@
 import React, { useMemo } from 'react';
-import { AppData, Task } from '../types';
+import {
+  Check, Zap, Award, TrendingUp, Flame, BookOpen,
+  Sparkles, Target, LayoutTemplate, Star, Crown, Trophy, LucideIcon,
+} from 'lucide-react';
+import { AppData, Task, DayRoutine } from '../types';
 
 interface Props {
   appData: AppData;
@@ -7,7 +11,7 @@ interface Props {
 }
 
 interface Badge {
-  emoji: string;
+  Icon: LucideIcon;
   name: string;
   desc: string;
   unlocked: boolean;
@@ -22,33 +26,32 @@ const countCompletions = (tasks: Task[]): number =>
 // Système de succès : tout est calculé à partir des données existantes.
 const Badges: React.FC<Props> = ({ appData, bestStreak }) => {
   const badges = useMemo<Badge[]>(() => {
-    // Complétions : blocs maîtres + journées détachées
     let totalDone = countCompletions(appData.blocks.flatMap((b) => b.tasks));
-    (Object.values(appData.days) as import('../types').DayRoutine[]).forEach((day) => {
+    (Object.values(appData.days) as DayRoutine[]).forEach((day) => {
       if (day.blocks) totalDone += countCompletions(day.blocks.flatMap((b) => b.tasks));
     });
 
-    const dayList = Object.values(appData.days) as import('../types').DayRoutine[];
+    const dayList = Object.values(appData.days) as DayRoutine[];
     const reviewsCount = dayList.filter((d) => d.reflection).length;
     const goalsDone = dayList.filter((d) => d.goalCompleted).length;
     const level = appData.userProfile?.level || 1;
     const templatesCount = appData.templates.length;
 
     return [
-      { emoji: '🌱', name: 'Premier pas', desc: '1 tâche complétée', unlocked: totalDone >= 1 },
-      { emoji: '⚡', name: 'Lancé', desc: '25 tâches complétées', unlocked: totalDone >= 25 },
-      { emoji: '💯', name: 'Centurion', desc: '100 tâches complétées', unlocked: totalDone >= 100 },
-      { emoji: '🚀', name: 'Machine', desc: '500 tâches complétées', unlocked: totalDone >= 500 },
-      { emoji: '🔥', name: 'Étincelle', desc: 'Série de 3 jours à 100%', unlocked: bestStreak >= 3 },
-      { emoji: '🌋', name: 'Enflammé', desc: 'Série de 7 jours à 100%', unlocked: bestStreak >= 7 },
-      { emoji: '☄️', name: 'Inarrêtable', desc: 'Série de 30 jours à 100%', unlocked: bestStreak >= 30 },
-      { emoji: '📓', name: 'Introspectif', desc: '5 bilans du soir rédigés', unlocked: reviewsCount >= 5 },
-      { emoji: '🧘', name: 'Sage', desc: '30 bilans du soir rédigés', unlocked: reviewsCount >= 30 },
-      { emoji: '🎯', name: 'Viseur', desc: '10 objectifs du jour atteints', unlocked: goalsDone >= 10 },
-      { emoji: '🏗️', name: 'Architecte', desc: 'Créer un modèle de routine', unlocked: templatesCount >= 1 },
-      { emoji: '⭐', name: 'Étoile montante', desc: 'Atteindre le niveau 5', unlocked: level >= 5 },
-      { emoji: '👑', name: 'Élite', desc: 'Atteindre le niveau 10', unlocked: level >= 10 },
-      { emoji: '🏆', name: 'Légende', desc: 'Atteindre le niveau 20', unlocked: level >= 20 },
+      { Icon: Check, name: 'Premier pas', desc: '1 tâche complétée', unlocked: totalDone >= 1 },
+      { Icon: Zap, name: 'Lancé', desc: '25 tâches complétées', unlocked: totalDone >= 25 },
+      { Icon: Award, name: 'Centurion', desc: '100 tâches complétées', unlocked: totalDone >= 100 },
+      { Icon: TrendingUp, name: 'Machine', desc: '500 tâches complétées', unlocked: totalDone >= 500 },
+      { Icon: Flame, name: 'Étincelle', desc: 'Série de 3 jours à 100%', unlocked: bestStreak >= 3 },
+      { Icon: Flame, name: 'Enflammé', desc: 'Série de 7 jours à 100%', unlocked: bestStreak >= 7 },
+      { Icon: Flame, name: 'Inarrêtable', desc: 'Série de 30 jours à 100%', unlocked: bestStreak >= 30 },
+      { Icon: BookOpen, name: 'Introspectif', desc: '5 bilans du soir rédigés', unlocked: reviewsCount >= 5 },
+      { Icon: Sparkles, name: 'Sage', desc: '30 bilans du soir rédigés', unlocked: reviewsCount >= 30 },
+      { Icon: Target, name: 'Viseur', desc: '10 objectifs du jour atteints', unlocked: goalsDone >= 10 },
+      { Icon: LayoutTemplate, name: 'Architecte', desc: 'Créer un modèle de routine', unlocked: templatesCount >= 1 },
+      { Icon: Star, name: 'Étoile montante', desc: 'Atteindre le niveau 5', unlocked: level >= 5 },
+      { Icon: Crown, name: 'Élite', desc: 'Atteindre le niveau 10', unlocked: level >= 10 },
+      { Icon: Trophy, name: 'Légende', desc: 'Atteindre le niveau 20', unlocked: level >= 20 },
     ];
   }, [appData, bestStreak]);
 
@@ -58,25 +61,29 @@ const Badges: React.FC<Props> = ({ appData, bestStreak }) => {
     <div className="glass p-6 rounded-[2rem] space-y-5">
       <div className="flex items-center justify-between">
         <h2 className="font-black uppercase tracking-wider text-sm">Succès</h2>
-        <span className="text-[10px] font-black uppercase tracking-wider text-[#3772FF]">
+        <span className="text-[10px] font-black uppercase tracking-wider text-[#2FB0A6]">
           {unlockedCount}/{badges.length} débloqués
         </span>
       </div>
 
       <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-7 gap-3">
-        {badges.map((b) => (
+        {badges.map(({ Icon, name, desc, unlocked }) => (
           <div
-            key={b.name}
-            title={`${b.name} — ${b.desc}`}
-            className={`flex flex-col items-center gap-1.5 p-3 rounded-2xl border transition-all ${
-              b.unlocked
-                ? 'bg-[#3772FF]/10 border-[#3772FF]/20'
-                : 'bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 border-transparent opacity-40 grayscale'
+            key={name}
+            title={`${name} — ${desc}`}
+            className={`flex flex-col items-center gap-2 p-3 rounded-2xl border transition-all ${
+              unlocked
+                ? 'bg-[#2FB0A6]/10 border-[#2FB0A6]/20'
+                : 'bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 border-transparent opacity-40'
             }`}
           >
-            <span className="text-2xl">{b.emoji}</span>
+            <Icon
+              size={22}
+              strokeWidth={2}
+              className={unlocked ? 'text-[#2FB0A6]' : 'text-[#18181B]/60 dark:text-[#E6E8E6]/60'}
+            />
             <span className="text-[8px] font-black uppercase tracking-wider text-center leading-tight">
-              {b.name}
+              {name}
             </span>
           </div>
         ))}

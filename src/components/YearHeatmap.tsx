@@ -4,15 +4,18 @@ import { Flame } from 'lucide-react';
 interface Props {
   history: { date: string; val: number }[];
   streakCount: number;
+  days?: number; // fenêtre affichée (par défaut 365)
+  title?: string;
 }
 
-// Heatmap annuelle façon GitHub : un carré par jour, coloré selon la performance.
-const YearHeatmap: React.FC<Props> = ({ history, streakCount }) => {
+// Heatmap façon GitHub : un carré par jour, coloré selon la performance.
+// La fenêtre (days) est pilotée par le sélecteur de période de l'onglet Analytics.
+const YearHeatmap: React.FC<Props> = ({ history, streakCount, days = 365, title = 'Année en un coup d\'œil' }) => {
   const { weeks, monthLabels } = useMemo(() => {
     const perfMap = new Map<string, number>(history.map((h) => [h.date, h.val]));
     const today = new Date();
     const start = new Date(today);
-    start.setDate(start.getDate() - 364);
+    start.setDate(start.getDate() - (days - 1));
     // Aligner sur un lundi
     while (start.getDay() !== 1) start.setDate(start.getDate() - 1);
 
@@ -39,21 +42,21 @@ const YearHeatmap: React.FC<Props> = ({ history, streakCount }) => {
       if (weeks.length > 54) break;
     }
     return { weeks, monthLabels };
-  }, [history]);
+  }, [history, days]);
 
   const colorFor = (perf: number | null, future: boolean) => {
     if (future) return 'transparent';
     if (perf === null || perf === 0) return 'rgba(120,120,128,0.12)';
-    if (perf < 34) return 'rgba(55,114,255,0.25)';
-    if (perf < 67) return 'rgba(55,114,255,0.55)';
-    if (perf < 100) return 'rgba(55,114,255,0.8)';
-    return '#3772FF';
+    if (perf < 34) return 'rgba(47, 176, 166,0.25)';
+    if (perf < 67) return 'rgba(47, 176, 166,0.55)';
+    if (perf < 100) return 'rgba(47, 176, 166,0.8)';
+    return '#2FB0A6';
   };
 
   return (
     <div className="glass p-6 rounded-[2rem] space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="font-black uppercase tracking-wider text-sm">Année en un coup d'œil</h2>
+        <h2 className="font-black uppercase tracking-wider text-sm">{title}</h2>
         <div className="flex items-center gap-2 px-3 py-1.5 bg-[#FDCA40]/10 rounded-xl">
           <Flame size={14} className="text-[#FDCA40]" />
           <span className="text-[10px] font-black uppercase tracking-wider text-[#FDCA40]">
