@@ -114,6 +114,11 @@ const App: React.FC = () => {
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [pushStatus, setPushStatus] = useState<string>('');
   const [planningView, setPlanningView] = useState<'day' | 'week'>('day');
+  const [showFullResetModal, setShowFullResetModal] = useState(false);
+  const [resetInput, setResetInput] = useState('');
+  const [keepTemplates, setKeepTemplates] = useState(true);
+  const [collapsedTasks, setCollapsedTasks] = useState<Record<string, boolean>>({});
+  const toggleTaskCollapse = (id: string) => setCollapsedTasks(prev => ({ ...prev, [id]: !prev[id] }));
   const lastNotifiedRef = useRef<string | null>(null);
 
   // Review State
@@ -1708,6 +1713,25 @@ const App: React.FC = () => {
     setTimeout(() => setActiveNotification(null), 3000);
   };
 
+  const handleResetApp = async () => {
+    // Réinitialise toutes les données, en conservant les préférences d'apparence.
+    const blank: AppData = {
+      days: {}, blocks: [], templates: keepTemplates ? (appData.templates || []) : [], recurringGoals: [], inboxTasks: [],
+      userProfile: { xp: 0, level: 1 },
+      longTermGoals: [], weeklyReviews: {}, focusSessions: [], skips: [],
+      settings: appData.settings, // on garde thème, position de barre, etc.
+    };
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(blank));
+      if (user) await saveDataToCloud(user.uid, blank);
+    } catch (e) {
+      console.error('Reset failed:', e);
+    }
+    setShowFullResetModal(false);
+    setResetInput('');
+    window.location.reload();
+  };
+
   const handleSkipToday = () => {
     if (!configModal || configModal.type !== 'task') return;
     const item = getConfigItem();
@@ -2033,6 +2057,11 @@ const App: React.FC = () => {
                                   <div className={active ? 'bg-accent/5' : ''}>
                                     <div className={`flex items-center p-5 gap-4 group transition-colors ${isReorderMode ? 'bg-[#18181B]/[0.01] dark:bg-[#E6E8E6]/[0.01]' : 'cursor-pointer hover:bg-[#18181B]/[0.02] dark:hover:bg-[#E6E8E6]/[0.02]'}`} onClick={() => toggleTask(block.id, task.id)}>
                                       <div className={`w-6 h-6 rounded-xl border-2 flex items-center justify-center transition-all ${task.completedDates?.includes(dateKey) ? 'bg-accent border-accent' : 'border-[#18181B]/20 dark:border-[#E6E8E6]/20'}`}>{task.completedDates?.includes(dateKey) && <Check size={14} className="text-white" strokeWidth={3} />}</div>
+                                      {visibleSubTasks.length > 0 && (
+                                        <button onClick={(e) => { e.stopPropagation(); toggleTaskCollapse(task.id); }} className="p-0.5 text-[#18181B]/40 dark:text-[#E6E8E6]/40 hover:text-accent shrink-0" title={collapsedTasks[task.id] ? 'Déplier' : 'Replier'}>
+                                          {collapsedTasks[task.id] ? <ChevronRight size={15} /> : <ChevronDown size={15} />}
+                                        </button>
+                                      )}
                                       <div className="flex-1 min-w-0">
                                           <div className="flex items-center gap-2 mb-0.5">
                                             <input 
@@ -2094,7 +2123,7 @@ const App: React.FC = () => {
                                         {isReorderMode && <button {...taskHandle} onClick={(e) => e.stopPropagation()} className="cursor-grab active:cursor-grabbing touch-none text-accent p-1" title="Glisser pour réordonner"><GripVertical size={14}/></button>}
                                       </div>
                                     </div>
-                                    {visibleSubTasks.length > 0 && <div className="pl-14 pr-5 pb-5 space-y-3">{visibleSubTasks.map(st => {
+                                    {visibleSubTasks.length > 0 && !collapsedTasks[task.id] && <div className="pl-14 pr-5 pb-5 space-y-3">{visibleSubTasks.map(st => {
                                       const stPriority = getPriorityInfo(st.priority);
                                       const stHasLog = !!st.executionNotes?.[dateKey];
                                       return (
@@ -2325,6 +2354,11 @@ const App: React.FC = () => {
                             {!block.isLocked && (
                                 <button {...engineTaskHandle} className="cursor-grab active:cursor-grabbing touch-none text-[#18181B]/40 dark:text-[#E6E8E6]/40 hover:text-accent shrink-0 -ml-1" title="Glisser pour réordonner"><GripVertical size={14} /></button>
                             )}
+                            {(task.subTasks || []).length > 0 && (
+                              <button onClick={() => toggleTaskCollapse(task.id)} className="p-0.5 text-[#18181B]/40 dark:text-[#E6E8E6]/40 hover:text-accent shrink-0" title={collapsedTasks[task.id] ? 'Déplier' : 'Replier'}>
+                                {collapsedTasks[task.id] ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
+                              </button>
+                            )}
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2">
                                   <input className="bg-transparent flex-1 text-xs font-semibold outline-none w-full text-[#18181B] dark:text-[#E6E8E6]" value={task.title} readOnly={block.isLocked} onChange={e => updateAppData(prev => ({ ...prev, blocks: prev.blocks.map(b => b.id === block.id ? { ...b, tasks: b.tasks.map(t => t.id === task.id ? { ...t, title: e.target.value } : t) } : b) }))} />
@@ -2344,7 +2378,7 @@ const App: React.FC = () => {
                                 </div>
                             )}
                           </div>
-                          {(task.subTasks || []).map((st, stIdx) => (
+                          {!collapsedTasks[task.id] && (task.subTasks || []).map((st, stIdx) => (
                             <div key={st.id} className="ml-10 flex items-center gap-3 bg-[#18181B]/[0.01] dark:bg-[#E6E8E6]/[0.01] p-3 rounded-xl border border-[#18181B]/5 dark:border-[#E6E8E6]/5 group/subtask">
                               {!block.isLocked && (
                                 <div className="flex flex-col gap-0.5 shrink-0">
@@ -2733,6 +2767,9 @@ const App: React.FC = () => {
               </div>
               <button onClick={() => downloadICS(appData)} className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 text-[#18181B] dark:text-[#E6E8E6] text-[10px] font-black uppercase tracking-widest hover:bg-accent hover:text-white transition-all"><CalendarRange size={14} /> Exporter vers l'agenda (.ics)</button>
               <p className="text-[10px] font-medium text-[#18181B]/40 dark:text-[#E6E8E6]/40">Sauvegarde JSON, ou export .ics des 4 prochaines semaines à importer dans Google/Apple Calendar.</p>
+              <button onClick={() => setShowFullResetModal(true)} className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-[#DF2935]/5 text-[#DF2935] text-[10px] font-black uppercase tracking-widest border border-[#DF2935]/10 hover:bg-[#DF2935] hover:text-white transition-all mt-2">
+                <Trash2 size={14} /> Réinitialiser l'application
+              </button>
             </div>
           </div>
         )}
@@ -2778,6 +2815,53 @@ const App: React.FC = () => {
             ))}
           </div>
         </aside>
+      )}
+
+      {/* MODAL: RÉINITIALISATION */}
+      {showFullResetModal && (
+        <div className="fixed inset-0 z-[210] bg-[#080708]/90 backdrop-blur-2xl flex items-center justify-center p-6 animate-in fade-in">
+          <div className="glass w-full max-w-sm p-8 rounded-[2.5rem] space-y-5 border border-[#DF2935]/30">
+            <div className="text-center space-y-3">
+              <div className="w-16 h-16 bg-[#DF2935]/10 rounded-2xl flex items-center justify-center mx-auto">
+                <Trash2 className="text-[#DF2935]" size={26} />
+              </div>
+              <h3 className="text-xl font-black uppercase text-[#18181B] dark:text-[#E6E8E6]">Tout réinitialiser</h3>
+              <p className="text-xs font-medium text-[#18181B]/60 dark:text-[#E6E8E6]/60">
+                Cette action supprime définitivement toutes vos routines, tâches, statistiques et historiques{user ? ', en local et dans le cloud' : ''}. Vos préférences d'apparence sont conservées. <strong className="text-[#DF2935]">C'est irréversible.</strong>
+              </p>
+              <p className="text-[10px] font-bold text-[#18181B]/50 dark:text-[#E6E8E6]/50">Pensez à exporter vos données avant, si besoin.</p>
+            </div>
+            <button
+              onClick={() => setKeepTemplates(v => !v)}
+              className="w-full flex items-center gap-3 p-3 rounded-2xl bg-[#18181B]/[0.03] dark:bg-[#E6E8E6]/[0.03] transition-all"
+            >
+              <span className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-all ${keepTemplates ? 'bg-accent border-accent' : 'border-[#18181B]/20 dark:border-[#E6E8E6]/20'}`}>
+                {keepTemplates && <Check size={13} className="text-white" strokeWidth={3} />}
+              </span>
+              <span className="text-[11px] font-black uppercase tracking-widest text-[#18181B] dark:text-[#E6E8E6] text-left">Conserver mes modèles</span>
+            </button>
+            <div className="space-y-2">
+              <label className="text-[9px] font-black uppercase tracking-widest text-[#18181B]/50 dark:text-[#E6E8E6]/50">Tapez « RÉINITIALISER » pour confirmer</label>
+              <input
+                autoFocus
+                value={resetInput}
+                onChange={(e) => setResetInput(e.target.value)}
+                className="w-full bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 p-3 rounded-2xl text-sm font-black text-center tracking-widest border border-[#18181B]/10 dark:border-[#E6E8E6]/10 outline-none focus:border-[#DF2935] text-[#18181B] dark:text-[#E6E8E6]"
+                placeholder="RÉINITIALISER"
+              />
+            </div>
+            <div className="flex gap-2">
+              <button onClick={() => { setShowFullResetModal(false); setResetInput(''); }} className="flex-1 py-3 rounded-2xl bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 text-[#18181B] dark:text-[#E6E8E6] font-black uppercase text-[10px] tracking-widest">Annuler</button>
+              <button
+                onClick={handleResetApp}
+                disabled={resetInput.trim().toUpperCase() !== 'RÉINITIALISER'}
+                className="flex-1 py-3 rounded-2xl bg-[#DF2935] text-white font-black uppercase text-[10px] tracking-widest disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Effacer tout
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* MODAL: LEVEL UP */}
