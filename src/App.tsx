@@ -41,6 +41,7 @@ import FocusStats from './components/FocusStats';
 import Insights from './components/Insights';
 import WeekAgenda from './components/WeekAgenda';
 import AnnualReview from './components/AnnualReview';
+import LandingPage from './components/LandingPage';
 import { STARTER_TEMPLATES } from './starterTemplates';
 import { downloadICS } from './ics';
 import { computePerfectStreakWithGrace, getWeekKey } from './streaks';
@@ -83,6 +84,10 @@ const App: React.FC = () => {
   const [appData, setAppData] = useState<AppData>({ days: {}, blocks: [], templates: [], recurringGoals: [], inboxTasks: [], userProfile: { xp: 0, level: 1 } });
   const [history, setHistory] = useState<AppData[]>([]); // Undo Stack
   const [isLoading, setIsLoading] = useState(true);
+  const [guestMode, setGuestMode] = useState<boolean>(() => {
+    try { return localStorage.getItem('caddr_guest') === '1'; } catch { return false; }
+  });
+  const enterGuest = () => { try { localStorage.setItem('caddr_guest', '1'); } catch {} setGuestMode(true); };
   const [isSyncing, setIsSyncing] = useState(false);
   const [isReorderMode, setIsReorderMode] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -1803,6 +1808,8 @@ const App: React.FC = () => {
   const handleSignOut = async () => {
     try {
       await firebaseSignOut();
+      try { localStorage.removeItem('caddr_guest'); } catch {}
+      setGuestMode(false);
     } catch (error) {
       console.error('Sign out error:', error);
       setSyncError('Erreur de déconnexion');
@@ -1810,6 +1817,11 @@ const App: React.FC = () => {
   };
 
   if (isLoading) return <div className="min-h-screen bg-[#F4F4F5] dark:bg-[#080708] flex items-center justify-center"><Loader2 className="animate-spin text-accent" size={40} /></div>;
+
+  // Page d'accueil : affichée tant que l'utilisateur n'est ni connecté ni en mode invité
+  if (!user && !guestMode) {
+    return <LandingPage onGoogle={handleSignIn} onGuest={enterGuest} isSigningIn={isSigningIn} error={syncError} />;
+  }
 
   return (
     <div className={`min-h-screen bg-[#F4F4F5] dark:bg-[#080708] text-[#18181B] dark:text-[#E6E8E6] font-['Plus_Jakarta_Sans'] transition-all duration-300 ${navPosition === 'left' ? (navCollapsed ? 'md:pl-20' : 'md:pl-52') + ' pb-32 md:pb-8' : 'pb-32'}`}>
@@ -1829,8 +1841,8 @@ const App: React.FC = () => {
       )}
 
       {/* Header */}
-      <header className="px-6 py-4 border-b border-[#18181B]/5 dark:border-[#E6E8E6]/5 bg-[#F4F4F5]/80 dark:bg-[#080708]/80 backdrop-blur-xl sticky top-0 z-40 flex flex-col gap-4 max-w-4xl mx-auto w-full transition-colors duration-300">
-        <div className="flex items-center justify-between">
+      <header className="px-4 sm:px-6 py-4 border-b border-[#18181B]/5 dark:border-[#E6E8E6]/5 bg-[#F4F4F5]/80 dark:bg-[#080708]/80 backdrop-blur-xl sticky top-0 z-40 flex flex-col gap-4 max-w-4xl mx-auto w-full transition-colors duration-300">
+        <div className="flex items-center justify-between gap-2 flex-wrap">
             <div className="flex items-center gap-2">
             <button onClick={() => { const d = new Date(currentDate); d.setDate(d.getDate()-1); setCurrentDate(d); }} className="p-2 text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-[#18181B] dark:hover:text-[#E6E8E6] transition-colors"><ChevronLeft size={20}/></button>
             <div className="text-center min-w-[80px]">
@@ -1839,9 +1851,9 @@ const App: React.FC = () => {
             </div>
             <button onClick={() => { const d = new Date(currentDate); d.setDate(d.getDate()+1); setCurrentDate(d); }} className="p-2 text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-[#18181B] dark:hover:text-[#E6E8E6] transition-colors"><ChevronRight size={20}/></button>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap justify-end">
             {/* Backup Actions */}
-            <div className="flex items-center gap-1 border-r border-[#18181B]/10 dark:border-[#E6E8E6]/10 pr-2 mr-1">
+            <div className="hidden sm:flex items-center gap-1 border-r border-[#18181B]/10 dark:border-[#E6E8E6]/10 pr-2 mr-1">
                 <button onClick={handleUndo} disabled={history.length === 0} title="Annuler (Undo)" className={`p-2 rounded-xl transition-all ${history.length === 0 ? 'text-[#18181B]/20 dark:text-[#E6E8E6]/20 cursor-not-allowed bg-[#18181B]/5 dark:bg-[#E6E8E6]/5' : 'bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-white hover:bg-accent'}`}>
                     <RotateCcw size={16} />
                 </button>
@@ -1928,7 +1940,7 @@ const App: React.FC = () => {
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-6 mt-4 space-y-8">
+      <main className="max-w-4xl mx-auto px-4 sm:px-6 mt-4 space-y-8">
         
         {/* TAB: ROUTINE */}
         {activeTab === 'routine' && (
@@ -2518,7 +2530,7 @@ const App: React.FC = () => {
                 })()}
 
                 {/* Global Performance Graph */}
-                <div className="glass p-8 rounded-[3rem] space-y-4">
+                <div className="glass p-4 sm:p-8 rounded-[3rem] space-y-4">
                     <div className="flex items-center justify-between mb-4"><p className="text-[10px] font-black text-[#18181B]/40 dark:text-[#E6E8E6]/40 uppercase tracking-widest px-2">Constance au fil des jours</p><div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-accent" /><span className="text-[8px] font-black text-[#18181B]/60 dark:text-[#E6E8E6]/60 uppercase">Score %</span></div></div>
                     <div className="relative h-48 w-full overflow-hidden"><ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}><AreaChart data={statsData.history} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}><defs><linearGradient id="colorVal" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor={accentHex} stopOpacity={0.3}/><stop offset="95%" stopColor={accentHex} stopOpacity={0}/></linearGradient></defs><Tooltip contentStyle={{ background: '#080708', border: '1px solid rgba(230, 232, 230, 0.1)', borderRadius: '1rem', fontSize: '10px', fontWeight: 'bold' }} itemStyle={{ color: accentHex }} /><Area type="monotone" dataKey="val" stroke={accentHex} strokeWidth={3} fillOpacity={1} fill="url(#colorVal)" /></AreaChart></ResponsiveContainer></div>
                 </div>
@@ -2541,7 +2553,7 @@ const App: React.FC = () => {
                 <MoodPerfChart days={appData.days} history={statsData.history} />
 
                 {/* NEW: Block Validation Graph */}
-                <div className="glass p-8 rounded-[3rem] space-y-4">
+                <div className="glass p-4 sm:p-8 rounded-[3rem] space-y-4">
                     <div className="flex items-center justify-between mb-4">
                         <p className="text-[10px] font-black text-[#18181B]/40 dark:text-[#E6E8E6]/40 uppercase tracking-widest px-2">Constance des Blocs (Validés à 100%)</p>
                     </div>
