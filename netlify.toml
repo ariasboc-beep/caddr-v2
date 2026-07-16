@@ -10,3 +10,27 @@
   from = "/*"
   to = "/index.html"
   status = 200
+
+# ============================================================
+# En-têtes de sécurité HTTP
+# ============================================================
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    X-Frame-Options = "SAMEORIGIN"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=(), interest-cohort=()"
+    Strict-Transport-Security = "max-age=31536000; includeSubDomains; preload"
+    Cross-Origin-Opener-Policy = "same-origin-allow-popups"
+    X-XSS-Protection = "1; mode=block"
+    # CSP compatible Firebase Auth (popup Google) + Firestore.
+    # ⚠️ Si la connexion ou la synchro cassait après déploiement, retirez cette
+    # seule ligne Content-Security-Policy et redéployez, puis signalez-le-moi.
+    Content-Security-Policy = "default-src 'self'; script-src 'self' https://apis.google.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://*.googleapis.com https://*.google.com https://*.firebaseio.com wss://*.firebaseio.com https://*.firebaseapp.com; frame-src 'self' https://*.firebaseapp.com https://accounts.google.com https://*.google.com; worker-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'; upgrade-insecure-requests"
+
+# Le service worker ne doit jamais être mis en cache longtemps
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"

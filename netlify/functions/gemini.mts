@@ -125,9 +125,24 @@ export default async (req: Request) => {
     return json({ error: "Method not allowed" }, 405);
   }
 
+  // Contrôle d'origine : bloque l'abus depuis d'autres sites web.
+  // (Les appels same-origin et sans Origin — app de bureau — sont autorisés.)
+  const allowed = (process.env.ALLOWED_ORIGINS || "https://caddr-v2.netlify.app,http://localhost:5173,http://localhost:8888")
+    .split(",").map((o) => o.trim());
+  const origin = req.headers.get("origin");
+  if (origin && !allowed.includes(origin)) {
+    return json({ error: "Forbidden origin" }, 403);
+  }
+
   if (!API_KEY) {
     // Erreur de config serveur : la variable GEMINI_API_KEY n'est pas définie sur Netlify.
     return json({ error: "Server misconfiguration: missing GEMINI_API_KEY" }, 500);
+  }
+
+  // Plafond de taille de requête (~1,5 Mo) pour limiter l'abus / le coût.
+  const contentLength = parseInt(req.headers.get("content-length") || "0", 10);
+  if (contentLength > 1_500_000) {
+    return json({ error: "Payload too large" }, 413);
   }
 
   let body: any;
