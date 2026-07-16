@@ -287,6 +287,17 @@ const App: React.FC = () => {
   const accentHex = (THEMES[accentTheme] || THEMES.teal).hex;
   const dndSensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
   const graceDays = appData.settings?.graceDaysPerWeek ?? 1;
+  const navPosition = appData.settings?.navPosition || 'bottom';
+  const navCollapsed = appData.settings?.navCollapsed || false;
+  const navTabs = [
+    { id: 'routine', icon: Layout, label: 'Routine' },
+    { id: 'schedule', icon: CalendarDays, label: 'Planning' },
+    { id: 'inbox', icon: Archive, label: 'Boîte' },
+    { id: 'ai', icon: BrainCircuit, label: 'Caddr. IA' },
+    { id: 'templates', icon: Copy, label: 'Modèles' },
+    { id: 'stats', icon: BarChart3, label: 'Analytics' },
+    { id: 'settings', icon: Settings2, label: 'Réglages' },
+  ] as const;
 
   // Auto-save to cloud when user is signed in
   useEffect(() => {
@@ -846,6 +857,32 @@ const App: React.FC = () => {
       const newI = b.tasks.findIndex(t => t.id === over.id);
       if (oldI === -1 || newI === -1) return b;
       return { ...b, tasks: arrayMove(b.tasks, oldI, newI) };
+    }));
+  };
+
+  const handleEngineBlockDragEnd = (e: DragEndEvent) => {
+    const { active, over } = e;
+    if (!over || active.id === over.id) return;
+    updateAppData(prev => {
+      const oldI = prev.blocks.findIndex(b => b.id === active.id);
+      const newI = prev.blocks.findIndex(b => b.id === over.id);
+      if (oldI === -1 || newI === -1) return prev;
+      return { ...prev, blocks: arrayMove(prev.blocks, oldI, newI) };
+    });
+  };
+
+  const handleEngineTaskDragEnd = (blockId: string) => (e: DragEndEvent) => {
+    const { active, over } = e;
+    if (!over || active.id === over.id) return;
+    updateAppData(prev => ({
+      ...prev,
+      blocks: prev.blocks.map(b => {
+        if (b.id !== blockId) return b;
+        const oldI = b.tasks.findIndex(t => t.id === active.id);
+        const newI = b.tasks.findIndex(t => t.id === over.id);
+        if (oldI === -1 || newI === -1) return b;
+        return { ...b, tasks: arrayMove(b.tasks, oldI, newI) };
+      }),
     }));
   };
 
@@ -1751,7 +1788,7 @@ const App: React.FC = () => {
   if (isLoading) return <div className="min-h-screen bg-[#F4F4F5] dark:bg-[#080708] flex items-center justify-center"><Loader2 className="animate-spin text-accent" size={40} /></div>;
 
   return (
-    <div className="min-h-screen bg-[#F4F4F5] dark:bg-[#080708] pb-32 text-[#18181B] dark:text-[#E6E8E6] font-['Plus_Jakarta_Sans'] transition-colors duration-300">
+    <div className={`min-h-screen bg-[#F4F4F5] dark:bg-[#080708] text-[#18181B] dark:text-[#E6E8E6] font-['Plus_Jakarta_Sans'] transition-all duration-300 ${navPosition === 'left' ? (navCollapsed ? 'md:pl-20' : 'md:pl-52') + ' pb-32 md:pb-8' : 'pb-32'}`}>
       
       {/* Active Notification Toast */}
       {activeNotification && (
@@ -2240,15 +2277,16 @@ const App: React.FC = () => {
             </div>
 
             <div className="space-y-6">
+              <DndContext sensors={dndSensors} collisionDetection={closestCenter} onDragEnd={handleEngineBlockDragEnd}>
+              <SortableContext items={appData.blocks.map(b => b.id)} strategy={verticalListSortingStrategy}>
               {appData.blocks.map((block, bIdx) => (
-                <div key={block.id} className={`glass p-6 rounded-[2.5rem] space-y-4 group transition-all ${block.isLocked ? 'border-accent/20 bg-accent/[0.02]' : ''}`}>
+                <Sortable key={block.id} id={block.id}>
+                  {(blockHandle) => (
+                <div className={`glass p-6 rounded-[2.5rem] space-y-4 group transition-all ${block.isLocked ? 'border-accent/20 bg-accent/[0.02]' : ''}`}>
                   <div className="flex flex-col gap-1">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3 flex-1">
-                        <div className="flex flex-col gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                          <button onClick={() => { const n = [...appData.blocks]; if (bIdx > 0) [n[bIdx], n[bIdx-1]] = [n[bIdx-1], n[bIdx]]; updateAppData(prev => ({...prev, blocks: n})); }} className="text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-accent disabled:opacity-0" disabled={bIdx === 0}><ChevronUp size={14}/></button>
-                          <button onClick={() => { const n = [...appData.blocks]; if (bIdx < n.length-1) [n[bIdx], n[bIdx+1]] = [n[bIdx+1], n[bIdx]]; updateAppData(prev => ({...prev, blocks: n})); }} className="text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-accent disabled:opacity-0" disabled={bIdx === appData.blocks.length - 1}><ChevronDown size={14}/></button>
-                        </div>
+                        <button {...blockHandle} className="cursor-grab active:cursor-grabbing touch-none text-[#18181B]/40 dark:text-[#E6E8E6]/40 hover:text-accent shrink-0" title="Glisser pour réordonner"><GripVertical size={16}/></button>
                         <div className="flex-1 flex flex-col">
                           <div className="flex items-center gap-2">
                              <button onClick={() => toggleBlockCollapse(block.id)} className="p-1 rounded-lg bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:bg-accent hover:text-white transition-all">
@@ -2277,14 +2315,15 @@ const App: React.FC = () => {
 
                   {!block.isCollapsed && (
                     <div className="space-y-3 animate-in slide-in-from-top-2 duration-300">
+                      <DndContext sensors={dndSensors} collisionDetection={closestCenter} onDragEnd={handleEngineTaskDragEnd(block.id)}>
+                      <SortableContext items={block.tasks.map(t => t.id)} strategy={verticalListSortingStrategy}>
                       {block.tasks.map((task, tIdx) => (
-                        <div key={task.id} className="space-y-2">
+                        <Sortable key={task.id} id={task.id} disabled={block.isLocked}>
+                          {(engineTaskHandle) => (
+                        <div className="space-y-2">
                           <div className="flex items-center gap-4 bg-[#18181B]/[0.03] dark:bg-[#E6E8E6]/[0.03] p-4 rounded-2xl border border-[#18181B]/5 dark:border-[#E6E8E6]/5 group/task relative">
                             {!block.isLocked && (
-                                <div className="flex flex-col gap-1 items-center justify-center -ml-2 shrink-0">
-                                <button onClick={() => moveTaskInEngine(block.id, task.id, 'up')} className="text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-accent disabled:opacity-0" disabled={tIdx === 0}><ChevronUp size={12} /></button>
-                                <button onClick={() => moveTaskInEngine(block.id, task.id, 'down')} className="text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-accent disabled:opacity-0" disabled={tIdx === block.tasks.length - 1}><ChevronDown size={12} /></button>
-                                </div>
+                                <button {...engineTaskHandle} className="cursor-grab active:cursor-grabbing touch-none text-[#18181B]/40 dark:text-[#E6E8E6]/40 hover:text-accent shrink-0 -ml-1" title="Glisser pour réordonner"><GripVertical size={14} /></button>
                             )}
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2">
@@ -2327,14 +2366,22 @@ const App: React.FC = () => {
                             </div>
                           ))}
                         </div>
+                          )}
+                        </Sortable>
                       ))}
+                      </SortableContext>
+                      </DndContext>
                       {!block.isLocked && (
                         <button onClick={() => updateAppData(prev => ({ ...prev, blocks: prev.blocks.map(b => b.id === block.id ? { ...b, tasks: [...b.tasks, { id: generateId(), title: "Nouvelle tâche", completedDates: [], recurrence: 'daily', subTasks: [] }] } : b) }))} className="w-full py-3 border-2 border-dashed border-[#18181B]/5 dark:border-[#E6E8E6]/5 rounded-2xl text-[9px] font-black text-[#18181B]/60 dark:text-[#E6E8E6]/60 uppercase hover:text-accent transition-all">+ Ajouter Tâche</button>
                       )}
                     </div>
                   )}
                 </div>
+                  )}
+                </Sortable>
               ))}
+              </SortableContext>
+              </DndContext>
               {appData.blocks.length === 0 && (
                   <div className="text-center py-10 opacity-50">
                       <p className="text-[10px] text-[#18181B] dark:text-[#E6E8E6] font-bold uppercase tracking-widest">Commencez par ajouter un bloc ci-dessus</p>
@@ -2596,6 +2643,20 @@ const App: React.FC = () => {
                   ))}
                 </div>
               </div>
+              {/* Position de la barre d'onglets */}
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-[#18181B]/50 dark:text-[#E6E8E6]/50">Barre d'onglets</label>
+                <p className="text-[10px] font-medium text-[#18181B]/50 dark:text-[#E6E8E6]/50">La barre latérale s'applique sur écran large ; sur mobile, elle reste en bas.</p>
+                <div className="flex p-1 bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 rounded-2xl border border-[#18181B]/5 dark:border-[#E6E8E6]/5">
+                  <button onClick={() => updateAppData(prev => ({ ...prev, settings: { ...(prev.settings || {}), navPosition: 'bottom' } }))} className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${navPosition === 'bottom' ? 'bg-accent text-white shadow-lg' : 'text-[#18181B]/60 dark:text-[#E6E8E6]/60'}`}>En bas</button>
+                  <button onClick={() => updateAppData(prev => ({ ...prev, settings: { ...(prev.settings || {}), navPosition: 'left' } }))} className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${navPosition === 'left' ? 'bg-accent text-white shadow-lg' : 'text-[#18181B]/60 dark:text-[#E6E8E6]/60'}`}>À gauche</button>
+                </div>
+                {navPosition === 'left' && (
+                  <button onClick={() => updateAppData(prev => ({ ...prev, settings: { ...(prev.settings || {}), navCollapsed: !navCollapsed } }))} className="w-full py-2.5 rounded-xl bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 text-[10px] font-black uppercase tracking-widest text-[#18181B]/70 dark:text-[#E6E8E6]/70 hover:text-accent transition-all">
+                    {navCollapsed ? 'Déplier la barre latérale' : 'Replier la barre latérale'}
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* Discipline */}
@@ -2678,17 +2739,10 @@ const App: React.FC = () => {
       </main>
 
       {/* Navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 z-50 bg-[#F4F4F5]/90 dark:bg-[#080708]/90 backdrop-blur-3xl border-t border-[#18181B]/5 dark:border-[#E6E8E6]/5 pb-10 pt-4 px-4 overflow-x-auto custom-scrollbar transition-colors duration-300">
+      {/* Barre du bas — toujours sur mobile ; sur desktop uniquement si position = bas */}
+      <nav className={`fixed bottom-0 left-0 right-0 z-50 bg-[#F4F4F5]/90 dark:bg-[#080708]/90 backdrop-blur-3xl border-t border-[#18181B]/5 dark:border-[#E6E8E6]/5 pb-10 pt-4 px-4 overflow-x-auto custom-scrollbar transition-colors duration-300 ${navPosition === 'left' ? 'md:hidden' : ''}`}>
         <div className="max-w-4xl mx-auto flex items-center justify-between gap-4 min-w-max px-4">
-          {[
-            { id: 'routine', icon: Layout, label: 'Routine' },
-            { id: 'schedule', icon: CalendarDays, label: 'Planning' },
-            { id: 'inbox', icon: Archive, label: 'Boîte' },
-            { id: 'ai', icon: BrainCircuit, label: 'Caddr. IA' },
-            { id: 'templates', icon: Copy, label: 'Modèles' },
-            { id: 'stats', icon: BarChart3, label: 'Analytics' },
-            { id: 'settings', icon: Settings2, label: 'Réglages' }
-          ].map(tab => (
+          {navTabs.map(tab => (
             <button key={tab.id} onClick={() => { setActiveTab(tab.id as TabType); setIsReorderMode(false); }} className={`flex flex-col items-center gap-2 transition-all px-2 ${activeTab === tab.id ? 'text-accent scale-110' : 'text-[#18181B]/60 dark:text-[#E6E8E6]/60'}`}>
               <tab.icon size={20} strokeWidth={activeTab === tab.id ? 2.5 : 2} />
               <span className="text-[8px] font-black uppercase tracking-widest whitespace-nowrap">{tab.label}</span>
@@ -2696,6 +2750,35 @@ const App: React.FC = () => {
           ))}
         </div>
       </nav>
+
+      {/* Barre latérale gauche — desktop uniquement, si position = gauche */}
+      {navPosition === 'left' && (
+        <aside className={`hidden md:flex fixed left-0 top-0 bottom-0 z-50 flex-col bg-[#F4F4F5]/90 dark:bg-[#080708]/90 backdrop-blur-3xl border-r border-[#18181B]/5 dark:border-[#E6E8E6]/5 py-6 transition-all duration-300 ${navCollapsed ? 'w-20 px-2' : 'w-52 px-4'}`}>
+          <div className={`flex items-center mb-8 ${navCollapsed ? 'justify-center' : 'justify-between px-2'}`}>
+            {!navCollapsed && <span className="font-black text-lg text-[#18181B] dark:text-[#E6E8E6]">Caddr.</span>}
+            <button
+              onClick={() => updateAppData(prev => ({ ...prev, settings: { ...(prev.settings || {}), navCollapsed: !navCollapsed } }))}
+              className="p-2 rounded-xl text-[#18181B]/50 dark:text-[#E6E8E6]/50 hover:text-accent hover:bg-[#18181B]/5 dark:hover:bg-[#E6E8E6]/5 transition-all"
+              title={navCollapsed ? 'Déplier' : 'Replier'}
+            >
+              {navCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
+            </button>
+          </div>
+          <div className="flex flex-col gap-1 flex-1">
+            {navTabs.map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => { setActiveTab(tab.id as TabType); setIsReorderMode(false); }}
+                title={tab.label}
+                className={`flex items-center gap-3 rounded-2xl transition-all ${navCollapsed ? 'justify-center p-3' : 'px-4 py-3'} ${activeTab === tab.id ? 'bg-accent text-white shadow-lg shadow-accent/20' : 'text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:bg-[#18181B]/5 dark:hover:bg-[#E6E8E6]/5'}`}
+              >
+                <tab.icon size={20} strokeWidth={activeTab === tab.id ? 2.5 : 2} className="shrink-0" />
+                {!navCollapsed && <span className="text-[11px] font-black uppercase tracking-widest whitespace-nowrap">{tab.label}</span>}
+              </button>
+            ))}
+          </div>
+        </aside>
+      )}
 
       {/* MODAL: LEVEL UP */}
       {/* Bouton Focus flottant : visible quand une tâche horodatée est en cours */}

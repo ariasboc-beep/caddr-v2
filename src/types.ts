@@ -106,6 +106,8 @@ export interface WeeklyReview {
 // Réglages de discipline
 export interface AppSettings {
   graceDaysPerWeek?: number; // tolérance de jours manqués avant rupture de série
+  navPosition?: 'bottom' | 'left'; // position de la barre d'onglets
+  navCollapsed?: boolean;           // barre latérale repliée (icônes seules)
 }
 
 export type TabType = 'routine' | 'stats' | 'schedule' | 'templates' | 'ai' | 'inbox' | 'settings';
