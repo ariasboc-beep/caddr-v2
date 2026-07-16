@@ -24,10 +24,14 @@
     Strict-Transport-Security = "max-age=31536000; includeSubDomains; preload"
     Cross-Origin-Opener-Policy = "same-origin-allow-popups"
     X-XSS-Protection = "1; mode=block"
-    # CSP compatible Firebase Auth (popup Google) + Firestore.
-    # ⚠️ Si la connexion ou la synchro cassait après déploiement, retirez cette
-    # seule ligne Content-Security-Policy et redéployez, puis signalez-le-moi.
-    Content-Security-Policy = "default-src 'self'; script-src 'self' https://apis.google.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://*.googleapis.com https://*.google.com https://*.firebaseio.com wss://*.firebaseio.com https://*.firebaseapp.com; frame-src 'self' https://*.firebaseapp.com https://accounts.google.com https://*.google.com; worker-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'; upgrade-insecure-requests"
+    # ⚠️ CSP DÉSACTIVÉE : elle bloquait la connexion Google Firebase Auth.
+    # Tous les autres en-têtes ci-dessus restent actifs et ne cassent rien.
+    # Pour la réintroduire sans risque plus tard, la tester d'abord en mode
+    # "report-only" (elle n'bloque rien, elle journalise seulement) en
+    # décommentant la ligne ci-dessous, puis en vérifiant la console du
+    # navigateur (F12) qu'aucune ressource nécessaire n'est signalée bloquée :
+    #
+    # Content-Security-Policy-Report-Only = "default-src 'self'; script-src 'self' https://apis.google.com https://www.gstatic.com https://www.google.com https://accounts.google.com; style-src 'self' 'unsafe-inline' https://www.gstatic.com; img-src 'self' data: https:; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' https://*.googleapis.com https://*.google.com https://*.firebaseio.com wss://*.firebaseio.com https://*.firebaseapp.com; frame-src 'self' https://*.firebaseapp.com https://accounts.google.com https://*.google.com; worker-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'"
 
 # Le service worker ne doit jamais être mis en cache longtemps
 [[headers]]

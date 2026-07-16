@@ -9,8 +9,9 @@
    Résultat : `found 0 vulnerabilities`.
 
 2. **En-têtes de sécurité HTTP** (dans `netlify.toml`) :
-   - `Content-Security-Policy` (compatible Firebase/Google) — limite d'où le code
-     et les données peuvent venir, principale défense anti-XSS.
+   - `Content-Security-Policy` : DÉSACTIVÉE car elle bloquait la connexion Google.
+     Conservée en commentaire (mode report-only) dans netlify.toml pour un test
+     futur sans risque. Les autres en-têtes restent actifs.
    - `Strict-Transport-Security` (HSTS) — force HTTPS.
    - `X-Frame-Options: SAMEORIGIN` + `frame-ancestors 'self'` — anti-clickjacking.
    - `X-Content-Type-Options: nosniff`, `Referrer-Policy`, `Permissions-Policy`

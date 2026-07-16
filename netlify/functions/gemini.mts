@@ -118,6 +118,26 @@ const HANDLERS: Record<string, (ai: GoogleGenAI, payload: any) => Promise<unknow
   extractFromImage,
 };
 
+// --- Rate limiting best-effort (en mémoire, par instance chaude) ---
+// Note : les fonctions Netlify étant sans état partagé, ce limiteur protège
+// contre les rafales sur une instance chaude, mais n'est pas global. Pour une
+// protection robuste, utiliser un store partagé (Firestore/Upstash) — voir SECURITY.md.
+const RATE_MAX = 20;              // requêtes autorisées
+const RATE_WINDOW_MS = 60_000;    // par minute
+const hits = new Map<string, number[]>();
+
+function isRateLimited(ip: string): boolean {
+  const now = Date.now();
+  const arr = (hits.get(ip) || []).filter((t) => now - t < RATE_WINDOW_MS);
+  arr.push(now);
+  hits.set(ip, arr);
+  // Nettoyage léger pour éviter une croissance mémoire illimitée
+  if (hits.size > 5000) {
+    for (const [k, v] of hits) { if (v.every((t) => now - t >= RATE_WINDOW_MS)) hits.delete(k); }
+  }
+  return arr.length > RATE_MAX;
+}
+
 // --- Point d'entrée de la fonction (Netlify Functions v2) ---
 
 export default async (req: Request) => {
@@ -132,6 +152,14 @@ export default async (req: Request) => {
   const origin = req.headers.get("origin");
   if (origin && !allowed.includes(origin)) {
     return json({ error: "Forbidden origin" }, 403);
+  }
+
+  // Rate limiting par IP
+  const ip = req.headers.get("x-nf-client-connection-ip")
+    || (req.headers.get("x-forwarded-for") || "").split(",")[0].trim()
+    || "unknown";
+  if (isRateLimited(ip)) {
+    return json({ error: "Trop de requêtes, réessayez dans un instant." }, 429);
   }
 
   if (!API_KEY) {
