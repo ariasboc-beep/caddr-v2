@@ -137,5 +137,8 @@ export const mergeAppData = (local: AppData, cloud: AppData): AppData => {
     recurringGoals: mergeById(local.recurringGoals, cloud.recurringGoals),
     inboxTasks: mergeById(local.inboxTasks, cloud.inboxTasks),
     userProfile: bestProfile || { xp: 0, level: 1 },
+    longTermGoals: mergeById(local.longTermGoals || [], cloud.longTermGoals || []),
+    weeklyReviews: { ...(cloud.weeklyReviews || {}), ...(local.weeklyReviews || {}) },
+    settings: local.settings || cloud.settings,
   };
 };

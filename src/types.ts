@@ -74,6 +74,35 @@ export interface AppData {
   recurringGoals: RecurringGoal[];
   inboxTasks: Task[];
   userProfile?: UserProfile;
+  longTermGoals?: LongTermGoal[];
+  weeklyReviews?: { [weekKey: string]: WeeklyReview };
+  settings?: AppSettings;
+}
+
+// Objectif long terme relié aux habitudes quotidiennes
+export interface LongTermGoal {
+  id: string;
+  title: string;
+  description?: string;
+  targetDate?: string; // YYYY-MM-DD
+  progress: number;    // 0-100 (saisi manuellement)
+  createdAt: string;
+  color?: string;
+}
+
+// Revue hebdomadaire
+export interface WeeklyReview {
+  weekKey: string;     // ex: "2026-W29"
+  wins?: string;
+  improve?: string;
+  reflection?: string;
+  aiFeedback?: { feedback: string; focusNextWeek: string };
+  createdAt: string;
+}
+
+// Réglages de discipline
+export interface AppSettings {
+  graceDaysPerWeek?: number; // tolérance de jours manqués avant rupture de série
 }
 
 export type TabType = 'routine' | 'stats' | 'schedule' | 'templates' | 'ai' | 'inbox' | 'settings';

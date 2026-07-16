@@ -34,6 +34,11 @@ import Badges from './components/Badges';
 import FocusMode from './components/FocusMode';
 import DayTimeline from './components/DayTimeline';
 import InboxView from './components/InboxView';
+import HabitStreaks from './components/HabitStreaks';
+import LongTermGoals from './components/LongTermGoals';
+import WeeklyReview from './components/WeeklyReview';
+import { computePerfectStreakWithGrace, getWeekKey } from './streaks';
+import { enablePush } from './push';
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable';
 import { Sortable } from './components/Sortable';
@@ -100,6 +105,7 @@ const App: React.FC = () => {
   // Notification States
   const [activeNotification, setActiveNotification] = useState<string | null>(null);
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+  const [pushStatus, setPushStatus] = useState<string>('');
   const lastNotifiedRef = useRef<string | null>(null);
 
   // Review State
@@ -265,6 +271,7 @@ const App: React.FC = () => {
 
   const accentHex = (THEMES[accentTheme] || THEMES.teal).hex;
   const dndSensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
+  const graceDays = appData.settings?.graceDaysPerWeek ?? 1;
 
   // Auto-save to cloud when user is signed in
   useEffect(() => {
@@ -1573,6 +1580,23 @@ const App: React.FC = () => {
     return getPerfForRange(start, end);
   }, [getPerfForRange]);
 
+  // Série de journées parfaites avec tolérance (jour de grâce)
+  const gracedStreak = useMemo(
+    () => computePerfectStreakWithGrace(yearStats.history, graceDays).streak,
+    [yearStats.history, graceDays]
+  );
+
+  // Données de la revue hebdomadaire (7 derniers jours)
+  const currentWeekKey = getWeekKey(new Date());
+  const weekReviewStats = useMemo(() => {
+    const end = new Date();
+    const start = new Date();
+    start.setDate(start.getDate() - 6);
+    const r = getPerfForRange(start, end);
+    const perfectDays = r.history.filter(h => h.val === 100).length;
+    return { avg: r.avg, perfectDays, totalDone: r.totalDoneCount };
+  }, [getPerfForRange]);
+
   // --- Mode Focus ---
   const [focusTarget, setFocusTarget] = useState<{ task: Task; blockId: string; blockTitle: string } | null>(null);
 
@@ -2092,6 +2116,12 @@ const App: React.FC = () => {
             {!templateEditState && (
               <DayTimeline blocks={routineBlocks} currentTime={currentTime} dateKey={dateKey} />
             )}
+            {!templateEditState && (
+              <LongTermGoals
+                goals={appData.longTermGoals || []}
+                onChange={(goals) => updateAppData(prev => ({ ...prev, longTermGoals: goals }))}
+              />
+            )}
             {/* ... Existing Schedule Code ... */}
              {templateEditState ? (
               <div className="glass p-6 rounded-[2rem] space-y-4 border border-[#FDCA40]/20 bg-[#FDCA40]/5 animate-in slide-in-from-top-4">
@@ -2298,7 +2328,7 @@ const App: React.FC = () => {
                 {statsTimeframe === 'custom' && (<div className="grid grid-cols-2 gap-4 animate-in slide-in-from-top-2"><div className="space-y-1"><label className="text-[8px] font-black text-[#18181B]/60 dark:text-[#E6E8E6]/60 uppercase ml-2">Début</label><input type="date" value={customRange.start} onChange={e => setCustomRange(prev => ({ ...prev, start: e.target.value }))} className="w-full bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 p-3 rounded-2xl text-xs font-bold border border-[#18181B]/5 dark:border-[#E6E8E6]/5 outline-none [color-scheme:dark] text-[#18181B] dark:text-[#E6E8E6]" /></div><div className="space-y-1"><label className="text-[8px] font-black text-[#18181B]/60 dark:text-[#E6E8E6]/60 uppercase ml-2">Fin</label><input type="date" value={customRange.end} onChange={e => setCustomRange(prev => ({ ...prev, end: e.target.value }))} className="w-full bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 p-3 rounded-2xl text-xs font-bold border border-[#18181B]/5 dark:border-[#E6E8E6]/5 outline-none [color-scheme:dark] text-[#18181B] dark:text-[#E6E8E6]" /></div></div>)}
 
                 {/* Global Stats Grid */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4"><div className="glass p-5 rounded-[2rem] flex flex-col items-center justify-center space-y-2"><div className="w-10 h-10 bg-accent/10 rounded-xl flex items-center justify-center"><TrendingUp size={20} className="text-accent" /></div><span className="text-xl font-black text-[#18181B] dark:text-[#E6E8E6]">{statsData.avg}%</span><span className="text-[8px] font-black text-[#18181B]/60 dark:text-[#E6E8E6]/60 uppercase tracking-widest text-center leading-tight">Constance Moyenne</span></div><div className="glass p-5 rounded-[2rem] flex flex-col items-center justify-center space-y-2"><div className="w-10 h-10 bg-[#FDCA40]/10 rounded-xl flex items-center justify-center"><Flame size={20} className="text-[#FDCA40]" /></div><span className="text-xl font-black text-[#18181B] dark:text-[#E6E8E6]">{statsData.streakCount} j</span><span className="text-[8px] font-black text-[#18181B]/60 dark:text-[#E6E8E6]/60 uppercase tracking-widest text-center leading-tight">Série Parfaite</span></div><div className="glass p-5 rounded-[2rem] flex flex-col items-center justify-center space-y-2"><div className="w-10 h-10 bg-[#18181B]/10 dark:bg-[#E6E8E6]/10 rounded-xl flex items-center justify-center"><Trophy size={20} className="text-[#18181B] dark:text-[#E6E8E6]" /></div><span className="text-xl font-black text-[#18181B] dark:text-[#E6E8E6]">{statsData.totalDoneCount}</span><span className="text-[8px] font-black text-[#18181B]/60 dark:text-[#E6E8E6]/60 uppercase tracking-widest text-center leading-tight">Succès Totaux</span></div><div className="glass p-5 rounded-[2rem] flex flex-col items-center justify-center space-y-2"><div className="w-10 h-10 bg-[#FDCA40]/10 rounded-xl flex items-center justify-center"><Star size={20} className="text-[#FDCA40]" /></div><span className="text-xl font-black text-[#18181B] dark:text-[#E6E8E6]">{statsData.bestDay.val}%</span><span className="text-[8px] font-black text-[#18181B]/60 dark:text-[#E6E8E6]/60 uppercase tracking-widest text-center leading-tight">Record Période</span></div></div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4"><div className="glass p-5 rounded-[2rem] flex flex-col items-center justify-center space-y-2"><div className="w-10 h-10 bg-accent/10 rounded-xl flex items-center justify-center"><TrendingUp size={20} className="text-accent" /></div><span className="text-xl font-black text-[#18181B] dark:text-[#E6E8E6]">{statsData.avg}%</span><span className="text-[8px] font-black text-[#18181B]/60 dark:text-[#E6E8E6]/60 uppercase tracking-widest text-center leading-tight">Constance Moyenne</span></div><div className="glass p-5 rounded-[2rem] flex flex-col items-center justify-center space-y-2"><div className="w-10 h-10 bg-[#FDCA40]/10 rounded-xl flex items-center justify-center"><Flame size={20} className="text-[#FDCA40]" /></div><span className="text-xl font-black text-[#18181B] dark:text-[#E6E8E6]">{gracedStreak} j</span><span className="text-[8px] font-black text-[#18181B]/60 dark:text-[#E6E8E6]/60 uppercase tracking-widest text-center leading-tight">Série Parfaite</span></div><div className="glass p-5 rounded-[2rem] flex flex-col items-center justify-center space-y-2"><div className="w-10 h-10 bg-[#18181B]/10 dark:bg-[#E6E8E6]/10 rounded-xl flex items-center justify-center"><Trophy size={20} className="text-[#18181B] dark:text-[#E6E8E6]" /></div><span className="text-xl font-black text-[#18181B] dark:text-[#E6E8E6]">{statsData.totalDoneCount}</span><span className="text-[8px] font-black text-[#18181B]/60 dark:text-[#E6E8E6]/60 uppercase tracking-widest text-center leading-tight">Succès Totaux</span></div><div className="glass p-5 rounded-[2rem] flex flex-col items-center justify-center space-y-2"><div className="w-10 h-10 bg-[#FDCA40]/10 rounded-xl flex items-center justify-center"><Star size={20} className="text-[#FDCA40]" /></div><span className="text-xl font-black text-[#18181B] dark:text-[#E6E8E6]">{statsData.bestDay.val}%</span><span className="text-[8px] font-black text-[#18181B]/60 dark:text-[#E6E8E6]/60 uppercase tracking-widest text-center leading-tight">Record Période</span></div></div>
 
                 {/* Heatmap — fenêtre pilotée par le sélecteur de période */}
                 {(() => {
@@ -2315,6 +2345,17 @@ const App: React.FC = () => {
 
                 {/* Succès + Humeur */}
                 <Badges appData={appData} bestStreak={yearStats.streakCount} />
+                <HabitStreaks blocks={routineBlocks} />
+                <WeeklyReview
+                  weekKey={currentWeekKey}
+                  review={appData.weeklyReviews?.[currentWeekKey]}
+                  stats={weekReviewStats}
+                  onSave={(r) => updateAppData(prev => ({ ...prev, weeklyReviews: { ...(prev.weeklyReviews || {}), [r.weekKey]: r } }))}
+                  onGenerate={async (summary) => {
+                    const res = await getDailyReviewFeedback([], weekReviewStats.avg, summary);
+                    return res ? { feedback: res.feedback, focusNextWeek: res.focusTomorrow } : null;
+                  }}
+                />
                 <MoodPerfChart days={appData.days} history={statsData.history} />
 
                 {/* NEW: Block Validation Graph */}
@@ -2456,6 +2497,26 @@ const App: React.FC = () => {
               </div>
             </div>
 
+            {/* Discipline */}
+            <div className="glass p-6 rounded-[2rem] space-y-4">
+              <h2 className="font-black uppercase tracking-wider text-sm flex items-center gap-2"><Flame size={16} className="text-accent" /> Discipline</h2>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-[#18181B]/50 dark:text-[#E6E8E6]/50">Jours de grâce par semaine</label>
+                <p className="text-[10px] font-medium text-[#18181B]/50 dark:text-[#E6E8E6]/50">Nombre de jours non-parfaits tolérés sans rompre votre série. Un seul jour manqué ne doit pas tout effacer.</p>
+                <div className="flex p-1 bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 rounded-2xl border border-[#18181B]/5 dark:border-[#E6E8E6]/5">
+                  {[0, 1, 2].map((n) => (
+                    <button
+                      key={n}
+                      onClick={() => updateAppData(prev => ({ ...prev, settings: { ...(prev.settings || {}), graceDaysPerWeek: n } }))}
+                      className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${graceDays === n ? 'bg-accent text-white shadow-lg' : 'text-[#18181B]/60 dark:text-[#E6E8E6]/60'}`}
+                    >
+                      {n === 0 ? 'Aucun' : `${n} jour${n > 1 ? 's' : ''}`}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
             {/* Notifications */}
             <div className="glass p-6 rounded-[2rem] space-y-4">
               <h2 className="font-black uppercase tracking-wider text-sm flex items-center gap-2"><Bell size={16} className="text-accent" /> Notifications</h2>
@@ -2468,6 +2529,21 @@ const App: React.FC = () => {
                   {notificationsEnabled ? 'Activées' : 'Activer'}
                 </button>
               </div>
+              <div className="flex items-center justify-between border-t border-[#18181B]/5 dark:border-[#E6E8E6]/5 pt-4">
+                <p className="text-xs font-medium text-[#18181B]/70 dark:text-[#E6E8E6]/70 max-w-xs">Notifications push (même app fermée). Nécessite une configuration serveur — voir PUSH_SETUP.md.</p>
+                <button
+                  onClick={async () => {
+                    if (!user) { setPushStatus('Connectez-vous d\'abord.'); return; }
+                    setPushStatus('…');
+                    const r = await enablePush(user.uid);
+                    setPushStatus(r.message);
+                  }}
+                  className="shrink-0 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 text-[#18181B] dark:text-[#E6E8E6] hover:bg-accent hover:text-white transition-all"
+                >
+                  Activer push
+                </button>
+              </div>
+              {pushStatus && <p className="text-[10px] font-bold text-[#18181B]/50 dark:text-[#E6E8E6]/50">{pushStatus}</p>}
             </div>
 
             {/* Compte */}
