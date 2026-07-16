@@ -17,6 +17,7 @@ export interface Task {
   duration?: number;  // Durée en minutes
   priority?: PriorityType;
   executionNotes?: { [dateKey: string]: string }; // Journal de bord : Date -> Description détaillée
+  stackAnchor?: string; // Empilement d'habitudes : "après [ancre]"
 }
 
 export interface Block {
@@ -77,6 +78,8 @@ export interface AppData {
   longTermGoals?: LongTermGoal[];
   weeklyReviews?: { [weekKey: string]: WeeklyReview };
   settings?: AppSettings;
+  focusSessions?: FocusSession[];
+  skips?: SkipRecord[];
 }
 
 // Objectif long terme relié aux habitudes quotidiennes
@@ -107,3 +110,23 @@ export interface AppSettings {
 
 export type TabType = 'routine' | 'stats' | 'schedule' | 'templates' | 'ai' | 'inbox' | 'settings';
 export type TimeframeType = 'day' | 'week' | 'month' | 'year' | 'custom';
+
+// Session de concentration (mode Focus)
+export interface FocusSession {
+  id: string;
+  taskId: string;
+  taskTitle: string;
+  blockTitle?: string;
+  date: string;        // YYYY-MM-DD
+  durationMin: number; // minutes prévues
+  completedInTime: boolean;
+}
+
+// Tâche sautée avec motif
+export interface SkipRecord {
+  id: string;
+  taskId: string;
+  taskTitle: string;
+  date: string;
+  reason: string;
+}

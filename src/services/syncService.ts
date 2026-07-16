@@ -140,5 +140,7 @@ export const mergeAppData = (local: AppData, cloud: AppData): AppData => {
     longTermGoals: mergeById(local.longTermGoals || [], cloud.longTermGoals || []),
     weeklyReviews: { ...(cloud.weeklyReviews || {}), ...(local.weeklyReviews || {}) },
     settings: local.settings || cloud.settings,
+    focusSessions: mergeById(local.focusSessions || [], cloud.focusSessions || []),
+    skips: mergeById(local.skips || [], cloud.skips || []),
   };
 };

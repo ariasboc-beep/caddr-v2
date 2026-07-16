@@ -7,7 +7,7 @@ import {
   TrendingUp, Save, Copy, Cloud, 
   Loader2, Sparkles, BrainCircuit, 
   ArrowRight, Camera, Wand2, Zap,
-  ChevronUp, ChevronDown, CalendarDays, GripVertical,
+  ChevronUp, ChevronDown, CalendarDays, GripVertical, Link2, CalendarRange,
   History, MoveVertical, Clock, ListPlus,
   ChevronRightSquare, Bell, BellRing, BellOff, Timer, AlarmClock,
   ClipboardCheck, Smile, Meh, Frown, Laugh, Star, Flame, Trophy,
@@ -37,8 +37,15 @@ import InboxView from './components/InboxView';
 import HabitStreaks from './components/HabitStreaks';
 import LongTermGoals from './components/LongTermGoals';
 import WeeklyReview from './components/WeeklyReview';
+import FocusStats from './components/FocusStats';
+import Insights from './components/Insights';
+import WeekAgenda from './components/WeekAgenda';
+import AnnualReview from './components/AnnualReview';
+import { STARTER_TEMPLATES } from './starterTemplates';
+import { downloadICS } from './ics';
 import { computePerfectStreakWithGrace, getWeekKey } from './streaks';
 import { enablePush } from './push';
+import { parseCapture } from './nlParse';
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable';
 import { Sortable } from './components/Sortable';
@@ -106,6 +113,7 @@ const App: React.FC = () => {
   const [activeNotification, setActiveNotification] = useState<string | null>(null);
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [pushStatus, setPushStatus] = useState<string>('');
+  const [planningView, setPlanningView] = useState<'day' | 'week'>('day');
   const lastNotifiedRef = useRef<string | null>(null);
 
   // Review State
@@ -268,6 +276,13 @@ const App: React.FC = () => {
     root.style.setProperty('--accent', t.hex);
     localStorage.setItem(ACCENT_KEY, accentTheme);
   }, [accentTheme]);
+
+  // Raccourcis d'écran d'accueil (PWA) : ouvre l'onglet demandé via ?tab=
+  useEffect(() => {
+    const tab = new URLSearchParams(window.location.search).get('tab');
+    const valid: TabType[] = ['routine', 'stats', 'schedule', 'templates', 'ai', 'inbox', 'settings'];
+    if (tab && valid.includes(tab as TabType)) setActiveTab(tab as TabType);
+  }, []);
 
   const accentHex = (THEMES[accentTheme] || THEMES.teal).hex;
   const dndSensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
@@ -1450,7 +1465,8 @@ const App: React.FC = () => {
   // --- INBOX ---
   const addInboxTask = () => {
     if (!newInboxTitle.trim()) return;
-    const newTask: Task = { id: generateId(), title: newInboxTitle, completedDates: [], recurrence: 'daily', subTasks: [] };
+    const p = parseCapture(newInboxTitle);
+    const newTask: Task = { id: generateId(), title: p.title, completedDates: [], recurrence: p.recurrence || 'daily', subTasks: [], specificDate: p.specificDate, startTime: p.startTime, priority: p.priority };
     updateAppData(prev => ({ ...prev, inboxTasks: [newTask, ...(prev.inboxTasks || [])] }));
     setNewInboxTitle("");
   };
@@ -1616,15 +1632,58 @@ const App: React.FC = () => {
 
   const handleFocusComplete = () => {
     if (!focusTarget) return;
-    toggleTask(focusTarget.blockId, focusTarget.task.id); // XP normal de la tâche
+    const target = focusTarget;
+    toggleTask(target.blockId, target.task.id); // XP normal de la tâche
     updateAppData(prev => {
       const { profile, leveledUp } = handleXpGain(prev.userProfile, 10); // bonus Focus
       if (leveledUp) setShowLevelUpModal(profile.level);
-      return { ...prev, userProfile: profile };
+      const session = {
+        id: generateId(),
+        taskId: target.task.id,
+        taskTitle: target.task.title,
+        blockTitle: target.blockTitle,
+        date: getKeyFromDate(new Date()),
+        durationMin: target.task.duration || 25,
+        completedInTime: true,
+      };
+      return { ...prev, userProfile: profile, focusSessions: [...(prev.focusSessions || []), session] };
     });
     setActiveNotification("Session Focus terminée ! +10 XP bonus 🎯");
     setTimeout(() => setActiveNotification(null), 4000);
     setFocusTarget(null);
+  };
+
+  const handleRescheduleTask = (taskId: string, targetDateKey: string, startTime: string) => {
+    updateAppData(prev => ({
+      ...prev,
+      blocks: prev.blocks.map(b => ({
+        ...b,
+        tasks: b.tasks.map(t => {
+          if (t.id !== taskId) return t;
+          const moved: Task = { ...t, startTime };
+          // Tâche ponctuelle : on la déplace aussi sur le jour cible
+          if (t.recurrence === 'specific' || t.recurrence === 'once') moved.specificDate = targetDateKey;
+          return moved;
+        }),
+      })),
+    }));
+    setActiveNotification(`Reprogrammé à ${startTime} ⏱`);
+    setTimeout(() => setActiveNotification(null), 3000);
+  };
+
+  const handleSkipToday = () => {
+    if (!configModal || configModal.type !== 'task') return;
+    const item = getConfigItem();
+    if (!item) return;
+    const reason = window.prompt("Pourquoi sauter cette tâche aujourd'hui ? (le motif nourrit vos observations, sans culpabilité)");
+    if (reason === null) return;
+    updateAppData(prev => ({
+      ...prev,
+      skips: [...(prev.skips || []), { id: generateId(), taskId: item.id, taskTitle: item.title, date: dateKey, reason: reason.trim() }],
+    }));
+    setConfigModal(null);
+    setActiveNotification("Tâche sautée. Ce n'est pas un échec, c'est un choix. 🌿");
+    setTimeout(() => setActiveNotification(null), 4000);
   };
 
   const statsData = useMemo(() => {
@@ -1961,6 +2020,7 @@ const App: React.FC = () => {
                                             </p>
                                           )}
                                           {task.startTime && <span className={`text-[9px] font-black flex items-center gap-1 mt-0.5 ${active ? 'text-accent' : 'text-[#18181B]/60 dark:text-[#E6E8E6]/60'} uppercase tracking-widest`}><Clock size={10} /> {formatTaskTime(task.startTime, task.duration)}{active && <span className="ml-2 flex h-1.5 w-1.5 rounded-full bg-accent animate-pulse"></span>}</span>}
+                                          {task.stackAnchor && <span className="text-[9px] font-bold flex items-center gap-1 mt-0.5 text-[#18181B]/40 dark:text-[#E6E8E6]/40 italic"><Link2 size={9} /> après {task.stackAnchor}</span>}
                                       </div>
                                       <div className="flex items-center gap-2">
                                         <button 
@@ -2114,7 +2174,16 @@ const App: React.FC = () => {
         {activeTab === 'schedule' && (
           <div className="space-y-8 animate-in slide-in-from-right-4 duration-500 pb-20">
             {!templateEditState && (
+              <div className="flex p-1 bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 rounded-2xl border border-[#18181B]/5 dark:border-[#E6E8E6]/5 max-w-xs">
+                <button onClick={() => setPlanningView('day')} className={`flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${planningView === 'day' ? 'bg-accent text-white shadow' : 'text-[#18181B]/60 dark:text-[#E6E8E6]/60'}`}>Jour</button>
+                <button onClick={() => setPlanningView('week')} className={`flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${planningView === 'week' ? 'bg-accent text-white shadow' : 'text-[#18181B]/60 dark:text-[#E6E8E6]/60'}`}>Semaine</button>
+              </div>
+            )}
+            {!templateEditState && planningView === 'day' && (
               <DayTimeline blocks={routineBlocks} currentTime={currentTime} dateKey={dateKey} />
+            )}
+            {!templateEditState && planningView === 'week' && (
+              <WeekAgenda appData={appData} currentTime={currentTime} onReschedule={handleRescheduleTask} />
             )}
             {!templateEditState && (
               <LongTermGoals
@@ -2282,7 +2351,7 @@ const App: React.FC = () => {
             {/* ... Existing Inbox Code ... */}
             <div className="glass p-8 rounded-[2.5rem] space-y-4 border border-accent/20 bg-accent/5">
               <div className="flex items-center gap-3"><div className="w-12 h-12 bg-accent/10 rounded-2xl flex items-center justify-center"><Archive className="text-accent" size={24} /></div><div><h2 className="font-black text-lg uppercase leading-tight text-[#18181B] dark:text-[#E6E8E6]">Boîte de tâches</h2><p className="text-[9px] text-[#18181B]/60 dark:text-[#E6E8E6]/60 uppercase font-black">Capturer vos idées en un clin d'œil</p></div></div>
-              <div className="flex gap-2 pt-2"><input className="flex-1 bg-white dark:bg-[#080708] p-4 rounded-2xl text-sm font-bold border border-[#18181B]/5 dark:border-[#E6E8E6]/5 outline-none focus:border-accent transition-all text-[#18181B] dark:text-[#E6E8E6]" placeholder="Nouvelle idée de tâche..." value={newInboxTitle} onChange={e => setNewInboxTitle(e.target.value)} onKeyDown={e => e.key === 'Enter' && addInboxTask()} /><button onClick={addInboxTask} className="p-4 bg-accent rounded-2xl text-white shadow-lg shadow-accent/20 active:scale-95 transition-all"><Plus size={20} /></button></div>
+              <div className="space-y-1.5 pt-2"><div className="flex gap-2"><input className="flex-1 bg-white dark:bg-[#080708] p-4 rounded-2xl text-sm font-bold border border-[#18181B]/5 dark:border-[#E6E8E6]/5 outline-none focus:border-accent transition-all text-[#18181B] dark:text-[#E6E8E6]" placeholder="Ex : Appeler Paul demain 15h p1" value={newInboxTitle} onChange={e => setNewInboxTitle(e.target.value)} onKeyDown={e => e.key === 'Enter' && addInboxTask()} /><button onClick={addInboxTask} className="p-4 bg-accent rounded-2xl text-white shadow-lg shadow-accent/20 active:scale-95 transition-all"><Plus size={20} /></button></div><p className="text-[9px] font-medium text-[#18181B]/40 dark:text-[#E6E8E6]/40 px-1">Reconnaît « demain », « lundi », « chaque mardi », « 15h30 », « p1/p2/p3 » automatiquement.</p></div>
             </div>
             <InboxView
               items={appData.inboxTasks || []}
@@ -2297,6 +2366,35 @@ const App: React.FC = () => {
         {/* TAB: TEMPLATES */}
         {activeTab === 'templates' && (
           <div className="space-y-6 animate-in fade-in duration-500 pb-20">
+            {/* Bibliothèque de routines de départ */}
+            <div className="glass p-6 rounded-[2rem] space-y-4">
+              <div>
+                <h2 className="font-black uppercase tracking-wider text-sm flex items-center gap-2"><Sparkles size={16} className="text-accent" /> Bibliothèque de départ</h2>
+                <p className="text-[9px] font-bold uppercase tracking-widest text-[#18181B]/40 dark:text-[#E6E8E6]/40 mt-1">Routines prêtes à l'emploi · démarrage en 30s</p>
+              </div>
+              <div className="grid sm:grid-cols-2 gap-3">
+                {STARTER_TEMPLATES.map((st) => (
+                  <div key={st.key} className="p-4 rounded-2xl bg-[#18181B]/[0.03] dark:bg-[#E6E8E6]/[0.03] space-y-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xl">{st.emoji}</span>
+                      <h4 className="font-black text-sm text-[#18181B] dark:text-[#E6E8E6]">{st.name}</h4>
+                    </div>
+                    <p className="text-[10px] font-medium text-[#18181B]/50 dark:text-[#E6E8E6]/50 leading-snug">{st.description}</p>
+                    <button
+                      onClick={() => {
+                        const built = st.build();
+                        updateAppData(prev => ({ ...prev, templates: [...(prev.templates || []), { id: generateId(), name: st.name, blocks: built.blocks, recurringGoals: built.recurringGoals, templateGoal: st.templateGoal }] }));
+                        setActiveNotification(`Modèle « ${st.name} » ajouté à vos architectures`);
+                        setTimeout(() => setActiveNotification(null), 3500);
+                      }}
+                      className="w-full py-2.5 rounded-xl bg-accent text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-accent/20 active:scale-95 transition-all"
+                    >
+                      Ajouter à mes modèles
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
             {/* ... Existing Templates Code ... */}
             <div className="flex items-center justify-between"><div><h2 className="font-black text-lg uppercase text-[#18181B] dark:text-[#E6E8E6]">Architectures</h2><p className="text-[9px] text-[#18181B]/60 dark:text-[#E6E8E6]/60 uppercase font-black">Sauvegardes personnalisées</p></div><div className="flex items-center gap-2"><input type="file" ref={templateInputRef} onChange={handleTemplateUpload} className="hidden" accept=".json" /><button onClick={() => templateInputRef.current?.click()} className="p-3 bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 rounded-2xl text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-white hover:bg-accent transition-all"><Upload size={18} /></button><Sparkles size={24} className="text-[#FDCA40]" /></div></div>
             {(!appData.templates || appData.templates.length === 0) ? (<div className="text-center py-24 glass rounded-[3rem] border-2 border-dashed border-[#18181B]/20 dark:border-[#E6E8E6]/20"><p className="text-[#18181B]/40 dark:text-[#E6E8E6]/40 text-sm font-medium">Aucun modèle disponible.</p></div>) : (<div className="grid gap-4">{appData.templates.map(tpl => (<div key={tpl.id} className="glass p-6 rounded-[2.5rem] flex items-center justify-between group hover:border-accent/40 transition-all"><div className="flex-1"><h4 className="font-black text-base text-[#18181B] dark:text-[#E6E8E6]">{tpl.name}</h4>{tpl.templateGoal && <p className="text-[10px] text-accent font-bold flex items-center gap-1 mt-1"><Target size={10} /> {tpl.templateGoal}</p>}</div><div className="flex gap-2"><button onClick={() => applyTemplate(tpl.id)} className="bg-accent px-5 py-2 rounded-2xl text-[10px] font-black uppercase shadow-lg shadow-accent/20 active:scale-95 transition-all text-white">Charger</button><button onClick={() => startTemplateEditing(tpl.id)} className="p-2 text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-accent bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 rounded-xl"><Pencil size={16} /></button><button onClick={() => handleTemplateDownload(tpl)} className="p-2 text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-accent bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 rounded-xl"><Download size={16} /></button><button onClick={() => updateAppData(prev => ({ ...prev, templates: prev.templates.filter(t => t.id !== tpl.id) }))} className="p-2 text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-[#DF2935]"><Trash2 size={18} /></button></div></div>))}</div>)}
@@ -2312,6 +2410,7 @@ const App: React.FC = () => {
               <h1 className="text-2xl font-black text-[#18181B] dark:text-[#E6E8E6]">Analytics</h1>
               <p className="text-xs font-bold text-[#18181B]/50 dark:text-[#E6E8E6]/50 mt-1">Ta discipline, mesurée.</p>
             </div>
+            <AnnualReview appData={appData} history={yearStats.history} />
             <div className="space-y-6">
                 {/* Timeframe Selector with PDF Download */}
                 <div className="flex items-center justify-between gap-4">
@@ -2345,6 +2444,8 @@ const App: React.FC = () => {
 
                 {/* Succès + Humeur */}
                 <Badges appData={appData} bestStreak={yearStats.streakCount} />
+                <Insights history={statsData.history} days={appData.days} blockStats={statsData.sortedBlockStats} />
+                <FocusStats sessions={appData.focusSessions || []} />
                 <HabitStreaks blocks={routineBlocks} />
                 <WeeklyReview
                   weekKey={currentWeekKey}
@@ -2569,7 +2670,8 @@ const App: React.FC = () => {
                 <button onClick={handleExportData} className="flex items-center justify-center gap-2 py-3 rounded-xl bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 text-[#18181B] dark:text-[#E6E8E6] text-[10px] font-black uppercase tracking-widest hover:bg-accent hover:text-white transition-all"><Download size={14} /> Exporter</button>
                 <button onClick={() => backupInputRef.current?.click()} className="flex items-center justify-center gap-2 py-3 rounded-xl bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 text-[#18181B] dark:text-[#E6E8E6] text-[10px] font-black uppercase tracking-widest hover:bg-accent hover:text-white transition-all"><Upload size={14} /> Importer</button>
               </div>
-              <p className="text-[10px] font-medium text-[#18181B]/40 dark:text-[#E6E8E6]/40">Sauvegarde ou restaure toutes tes données au format JSON.</p>
+              <button onClick={() => downloadICS(appData)} className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 text-[#18181B] dark:text-[#E6E8E6] text-[10px] font-black uppercase tracking-widest hover:bg-accent hover:text-white transition-all"><CalendarRange size={14} /> Exporter vers l'agenda (.ics)</button>
+              <p className="text-[10px] font-medium text-[#18181B]/40 dark:text-[#E6E8E6]/40">Sauvegarde JSON, ou export .ics des 4 prochaines semaines à importer dans Google/Apple Calendar.</p>
             </div>
           </div>
         )}
@@ -2889,6 +2991,27 @@ const App: React.FC = () => {
                 </>
             )}
             
+            {configModal.type === 'task' && configItem && (
+              <>
+                <div className="mt-2">
+                  <p className="text-[8px] font-black text-[#18181B]/60 dark:text-[#E6E8E6]/60 uppercase px-2 mb-1">Empilement d'habitude (après…)</p>
+                  <input
+                    type="text"
+                    placeholder="Ex : après mon café du matin"
+                    className="w-full bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 p-4 rounded-2xl text-sm font-bold border border-[#18181B]/10 dark:border-[#E6E8E6]/10 outline-none focus:border-accent transition-all text-[#18181B] dark:text-[#E6E8E6]"
+                    value={(configItem as any).stackAnchor || ''}
+                    onChange={(e) => updateConfiguredItem('stackAnchor', e.target.value)}
+                  />
+                </div>
+                <button
+                  onClick={handleSkipToday}
+                  className="w-full py-4 text-[#FDCA40] font-black uppercase text-[10px] tracking-widest bg-[#FDCA40]/5 rounded-2xl border border-[#FDCA40]/10 hover:bg-[#FDCA40] hover:text-white transition-all"
+                >
+                  Sauter aujourd'hui (avec motif)
+                </button>
+              </>
+            )}
+
             {(configModal.type !== 'goal' || activeTab !== 'routine') && (
                 <button 
                   onClick={handleDeleteConfigItem} 
