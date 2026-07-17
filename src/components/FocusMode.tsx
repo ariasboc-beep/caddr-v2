@@ -1,20 +1,18 @@
 import React, { useEffect, useState } from 'react';
-import { X, Play, Pause, CheckCircle2, Timer, Zap } from 'lucide-react';
+import { X, Play, Pause, CheckCircle2, Timer } from 'lucide-react';
 import { Task } from '../types';
 
 interface Props {
   task: Task;
   blockTitle: string;
-  initialMicro?: boolean;
-  onComplete: (actualMinutes: number) => void; // valide la tâche + bonus XP
+  onComplete: () => void; // valide la tâche + bonus XP
   onClose: () => void;
 }
 
 // Mode Focus plein écran : minuteur basé sur la durée de la tâche (défaut 25 min).
-const FocusMode: React.FC<Props> = ({ task, blockTitle, initialMicro, onComplete, onClose }) => {
-  const fullSeconds = (task.duration || 25) * 60;
-  const [totalSeconds, setTotalSeconds] = useState(initialMicro ? 120 : fullSeconds);
-  const [remaining, setRemaining] = useState(initialMicro ? 120 : fullSeconds);
+const FocusMode: React.FC<Props> = ({ task, blockTitle, onComplete, onClose }) => {
+  const totalSeconds = (task.duration || 25) * 60;
+  const [remaining, setRemaining] = useState(totalSeconds);
   const [running, setRunning] = useState(true);
 
   useEffect(() => {
@@ -27,10 +25,6 @@ const FocusMode: React.FC<Props> = ({ task, blockTitle, initialMicro, onComplete
   const secs = remaining % 60;
   const progress = 1 - remaining / totalSeconds;
   const finished = remaining === 0;
-
-  // Temps réellement passé (pour la comparaison estimé/réel)
-  const elapsedMin = Math.max(1, Math.round((totalSeconds - remaining) / 60));
-  const setMicro = () => { setTotalSeconds(120); setRemaining(120); setRunning(true); };
 
   // Cercle de progression SVG
   const R = 110;
@@ -86,7 +80,7 @@ const FocusMode: React.FC<Props> = ({ task, blockTitle, initialMicro, onComplete
           </button>
         )}
         <button
-          onClick={() => onComplete(elapsedMin)}
+          onClick={onComplete}
           className={`flex items-center gap-3 px-8 py-5 rounded-full font-black uppercase tracking-wider text-sm transition-all shadow-2xl ${
             finished
               ? 'bg-[#22C55E] text-white shadow-[#22C55E]/30 scale-105'
@@ -98,15 +92,8 @@ const FocusMode: React.FC<Props> = ({ task, blockTitle, initialMicro, onComplete
         </button>
       </div>
 
-      {/* Aide au démarrage : la règle des 2 minutes */}
-      {totalSeconds > 120 && (
-        <button onClick={setMicro} className="mt-6 flex items-center gap-2 px-5 py-3 rounded-full bg-white/5 text-white/70 hover:text-white hover:bg-white/10 text-[11px] font-black uppercase tracking-widest transition-all">
-          <Zap size={14} /> Juste 2 minutes
-        </button>
-      )}
-
-      <p className="text-white/30 text-[9px] font-bold uppercase tracking-widest mt-4 text-center max-w-xs">
-        Le plus dur, c'est de commencer. Engage-toi sur 2 minutes — souvent, on continue.
+      <p className="text-white/30 text-[9px] font-bold uppercase tracking-widest mt-8">
+        Terminer dans le temps imparti rapporte un bonus d'XP
       </p>
     </div>
   );

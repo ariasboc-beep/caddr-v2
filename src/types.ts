@@ -108,8 +108,6 @@ export interface AppSettings {
   graceDaysPerWeek?: number; // tolérance de jours manqués avant rupture de série
   navPosition?: 'bottom' | 'left'; // position de la barre d'onglets
   navCollapsed?: boolean;           // barre latérale repliée (icônes seules)
-  soundEffects?: boolean;           // retour sonore à la complétion
-  simpleMode?: boolean;             // mode journée simplifiée (anti-surcharge)
 }
 
 export type TabType = 'routine' | 'stats' | 'schedule' | 'templates' | 'ai' | 'inbox' | 'settings';
@@ -123,7 +121,6 @@ export interface FocusSession {
   blockTitle?: string;
   date: string;        // YYYY-MM-DD
   durationMin: number; // minutes prévues
-  actualMin?: number;  // minutes réellement passées (estimé vs réel)
   completedInTime: boolean;
 }
 
