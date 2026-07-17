@@ -33,7 +33,17 @@ const FocusStats: React.FC<Props> = ({ sessions }) => {
     });
     const blocks = Object.entries(perBlock).sort((a, b) => b[1] - a[1]).slice(0, 5);
     const maxBlock = blocks.length ? blocks[0][1] : 1;
-    return { today, week, total, count: sessions.length, blocks, maxBlock };
+
+    // Estimé vs réel (sur les sessions qui ont un temps réel enregistré)
+    const withActual = sessions.filter((s) => s.actualMin && s.actualMin > 0);
+    let estimateRatio: number | null = null;
+    if (withActual.length >= 3) {
+      const planned = withActual.reduce((s, x) => s + x.durationMin, 0);
+      const actual = withActual.reduce((s, x) => s + (x.actualMin || 0), 0);
+      if (planned > 0) estimateRatio = Math.round((actual / planned) * 100);
+    }
+
+    return { today, week, total, count: sessions.length, blocks, maxBlock, estimateRatio };
   }, [sessions]);
 
   return (
@@ -69,6 +79,16 @@ const FocusStats: React.FC<Props> = ({ sessions }) => {
           <div className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-[#18181B]/40 dark:text-[#E6E8E6]/40">
             <Flame size={11} className="text-[#FDCA40]" /> {stats.count} session{stats.count > 1 ? 's' : ''} au total
           </div>
+
+          {stats.estimateRatio !== null && (
+            <div className="p-3 rounded-2xl bg-[#18181B]/[0.03] dark:bg-[#E6E8E6]/[0.03] text-[11px] font-medium text-[#18181B]/70 dark:text-[#E6E8E6]/70">
+              {stats.estimateRatio > 115
+                ? <>⏳ Vous passez en moyenne <strong className="text-accent">{stats.estimateRatio}%</strong> du temps estimé : vous avez tendance à <strong>sous-estimer</strong> vos tâches. Prévoyez un peu plus large.</>
+                : stats.estimateRatio < 85
+                  ? <>⚡ Vous terminez en moyenne à <strong className="text-accent">{stats.estimateRatio}%</strong> du temps prévu : vos estimations sont <strong>généreuses</strong>.</>
+                  : <>🎯 Vos estimations sont <strong className="text-accent">justes</strong> ({stats.estimateRatio}% du temps prévu). Beau contrôle du temps.</>}
+            </div>
+          )}
         </>
       )}
     </div>
