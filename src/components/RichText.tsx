@@ -4,6 +4,7 @@ import { Bold, Italic, Underline, Strikethrough, Smile } from 'lucide-react';
 const EMOJIS = ['😀','😄','😊','😍','🤔','😎','😇','🥳','😴','😅','🙌','👍','👏','💪','🙏','🔥','⚡','✨','🌟','⭐','🎯','✅','❌','⚠️','💡','📌','📈','📉','🚀','🌱','🌿','☕','🏃','🧘','💧','🍎','😤','😌','❤️','💛','💚','💙','💜','🧠','⏰','📅'];
 
 const ALLOWED = new Set(['B','STRONG','I','EM','U','S','STRIKE','BR','DIV','P','SPAN']);
+const SKIP = new Set(['SCRIPT','STYLE','IFRAME','OBJECT','EMBED']);
 
 // Assainit le HTML : ne garde qu'une liste blanche de balises, sans aucun attribut.
 export function sanitizeHtml(html: string): string {
@@ -17,6 +18,7 @@ export function sanitizeHtml(html: string): string {
       } else if (child.nodeType === Node.ELEMENT_NODE) {
         const el = child as HTMLElement;
         const tag = el.tagName;
+        if (SKIP.has(tag)) return; // balise dangereuse : contenu ignoré entièrement
         if (ALLOWED.has(tag)) {
           if (tag === 'BR') { out += '<br>'; }
           else { out += `<${tag.toLowerCase()}>${walk(el)}</${tag.toLowerCase()}>`; }

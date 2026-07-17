@@ -52,14 +52,15 @@ export function parseCapture(input: string): ParsedCapture {
   }
 
   // Heure : "15h", "15h30", "8:00", "à 9h"
-  const time = text.match(/\b(\d{1,2})\s*[h:]\s*(\d{2})?\b/i);
+  const time = text.match(/(\d{1,2})\s*[h:]\s*(\d{2})?/i);
   if (time) {
     const h = parseInt(time[1]);
     const m = time[2] ? parseInt(time[2]) : 0;
     if (h >= 0 && h <= 23 && m >= 0 && m <= 59) {
       result.startTime = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
-      strip(/\bà\s+/gi);
-      strip(/\b\d{1,2}\s*[h:]\s*\d{2}?\b/i);
+      // Retire exactement l'heure captée, avec un éventuel « à » qui précède
+      const escaped = time[0].replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      text = text.replace(new RegExp('(?:à\\s+)?' + escaped, 'i'), ' ');
     }
   }
 

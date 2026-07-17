@@ -1725,9 +1725,15 @@ const App: React.FC = () => {
   const displayedRoutineBlocks = useMemo(() => {
     if (!simpleMode) return routineBlocks;
     const focusBlockId = nowNextData.current?.blockId || nowNextData.next?.blockId;
-    if (!focusBlockId) return routineBlocks;
-    return routineBlocks.filter(b => b.id === focusBlockId);
-  }, [simpleMode, routineBlocks, nowNextData]);
+    if (focusBlockId) return routineBlocks.filter(b => b.id === focusBlockId);
+    // Repli : aucune tâche horodatée en attente → isoler le premier bloc non terminé.
+    const firstIncomplete = routineBlocks.find(b => {
+      const tasks = getVisibleTasks(b.tasks);
+      if (tasks.length === 0) return false;
+      return tasks.some(t => !(t.completedDates || []).includes(dateKey));
+    });
+    return firstIncomplete ? [firstIncomplete] : routineBlocks;
+  }, [simpleMode, routineBlocks, nowNextData, getVisibleTasks, dateKey]);
 
   const handleFocusComplete = (actualMin: number = 0) => {
     if (!focusTarget) return;
