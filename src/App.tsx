@@ -43,6 +43,7 @@ import WeekAgenda from './components/WeekAgenda';
 import AnnualReview from './components/AnnualReview';
 import LandingPage from './components/LandingPage';
 import RichText, { RichTextView, sanitizeHtml, stripHtml } from './components/RichText';
+import NowNext from './components/NowNext';
 import { STARTER_TEMPLATES } from './starterTemplates';
 import { downloadICS } from './ics';
 import { computePerfectStreakWithGrace, getWeekKey } from './streaks';
@@ -1678,6 +1679,29 @@ const App: React.FC = () => {
     return null;
   }, [routineBlocks, currentTime, dateKey, getVisibleTasks]);
 
+  // Données pour la vue "Maintenant & Ensuite" (anti-cécité temporelle)
+  const nowNextData = useMemo(() => {
+    const todayKey = getKeyFromDate(new Date());
+    if (dateKey !== todayKey) return { current: null, next: null, nowMin: 0 };
+    const nowMin = currentTime.getHours() * 60 + currentTime.getMinutes();
+    const timed: { taskId: string; blockId: string; title: string; blockTitle: string; startMin: number; duration: number; done: boolean }[] = [];
+    routineBlocks.forEach(block => {
+      getVisibleTasks(block.tasks).forEach(task => {
+        if (!task.startTime) return;
+        const [h, m] = task.startTime.split(':').map(Number);
+        timed.push({
+          taskId: task.id, blockId: block.id, title: task.title, blockTitle: block.title,
+          startMin: h * 60 + m, duration: task.duration || 30,
+          done: (task.completedDates || []).includes(todayKey),
+        });
+      });
+    });
+    timed.sort((a, b) => a.startMin - b.startMin);
+    const current = timed.find(t => !t.done && nowMin >= t.startMin && nowMin < t.startMin + t.duration) || null;
+    const next = timed.find(t => !t.done && t.startMin > nowMin) || null;
+    return { current, next, nowMin };
+  }, [routineBlocks, currentTime, dateKey, getVisibleTasks]);
+
   const handleFocusComplete = () => {
     if (!focusTarget) return;
     const target = focusTarget;
@@ -1946,6 +1970,19 @@ const App: React.FC = () => {
         {/* TAB: ROUTINE */}
         {activeTab === 'routine' && (
           <div className="space-y-6 animate-in fade-in duration-500">
+            {!isReorderMode && dateKey === getKeyFromDate(new Date()) && (nowNextData.current || nowNextData.next) && (
+              <NowNext
+                current={nowNextData.current}
+                next={nowNextData.next}
+                nowMin={nowNextData.nowMin}
+                onStartFocus={(blockId, taskId) => {
+                  const block = routineBlocks.find(b => b.id === blockId);
+                  const task = block?.tasks.find(t => t.id === taskId) || getVisibleTasks(block?.tasks || []).find(t => t.id === taskId);
+                  if (block && task) setFocusTarget({ task, blockId, blockTitle: block.title });
+                }}
+                onComplete={(blockId, taskId) => toggleTask(blockId, taskId)}
+              />
+            )}
             {/* Disclaimer for Detached Mode */}
             {appData.days[dateKey]?.blocks && (
                <div className="bg-[#FDCA40]/5 border border-[#FDCA40]/10 p-3 rounded-2xl flex items-center justify-center gap-2 animate-in fade-in">
