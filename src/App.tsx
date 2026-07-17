@@ -44,6 +44,7 @@ import AnnualReview from './components/AnnualReview';
 import LandingPage from './components/LandingPage';
 import RichText, { RichTextView, sanitizeHtml, stripHtml } from './components/RichText';
 import NowNext from './components/NowNext';
+import { playCompletionFeedback } from './feedback';
 import { STARTER_TEMPLATES } from './starterTemplates';
 import { downloadICS } from './ics';
 import { computePerfectStreakWithGrace, getWeekKey } from './streaks';
@@ -121,6 +122,7 @@ const App: React.FC = () => {
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [pushStatus, setPushStatus] = useState<string>('');
   const [planningView, setPlanningView] = useState<'day' | 'week'>('day');
+  const [daysAway, setDaysAway] = useState<number | null>(null);
   const [showFullResetModal, setShowFullResetModal] = useState(false);
   const [resetInput, setResetInput] = useState('');
   const [keepTemplates, setKeepTemplates] = useState(true);
@@ -294,6 +296,19 @@ const App: React.FC = () => {
     const tab = new URLSearchParams(window.location.search).get('tab');
     const valid: TabType[] = ['routine', 'stats', 'schedule', 'templates', 'ai', 'inbox', 'settings'];
     if (tab && valid.includes(tab as TabType)) setActiveTab(tab as TabType);
+  }, []);
+
+  // Retour en douceur : détecte une absence de plusieurs jours
+  useEffect(() => {
+    try {
+      const todayKey = getKeyFromDate(new Date());
+      const last = localStorage.getItem('caddr_last_active');
+      if (last && last !== todayKey) {
+        const gap = Math.round((new Date(todayKey + 'T00:00:00').getTime() - new Date(last + 'T00:00:00').getTime()) / 86400000);
+        if (gap >= 3) setDaysAway(gap);
+      }
+      localStorage.setItem('caddr_last_active', todayKey);
+    } catch {}
   }, []);
 
   const accentHex = (THEMES[accentTheme] || THEMES.teal).hex;
@@ -739,6 +754,9 @@ const App: React.FC = () => {
     // Find the task in source blocks to determine XP
     const targetBlock = sourceBlocks.find(b => b.id === blockId);
     if (targetBlock) determineXpDelta(targetBlock.tasks);
+
+    // Récompense sensorielle discrète à la complétion (pas au décochage)
+    if (xpDelta > 0) playCompletionFeedback(appData.settings?.soundEffects ?? true);
 
 
     if (targetIsRoutine && hasLocalBlocks) {
@@ -1663,7 +1681,7 @@ const App: React.FC = () => {
   }, [getPerfForRange]);
 
   // --- Mode Focus ---
-  const [focusTarget, setFocusTarget] = useState<{ task: Task; blockId: string; blockTitle: string } | null>(null);
+  const [focusTarget, setFocusTarget] = useState<{ task: Task; blockId: string; blockTitle: string; micro?: boolean } | null>(null);
 
   // Première tâche horodatée "active maintenant" et non complétée aujourd'hui
   const activeTimedTask = useMemo(() => {
@@ -1702,7 +1720,16 @@ const App: React.FC = () => {
     return { current, next, nowMin };
   }, [routineBlocks, currentTime, dateKey, getVisibleTasks]);
 
-  const handleFocusComplete = () => {
+  // Mode journée simplifiée : n'afficher que le bloc en cours / à venir
+  const simpleMode = appData.settings?.simpleMode ?? false;
+  const displayedRoutineBlocks = useMemo(() => {
+    if (!simpleMode) return routineBlocks;
+    const focusBlockId = nowNextData.current?.blockId || nowNextData.next?.blockId;
+    if (!focusBlockId) return routineBlocks;
+    return routineBlocks.filter(b => b.id === focusBlockId);
+  }, [simpleMode, routineBlocks, nowNextData]);
+
+  const handleFocusComplete = (actualMin: number = 0) => {
     if (!focusTarget) return;
     const target = focusTarget;
     toggleTask(target.blockId, target.task.id); // XP normal de la tâche
@@ -1716,6 +1743,7 @@ const App: React.FC = () => {
         blockTitle: target.blockTitle,
         date: getKeyFromDate(new Date()),
         durationMin: target.task.duration || 25,
+        actualMin: actualMin || undefined,
         completedInTime: true,
       };
       return { ...prev, userProfile: profile, focusSessions: [...(prev.focusSessions || []), session] };
@@ -1942,6 +1970,7 @@ const App: React.FC = () => {
             </button>
 
             <button onClick={requestNotificationPermission} className={`p-2 rounded-xl transition-all ${notificationsEnabled ? 'text-accent bg-accent/10' : 'text-[#18181B]/60 dark:text-[#E6E8E6]/60 bg-[#18181B]/5 dark:bg-[#E6E8E6]/5'}`}>{notificationsEnabled ? <Bell size={16} /> : <BellOff size={16} />}</button>
+            {activeTab === 'routine' && <button onClick={() => updateAppData(prev => ({ ...prev, settings: { ...(prev.settings || {}), simpleMode: !prev.settings?.simpleMode } }))} title="Mode journée simplifiée" className={`p-2 rounded-xl transition-all ${appData.settings?.simpleMode ? 'bg-accent text-white' : 'bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 text-[#18181B]/60 dark:text-[#E6E8E6]/60'}`}><Minimize2 size={16} /></button>}
             {activeTab === 'routine' && <button onClick={() => setIsReorderMode(!isReorderMode)} className={`p-2 rounded-xl transition-all ${isReorderMode ? 'bg-accent text-white' : 'bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 text-[#18181B]/60 dark:text-[#E6E8E6]/60'}`}><MoveVertical size={16} /></button>}
             <div className="bg-accent/10 px-3 py-1 rounded-full text-[10px] font-black text-accent border border-accent/20">{perfToday}%</div>
             </div>
@@ -1970,6 +1999,18 @@ const App: React.FC = () => {
         {/* TAB: ROUTINE */}
         {activeTab === 'routine' && (
           <div className="space-y-6 animate-in fade-in duration-500">
+            {daysAway !== null && (
+              <div className="glass p-5 rounded-[2rem] border border-accent/20 flex items-start gap-3 animate-in slide-in-from-top-2">
+                <Sparkles size={20} className="text-accent shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <p className="text-sm font-black text-[#18181B] dark:text-[#E6E8E6]">Content de vous revoir 🌱</p>
+                  <p className="text-xs font-medium text-[#18181B]/60 dark:text-[#E6E8E6]/60 mt-1">
+                    {daysAway} jours d'absence, et alors ? Pas de culpabilité, pas de retard à rattraper. Reprenez tout en douceur : cochez une seule petite chose aujourd'hui, ça suffit pour relancer la machine.
+                  </p>
+                </div>
+                <button onClick={() => setDaysAway(null)} className="shrink-0 p-1.5 rounded-lg text-[#18181B]/40 dark:text-[#E6E8E6]/40 hover:text-accent"><X size={16} /></button>
+              </div>
+            )}
             {!isReorderMode && dateKey === getKeyFromDate(new Date()) && (nowNextData.current || nowNextData.next) && (
               <NowNext
                 current={nowNextData.current}
@@ -1978,7 +2019,7 @@ const App: React.FC = () => {
                 onStartFocus={(blockId, taskId) => {
                   const block = routineBlocks.find(b => b.id === blockId);
                   const task = block?.tasks.find(t => t.id === taskId) || getVisibleTasks(block?.tasks || []).find(t => t.id === taskId);
-                  if (block && task) setFocusTarget({ task, blockId, blockTitle: block.title });
+                  if (block && task) setFocusTarget({ task, blockId, blockTitle: block.title, micro: true });
                 }}
                 onComplete={(blockId, taskId) => toggleTask(blockId, taskId)}
               />
@@ -2054,8 +2095,8 @@ const App: React.FC = () => {
             ) : (
                 <>
                     <DndContext sensors={dndSensors} collisionDetection={closestCenter} onDragEnd={handleBlockDragEnd}>
-                    <SortableContext items={routineBlocks.map(b => b.id)} strategy={verticalListSortingStrategy}>
-                    {routineBlocks.map((block, bIdx) => {
+                    <SortableContext items={displayedRoutineBlocks.map(b => b.id)} strategy={verticalListSortingStrategy}>
+                    {displayedRoutineBlocks.map((block, bIdx) => {
                       const visibleTasks = getVisibleTasks(block.tasks);
                       const blockPercentage = (() => {
                         let total = 0, done = 0;
@@ -2761,6 +2802,15 @@ const App: React.FC = () => {
                   ))}
                 </div>
               </div>
+              <div className="flex items-center justify-between border-t border-[#18181B]/5 dark:border-[#E6E8E6]/5 pt-4">
+                <p className="text-xs font-medium text-[#18181B]/70 dark:text-[#E6E8E6]/70 max-w-xs">Petit son + vibration à la validation d'une tâche.</p>
+                <button
+                  onClick={() => updateAppData(prev => ({ ...prev, settings: { ...(prev.settings || {}), soundEffects: !(prev.settings?.soundEffects ?? true) } }))}
+                  className={`shrink-0 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${(appData.settings?.soundEffects ?? true) ? 'bg-accent text-white' : 'bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 text-[#18181B]/60 dark:text-[#E6E8E6]/60'}`}
+                >
+                  {(appData.settings?.soundEffects ?? true) ? 'Activé' : 'Désactivé'}
+                </button>
+              </div>
             </div>
 
             {/* Notifications */}
@@ -2931,6 +2981,7 @@ const App: React.FC = () => {
         <FocusMode
           task={focusTarget.task}
           blockTitle={focusTarget.blockTitle}
+          initialMicro={focusTarget.micro}
           onComplete={handleFocusComplete}
           onClose={() => setFocusTarget(null)}
         />
