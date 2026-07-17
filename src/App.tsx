@@ -42,6 +42,7 @@ import Insights from './components/Insights';
 import WeekAgenda from './components/WeekAgenda';
 import AnnualReview from './components/AnnualReview';
 import LandingPage from './components/LandingPage';
+import RichText, { RichTextView, sanitizeHtml, stripHtml } from './components/RichText';
 import { STARTER_TEMPLATES } from './starterTemplates';
 import { downloadICS } from './ics';
 import { computePerfectStreakWithGrace, getWeekKey } from './streaks';
@@ -1975,7 +1976,7 @@ const App: React.FC = () => {
                      </div>
                      {getMoodIcon(currentDayData.mood)}
                   </div>
-                  <p className="text-sm font-medium text-[#18181B] dark:text-[#E6E8E6] italic leading-relaxed">"{currentDayData.reflection}"</p>
+                  <div className="text-sm font-medium text-[#18181B] dark:text-[#E6E8E6] italic leading-relaxed flex gap-1"><span>«</span><RichTextView html={currentDayData.reflection || ''} /><span>»</span></div>
                   
                   {currentDayData.aiFeedback && (
                     <div className="pt-4 border-t border-[#18181B]/5 dark:border-[#E6E8E6]/5 space-y-3">
@@ -2037,7 +2038,7 @@ const App: React.FC = () => {
                                    </span>
                                    <span className="text-[10px] font-black text-[#18181B]/60 dark:text-[#E6E8E6]/60 uppercase tracking-widest flex items-center gap-2"><span className="w-1.5 h-1.5 bg-accent rounded-full" /> {block.title}</span>
                                 </button>
-                                {block.description && !block.isCollapsed && <p className="text-[8px] text-[#18181B]/50 dark:text-[#E6E8E6]/50 font-medium ml-8 mt-0.5 whitespace-pre-wrap break-words animate-in slide-in-from-top-1 pr-4">{block.description}</p>}
+                                {block.description && !block.isCollapsed && <p className="text-[8px] text-[#18181B]/50 dark:text-[#E6E8E6]/50 font-medium ml-8 mt-0.5 whitespace-pre-wrap break-words animate-in slide-in-from-top-1 pr-4"><span dangerouslySetInnerHTML={{ __html: sanitizeHtml(block.description || '') }} /></p>}
                               </div>
                               <div className="flex items-center gap-3">
                                 <span className="text-[9px] font-black text-accent/80 uppercase tracking-wider">{blockPercentage}%</span>
@@ -2094,7 +2095,7 @@ const App: React.FC = () => {
                                           </div>
                                           {task.description && !task.completedDates?.includes(dateKey) && (
                                             <p className="text-[10px] text-[#18181B]/50 dark:text-[#E6E8E6]/50 font-medium mb-1 line-clamp-2 leading-relaxed">
-                                              {task.description}
+                                              {stripHtml(task.description)}
                                             </p>
                                           )}
                                           {task.startTime && <span className={`text-[9px] font-black flex items-center gap-1 mt-0.5 ${active ? 'text-accent' : 'text-[#18181B]/60 dark:text-[#E6E8E6]/60'} uppercase tracking-widest`}><Clock size={10} /> {formatTaskTime(task.startTime, task.duration)}{active && <span className="ml-2 flex h-1.5 w-1.5 rounded-full bg-accent animate-pulse"></span>}</span>}
@@ -2194,7 +2195,7 @@ const App: React.FC = () => {
                                             </div>
                                           </div>
                                           {st.description && !st.completedDates?.includes(dateKey) && (
-                                            <p className="ml-7 text-[10px] text-[#18181B]/50 dark:text-[#E6E8E6]/50 line-clamp-1">{st.description}</p>
+                                            <p className="ml-7 text-[10px] text-[#18181B]/50 dark:text-[#E6E8E6]/50 line-clamp-1">{stripHtml(st.description)}</p>
                                           )}
                                         </div>
                                       );
@@ -2336,7 +2337,7 @@ const App: React.FC = () => {
                              <input className="bg-transparent font-black text-sm outline-none border-b border-transparent focus:border-accent w-full text-[#18181B] dark:text-[#E6E8E6]" value={block.title} readOnly={block.isLocked} onChange={e => updateAppData(prev => ({ ...prev, blocks: prev.blocks.map(b => b.id === block.id ? { ...b, title: e.target.value } : b) }))} />
                              {block.isLocked && <Lock size={12} className="text-accent/60 shrink-0" />}
                           </div>
-                          {block.description && !block.isCollapsed && <p className="text-[10px] text-[#18181B]/60 dark:text-[#E6E8E6]/60 font-medium whitespace-pre-wrap break-words mt-1 ml-8">{block.description}</p>}
+                          {block.description && !block.isCollapsed && <p className="text-[10px] text-[#18181B]/60 dark:text-[#E6E8E6]/60 font-medium whitespace-pre-wrap break-words mt-1 ml-8"><span dangerouslySetInnerHTML={{ __html: sanitizeHtml(block.description || '') }} /></p>}
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
@@ -2378,7 +2379,7 @@ const App: React.FC = () => {
                                     <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${getPriorityInfo(task.priority).color.replace('text', 'bg')}`} title={getPriorityInfo(task.priority).label} />
                                   )}
                               </div>
-                              {task.description && <p className="text-[9px] text-[#18181B]/60 dark:text-[#E6E8E6]/60 truncate mt-0.5">{task.description}</p>}
+                              {task.description && <p className="text-[9px] text-[#18181B]/60 dark:text-[#E6E8E6]/60 truncate mt-0.5">{stripHtml(task.description)}</p>}
                               {task.startTime && (<div className="flex items-center gap-2 mt-1"><span className="text-[7px] font-black text-accent uppercase tracking-widest bg-accent/10 px-1.5 py-0.5 rounded-full flex items-center gap-1"><Clock size={8} /> {task.startTime}{task.duration && <span className="text-accent/60 ml-1">({task.duration}m)</span>}</span></div>)}
                             </div>
                             {!block.isLocked && (
@@ -2400,7 +2401,7 @@ const App: React.FC = () => {
                               )}
                               <div className="flex-1 flex flex-col min-w-0">
                                 <input className="bg-transparent text-[11px] font-medium outline-none w-full text-[#18181B] dark:text-[#E6E8E6]" value={st.title} readOnly={block.isLocked} onChange={e => updateAppData(prev => ({ ...prev, blocks: prev.blocks.map(b => b.id === block.id ? { ...b, tasks: b.tasks.map(t => t.id === task.id ? { ...t, subTasks: (t.subTasks || []).map(s => s.id === st.id ? { ...s, title: e.target.value } : s) } : t) } : b) }))} />
-                                {st.description && <p className="text-[8px] text-[#18181B]/60 dark:text-[#E6E8E6]/60 truncate">{st.description}</p>}
+                                {st.description && <p className="text-[8px] text-[#18181B]/60 dark:text-[#E6E8E6]/60 truncate">{stripHtml(st.description)}</p>}
                               </div>
                               {!block.isLocked && (
                                 <>
@@ -2472,7 +2473,7 @@ const App: React.FC = () => {
                       <span className="text-xl">{st.emoji}</span>
                       <h4 className="font-black text-sm text-[#18181B] dark:text-[#E6E8E6]">{st.name}</h4>
                     </div>
-                    <p className="text-[10px] font-medium text-[#18181B]/50 dark:text-[#E6E8E6]/50 leading-snug">{st.description}</p>
+                    <p className="text-[10px] font-medium text-[#18181B]/50 dark:text-[#E6E8E6]/50 leading-snug">{stripHtml(st.description)}</p>
                     <button
                       onClick={() => {
                         const built = st.build();
@@ -2940,12 +2941,11 @@ const App: React.FC = () => {
               </div>
               <div className="space-y-2">
                  <p className="text-[8px] font-black text-[#18181B]/60 dark:text-[#E6E8E6]/60 uppercase px-2">Notes d'exécution</p>
-                 <textarea 
-                    className="w-full bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 p-4 rounded-2xl text-xs font-semibold border border-[#18181B]/10 dark:border-[#E6E8E6]/10 outline-none focus:border-accent transition-all text-[#18181B] dark:text-[#E6E8E6] h-32 resize-none"
+                 <RichText
+                    minHeight={110}
                     placeholder="Comment s'est passée cette tâche ? Détails, obstacles, réussites..."
                     value={currentLogText}
-                    onChange={(e) => setCurrentLogText(e.target.value)}
-                    autoFocus
+                    onChange={(html) => setCurrentLogText(html)}
                  />
               </div>
               <div className="flex gap-3 pt-2">
@@ -3011,8 +3011,8 @@ const App: React.FC = () => {
               {(configModal.type === 'block' || configModal.type === 'task') && (
                 <div className="space-y-2 animate-in slide-in-from-top-2">
                   <p className="text-[8px] font-black text-[#18181B]/60 dark:text-[#E6E8E6]/60 uppercase px-2 flex items-center gap-1"><Info size={10} /> Description / Notes</p>
-                  <textarea 
-                    className="w-full bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 p-4 rounded-2xl text-xs font-semibold border border-[#18181B]/10 dark:border-[#E6E8E6]/10 outline-none focus:border-accent transition-all text-[#18181B] dark:text-[#E6E8E6] h-24 resize-none"
+                  <RichText
+                    minHeight={90}
                     placeholder="Détails supplémentaires, conseils..."
                     value={
                       configModal.type === 'block'
@@ -3037,7 +3037,7 @@ const App: React.FC = () => {
                               )
                           )
                     }
-                    onChange={(e) => updateConfiguredItem('description', e.target.value)}
+                    onChange={(html) => updateConfiguredItem('description', html)}
                   />
                 </div>
               )}
@@ -3364,11 +3364,11 @@ const App: React.FC = () => {
 
               <div className="space-y-4">
                  <p className="text-[10px] font-black text-[#18181B]/60 dark:text-[#E6E8E6]/60 uppercase tracking-widest ml-2 italic">Réflexion & Gratitude</p>
-                 <textarea 
-                   className="w-full bg-[#18181B]/5 dark:bg-[#080708]/50 p-6 rounded-[2rem] text-sm font-semibold border border-[#18181B]/5 dark:border-[#E6E8E6]/5 outline-none focus:border-accent h-32 transition-all text-[#18181B] dark:text-[#E6E8E6]"
+                 <RichText
+                   minHeight={110}
                    placeholder="Qu'avez-vous appris aujourd'hui ? Qu'allez-vous améliorer ?"
                    value={currentDayData.reflection || ""}
-                   onChange={e => updateAppData(prev => ({ ...prev, days: { ...prev.days, [dateKey]: { ...currentDayData, reflection: e.target.value } } }))}
+                   onChange={(html) => updateAppData(prev => ({ ...prev, days: { ...prev.days, [dateKey]: { ...currentDayData, reflection: html } } }))}
                  />
               </div>
 
