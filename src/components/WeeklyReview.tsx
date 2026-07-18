@@ -55,11 +55,11 @@ const WeeklyReview: React.FC<Props> = ({ weekKey, review, stats, onSave, onGener
 
       <div className="space-y-2">
         <label className="text-[9px] font-black uppercase tracking-widest text-[#18181B]/50 dark:text-[#E6E8E6]/50">Ce qui a marché</label>
-        <RichText minHeight={60} value={wins} onChange={setWins} onBlur={() => persist()} placeholder="Vos réussites de la semaine..." />
+        <RichText minHeight={100} value={wins} onChange={setWins} onBlur={() => persist()} placeholder="Vos réussites de la semaine..." />
       </div>
       <div className="space-y-2">
         <label className="text-[9px] font-black uppercase tracking-widest text-[#18181B]/50 dark:text-[#E6E8E6]/50">À améliorer la semaine prochaine</label>
-        <RichText minHeight={60} value={improve} onChange={setImprove} onBlur={() => persist()} placeholder="Ce qui a décroché..." />
+        <RichText minHeight={100} value={improve} onChange={setImprove} onBlur={() => persist()} placeholder="Ce qui a décroché..." />
       </div>
 
       <button onClick={generate} disabled={loading} className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-[#18181B] dark:bg-[#E6E8E6] text-white dark:text-[#080708] text-[10px] font-black uppercase tracking-widest disabled:opacity-50">

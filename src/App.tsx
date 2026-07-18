@@ -2672,6 +2672,7 @@ const App: React.FC = () => {
                             <Layout size={16} className="text-accent" />
                             <h3 className="text-xs font-black uppercase tracking-widest text-[#18181B] dark:text-[#E6E8E6]">Habitudes de Blocs</h3>
                         </div>
+                        <p className="text-[9px] font-medium text-[#18181B]/40 dark:text-[#E6E8E6]/40 -mt-2">Régularité sur la période : part des jours où le bloc a été complété à 100% (≠ progression du jour).</p>
                         <div className="space-y-3 max-h-64 overflow-y-auto custom-scrollbar pr-2">
                             {statsData.sortedBlockStats.length === 0 ? (
                                 <p className="text-[10px] text-[#18181B]/40 dark:text-[#E6E8E6]/40 italic">Aucune donnée de bloc disponible.</p>
@@ -2680,7 +2681,10 @@ const App: React.FC = () => {
                                     <div key={idx} className="space-y-1">
                                         <div className="flex justify-between items-center text-[10px] font-bold text-[#18181B] dark:text-[#E6E8E6]">
                                             <span>{stat.title}</span>
-                                            <span className={`${stat.rate >= 80 ? 'text-accent' : stat.rate >= 50 ? 'text-[#FDCA40]' : 'text-[#18181B]/40 dark:text-[#E6E8E6]/40'}`}>{stat.rate}%</span>
+                                            <span className="flex items-center gap-1.5">
+                                              <span className="text-[8px] font-medium text-[#18181B]/30 dark:text-[#E6E8E6]/30">{stat.fullyValidated}/{stat.totalAppearances} j</span>
+                                              <span className={`${stat.rate >= 80 ? 'text-accent' : stat.rate >= 50 ? 'text-[#FDCA40]' : 'text-[#18181B]/40 dark:text-[#E6E8E6]/40'}`}>{stat.rate}%</span>
+                                            </span>
                                         </div>
                                         <div className="h-2 w-full bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 rounded-full overflow-hidden">
                                             <div 
@@ -3036,7 +3040,7 @@ const App: React.FC = () => {
               <div className="space-y-2">
                  <p className="text-[8px] font-black text-[#18181B]/60 dark:text-[#E6E8E6]/60 uppercase px-2">Notes d'exécution</p>
                  <RichText
-                    minHeight={110}
+                    minHeight={200}
                     placeholder="Comment s'est passée cette tâche ? Détails, obstacles, réussites..."
                     value={currentLogText}
                     onChange={(html) => setCurrentLogText(html)}
@@ -3106,7 +3110,7 @@ const App: React.FC = () => {
                 <div className="space-y-2 animate-in slide-in-from-top-2">
                   <p className="text-[8px] font-black text-[#18181B]/60 dark:text-[#E6E8E6]/60 uppercase px-2 flex items-center gap-1"><Info size={10} /> Description / Notes</p>
                   <RichText
-                    minHeight={90}
+                    minHeight={130}
                     placeholder="Détails supplémentaires, conseils..."
                     value={
                       configModal.type === 'block'
@@ -3459,7 +3463,7 @@ const App: React.FC = () => {
               <div className="space-y-4">
                  <p className="text-[10px] font-black text-[#18181B]/60 dark:text-[#E6E8E6]/60 uppercase tracking-widest ml-2 italic">Réflexion & Gratitude</p>
                  <RichText
-                   minHeight={110}
+                   minHeight={160}
                    placeholder="Qu'avez-vous appris aujourd'hui ? Qu'allez-vous améliorer ?"
                    value={currentDayData.reflection || ""}
                    onChange={(html) => updateAppData(prev => ({ ...prev, days: { ...prev.days, [dateKey]: { ...currentDayData, reflection: html } } }))}
