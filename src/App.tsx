@@ -888,33 +888,16 @@ const App: React.FC = () => {
     });
   };
 
-  // Glisser-déposer d'une tâche dans Routine : le nouvel ordre vaut pour ce jour,
-  // pour le plan et pour les jours suivants déjà personnalisés (sinon l'ordre
-  // reviendrait à l'ancien dès le lendemain).
   const handleTaskDragEnd = (blockId: string) => (e: DragEndEvent) => {
     const { active, over } = e;
     if (!over || active.id === over.id) return;
-    const reorder = (blocks: Block[]): Block[] => blocks.map(b => {
+    handleRoutineStructureChange(blocks => blocks.map(b => {
       if (b.id !== blockId) return b;
       const oldI = b.tasks.findIndex(t => t.id === active.id);
       const newI = b.tasks.findIndex(t => t.id === over.id);
       if (oldI === -1 || newI === -1) return b;
       return { ...b, tasks: arrayMove(b.tasks, oldI, newI) };
-    });
-    const todayKey = getKeyFromDate(new Date());
-    updateAppData(prev => {
-      const day = prev.days[dateKey] || { goalCompleted: false, note: "" };
-      const source = day.blocks
-        ? day.blocks
-        : prev.blocks.filter(b => isDateInRange(currentDate, b.recurrence, b.specificDate, b.startDate, b.endDate, b.stopDate));
-      const days = { ...prev.days, [dateKey]: { ...day, blocks: reorder(JSON.parse(JSON.stringify(source))) } };
-      Object.keys(days).forEach(k => {
-        if (k === dateKey || k < todayKey || k < dateKey) return;
-        const d = days[k];
-        if (d?.blocks) days[k] = { ...d, blocks: reorder(d.blocks) };
-      });
-      return { ...prev, blocks: reorder(prev.blocks), days };
-    });
+    }));
   };
 
   const handleEngineBlockDragEnd = (e: DragEndEvent) => {
@@ -2336,21 +2319,10 @@ const App: React.FC = () => {
                                 const hasLogToday = !!task.executionNotes?.[dateKey];
                                 
                                 return (
-                                  <Sortable key={task.id} id={task.id}>
+                                  <Sortable key={task.id} id={task.id} disabled={!isReorderMode}>
                                     {(taskHandle) => (
                                   <div className={active ? 'bg-accent/5' : ''}>
-                                    <div className={`relative flex items-center p-5 pl-7 gap-4 group transition-colors ${isReorderMode ? 'bg-[#18181B]/[0.01] dark:bg-[#E6E8E6]/[0.01]' : 'cursor-pointer hover:bg-[#18181B]/[0.02] dark:hover:bg-[#E6E8E6]/[0.02]'}`} onClick={() => toggleTask(block.id, task.id)}>
-                                      {/* Poignée de glisser-déposer : toujours disponible (visible au survol, discrète sur mobile) */}
-                                      <button
-                                        {...taskHandle}
-                                        type="button"
-                                        onClick={(e) => e.stopPropagation()}
-                                        className={`absolute left-1 top-1/2 -translate-y-1/2 p-1 rounded-lg cursor-grab active:cursor-grabbing touch-none transition-all ${isReorderMode ? 'opacity-100 text-accent' : 'opacity-40 sm:opacity-0 group-hover:opacity-100 text-[#18181B]/40 dark:text-[#E6E8E6]/40 hover:text-accent'}`}
-                                        title="Glisser pour changer l'ordre"
-                                        aria-label="Glisser pour changer l'ordre"
-                                      >
-                                        <GripVertical size={14} />
-                                      </button>
+                                    <div className={`flex items-center p-5 gap-4 group transition-colors ${isReorderMode ? 'bg-[#18181B]/[0.01] dark:bg-[#E6E8E6]/[0.01]' : 'cursor-pointer hover:bg-[#18181B]/[0.02] dark:hover:bg-[#E6E8E6]/[0.02]'}`} onClick={() => toggleTask(block.id, task.id)}>
                                       <div className={`w-6 h-6 rounded-xl border-2 flex items-center justify-center transition-all ${task.completedDates?.includes(dateKey) ? 'bg-accent border-accent' : 'border-[#18181B]/20 dark:border-[#E6E8E6]/20'}`}>{task.completedDates?.includes(dateKey) && <Check size={14} className="text-white" strokeWidth={3} />}</div>
                                       {visibleSubTasks.length > 0 && (
                                         <button onClick={(e) => { e.stopPropagation(); toggleTaskCollapse(task.id); }} className="p-0.5 text-[#18181B]/40 dark:text-[#E6E8E6]/40 hover:text-accent shrink-0" title={collapsedTasks[task.id] ? 'Déplier' : 'Replier'}>
@@ -2415,6 +2387,7 @@ const App: React.FC = () => {
                                         >
                                           <Trash2 size={16} />
                                         </button>
+                                        {isReorderMode && <button {...taskHandle} onClick={(e) => e.stopPropagation()} className="cursor-grab active:cursor-grabbing touch-none text-accent p-1" title="Glisser pour réordonner"><GripVertical size={14}/></button>}
                                       </div>
                                     </div>
                                     {visibleSubTasks.length > 0 && !collapsedTasks[task.id] && <div className="pl-14 pr-5 pb-5 space-y-3">{visibleSubTasks.map(st => {
