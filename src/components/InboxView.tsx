@@ -163,7 +163,7 @@ const InboxView: React.FC<Props> = ({ items, onChange, onTransfer, saveToHistory
             onClick={() => toggleDone(task)}
             title="Marquer comme réglée"
             aria-label="Marquer comme réglée"
-            className="group/ck w-5 h-5 shrink-0 rounded-lg border-2 border-[#18181B]/20 dark:border-[#E6E8E6]/20 hover:border-accent flex items-center justify-center transition-all"
+            className="group/ck w-7 h-7 sm:w-5 sm:h-5 shrink-0 rounded-lg border-2 border-[#18181B]/20 dark:border-[#E6E8E6]/20 hover:border-accent flex items-center justify-center transition-all"
           >
             <Check size={11} strokeWidth={3} className="text-accent opacity-0 group-hover/ck:opacity-100" />
           </button>

@@ -1,5 +1,5 @@
 // Service Worker Caddr. — cache des assets pour un fonctionnement hors-ligne.
-const CACHE = 'caddr-v1';
+const CACHE = 'caddr-v2';
 const OFFLINE_URL = '/index.html';
 
 self.addEventListener('install', (e) => {

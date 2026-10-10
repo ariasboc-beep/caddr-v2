@@ -15,7 +15,7 @@ import {
   Lock, LockOpen, User, LogOut, ShieldCheck, Mail, Key, Settings2, Info,
   Download, Upload, Power, Pencil, Edit3, PieChart, FileText,
   CalendarClock, ArrowUpCircle, BookOpen, PenTool, Crown, Swords,
-  Medal, Sun, Moon, RotateCcw, CloudOff, SkipForward, Hourglass, Lightbulb
+  Medal, Sun, Moon, RotateCcw, CloudOff, SkipForward, Hourglass, Lightbulb, MoreHorizontal
 } from 'lucide-react';
 import { AppData, Block, TabType, RecurrenceType, TimeframeType, RecurringGoal, Task, PriorityType, DayRoutine, UserProfile } from './types';
 import { getKeyFromDate, generateId, isDateInRange } from './utils';
@@ -99,6 +99,7 @@ const App: React.FC = () => {
   const enterGuest = () => { try { localStorage.setItem('caddr_guest', '1'); } catch {} setGuestMode(true); };
   const [isSyncing, setIsSyncing] = useState(false);
   const [isReorderMode, setIsReorderMode] = useState(false);
+  const [showMoreNav, setShowMoreNav] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
   
   // Theme State
@@ -316,7 +317,7 @@ const App: React.FC = () => {
   // Raccourcis d'écran d'accueil (PWA) : ouvre l'onglet demandé via ?tab=
   useEffect(() => {
     const tab = new URLSearchParams(window.location.search).get('tab');
-    const valid: TabType[] = ['routine', 'stats', 'schedule', 'templates', 'ai', 'inbox', 'settings'];
+    const valid: TabType[] = ['routine', 'stats', 'schedule', 'templates', 'ai', 'inbox', 'settings', 'habits'];
     if (tab && valid.includes(tab as TabType)) setActiveTab(tab as TabType);
   }, []);
 
@@ -2193,7 +2194,7 @@ const App: React.FC = () => {
       )}
 
       {/* Header */}
-      <header className="px-4 sm:px-6 py-4 border-b border-[#18181B]/5 dark:border-[#E6E8E6]/5 bg-[#F4F4F5]/80 dark:bg-[#080708]/80 backdrop-blur-xl sticky top-0 z-40 flex flex-col gap-4 max-w-4xl mx-auto w-full transition-colors duration-300">
+      <header style={{ paddingTop: 'max(1rem, env(safe-area-inset-top))' }} className="px-4 sm:px-6 py-4 border-b border-[#18181B]/5 dark:border-[#E6E8E6]/5 bg-[#F4F4F5]/80 dark:bg-[#080708]/80 backdrop-blur-xl sticky top-0 z-40 flex flex-col gap-4 max-w-4xl mx-auto w-full transition-colors duration-300">
         <div className="flex items-center justify-between gap-2 flex-wrap">
             <div className="flex items-center gap-2">
             <button onClick={() => { const d = new Date(currentDate); d.setDate(d.getDate()-1); setCurrentDate(d); }} className="p-2 text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-[#18181B] dark:hover:text-[#E6E8E6] transition-colors"><ChevronLeft size={20}/></button>
@@ -2293,7 +2294,7 @@ const App: React.FC = () => {
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 mt-4 space-y-8">
+      <main className="max-w-4xl mx-auto px-4 sm:px-6 mt-4 space-y-8 pb-24 md:pb-16">
         
         {/* TAB: ROUTINE */}
         {activeTab === 'routine' && (
@@ -2339,7 +2340,7 @@ const App: React.FC = () => {
                     <span className="flex items-center gap-1">Objectif Prioritaire {currentGoal && <Repeat size={8} className="text-accent" />} {currentGoalReminder && <Clock size={8} className="text-accent ml-1" />} <span className="text-accent normal-case ml-1 font-black">{currentGoalReminder}</span></span>
                     <button onClick={() => { const id = generateId(); updateAppData(prev => { const existingGoal = (prev.recurringGoals || []).find(g => isDateInRange(currentDate, g.recurrence, g.specificDate, g.startDate, g.endDate, g.stopDate)); if (existingGoal) { setConfigModal({ type: 'goal', id: existingGoal.id }); return prev; } setConfigModal({ type: 'goal', id }); return { ...prev, recurringGoals: [...(prev.recurringGoals || []), { id, title: currentGoal || "Nouvel Objectif", recurrence: 'specific', specificDate: dateKey }] }; }); }} className="text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-accent transition-colors"><Clock size={12} /></button>
                 </div>
-                <input className="bg-transparent w-full text-lg font-bold outline-none placeholder-[#18181B]/30 dark:placeholder-[#E6E8E6]/30 text-[#18181B] dark:text-[#E6E8E6]" placeholder="Focus du jour..." value={currentGoal} onChange={e => updateAppData(prev => ({ ...prev, days: { ...prev.days, [dateKey]: { ...currentDayData, dailyGoalOverride: e.target.value } } }))} />
+                <input className="bg-transparent w-full text-base sm:text-lg font-bold outline-none placeholder-[#18181B]/30 dark:placeholder-[#E6E8E6]/30 text-[#18181B] dark:text-[#E6E8E6]" placeholder="Focus du jour..." value={currentGoal} onChange={e => updateAppData(prev => ({ ...prev, days: { ...prev.days, [dateKey]: { ...currentDayData, dailyGoalOverride: e.target.value } } }))} />
               </div>
             </div>
 
@@ -2462,10 +2463,10 @@ const App: React.FC = () => {
                                 <span className="text-[9px] font-black text-accent/80 uppercase tracking-wider">{blockPercentage}%</span>
                                 {!block.isCollapsed && (
                                   <div className="flex gap-1 animate-in zoom-in-50">
-                                    <button onClick={() => setConfigModal({ type: 'block', id: block.id })} className="p-1 text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-accent transition-colors" title="Configurer le bloc"><Settings2 size={14} /></button>
-                                    <button onClick={() => { saveToHistory(); handleRoutineStructureChange(blocks => blocks.filter(b => b.id !== block.id)); }} className="p-1 text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-[#DF2935] transition-colors" title="Supprimer le bloc (ce jour uniquement)"><Trash2 size={14} /></button>
-                                    <button onClick={() => addTaskToBlock(block.id)} className="p-1 text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-accent transition-colors"><Plus size={14} /></button>
-                                    <button onClick={() => handleDuplicate('block', block.id)} className="p-1 text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-accent transition-colors"><Copy size={14} /></button>
+                                    <button onClick={() => setConfigModal({ type: 'block', id: block.id })} className="p-2 sm:p-1 text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-accent transition-colors" title="Configurer le bloc"><Settings2 size={14} /></button>
+                                    <button onClick={() => { saveToHistory(); handleRoutineStructureChange(blocks => blocks.filter(b => b.id !== block.id)); }} className="p-2 sm:p-1 text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-[#DF2935] transition-colors" title="Supprimer le bloc (ce jour uniquement)"><Trash2 size={14} /></button>
+                                    <button onClick={() => addTaskToBlock(block.id)} className="p-2 sm:p-1 text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-accent transition-colors"><Plus size={14} /></button>
+                                    <button onClick={() => handleDuplicate('block', block.id)} className="p-2 sm:p-1 text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-accent transition-colors"><Copy size={14} /></button>
                                     {isReorderMode && <button {...blockHandle} className="cursor-grab active:cursor-grabbing touch-none p-1 text-accent" title="Glisser pour réordonner"><GripVertical size={14} /></button>}
                                   </div>
                                 )}
@@ -2708,9 +2709,9 @@ const App: React.FC = () => {
                 </div>
               </div>
             ) : (
-              <div className="glass p-6 rounded-[2rem] flex items-center justify-between border border-accent/20 bg-accent/5">
+              <div className="glass p-5 sm:p-6 rounded-[2rem] flex flex-wrap items-center justify-between gap-4 border border-accent/20 bg-accent/5">
                 <div><h2 className="font-black uppercase tracking-wider text-sm text-[#18181B] dark:text-[#E6E8E6]">PLANNING CADDR.</h2><p className="text-[9px] text-[#18181B]/60 dark:text-[#E6E8E6]/60 font-bold uppercase">Structure & Objectifs</p></div>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   <button onClick={() => setTemplateModal(true)} title="Enregistrer comme modèle" className="p-3 bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 rounded-2xl text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-white hover:bg-accent transition-all"><Save size={20} /></button>
                   <button onClick={() => setShowAiGen(true)} title="Générer avec IA" className="p-3 bg-[#FDCA40] rounded-2xl text-[#080708] shadow-lg"><Wand2 size={20} /></button>
                   <input type="file" ref={fileInputRef} onChange={handleVisionImport} className="hidden" accept="image/*" />
@@ -2862,7 +2863,7 @@ const App: React.FC = () => {
         {activeTab === 'inbox' && (
           <div className="space-y-6 animate-in slide-in-from-left-4 duration-500 pb-20">
             {/* ... Existing Inbox Code ... */}
-            <div className="glass p-8 rounded-[2.5rem] space-y-4 border border-accent/20 bg-accent/5">
+            <div className="glass p-5 sm:p-8 rounded-[2.5rem] space-y-4 border border-accent/20 bg-accent/5">
               <div className="flex items-center gap-3"><div className="w-12 h-12 bg-accent/10 rounded-2xl flex items-center justify-center"><Archive className="text-accent" size={24} /></div><div><h2 className="font-black text-lg uppercase leading-tight text-[#18181B] dark:text-[#E6E8E6]">Boîte de tâches</h2><p className="text-[9px] text-[#18181B]/60 dark:text-[#E6E8E6]/60 uppercase font-black">Capturer vos idées en un clin d'œil</p></div></div>
               <div className="space-y-1.5 pt-2"><div className="flex gap-2"><input className="flex-1 bg-white dark:bg-[#080708] p-4 rounded-2xl text-sm font-bold border border-[#18181B]/5 dark:border-[#E6E8E6]/5 outline-none focus:border-accent transition-all text-[#18181B] dark:text-[#E6E8E6]" placeholder="Ex : Appeler Paul demain 15h p1 @appel" value={newInboxTitle} onChange={e => setNewInboxTitle(e.target.value)} onKeyDown={e => e.key === 'Enter' && addInboxTask()} /><button onClick={addInboxTask} className="p-4 bg-accent rounded-2xl text-white shadow-lg shadow-accent/20 active:scale-95 transition-all"><Plus size={20} /></button></div><p className="text-[9px] font-medium text-[#18181B]/40 dark:text-[#E6E8E6]/40 px-1">Reconnaît « demain », « lundi », « 20/10 », « chaque mardi », « 15h30 », « p1/p2/p3 », « @étiquette » et « avant vendredi » (échéance).</p></div>
             </div>
@@ -3123,7 +3124,47 @@ const App: React.FC = () => {
 
       {/* Navigation */}
       {/* Barre du bas — toujours sur mobile ; sur desktop uniquement si position = bas */}
-      <nav className={`fixed bottom-0 left-0 right-0 z-50 bg-[#F4F4F5]/90 dark:bg-[#080708]/90 backdrop-blur-3xl border-t border-[#18181B]/5 dark:border-[#E6E8E6]/5 pb-10 pt-4 px-4 overflow-x-auto custom-scrollbar transition-colors duration-300 ${navPosition === 'left' ? 'md:hidden' : ''}`}>
+      {/* Navigation mobile : 5 onglets principaux + « Plus » (feuille avec les autres) */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-[#F4F4F5]/95 dark:bg-[#080708]/95 backdrop-blur-3xl border-t border-[#18181B]/5 dark:border-[#E6E8E6]/5 pt-2 px-2 transition-colors duration-300" style={{ paddingBottom: 'max(0.6rem, env(safe-area-inset-bottom))' }} aria-label="Navigation principale">
+        <div className="grid grid-cols-6">
+          {(() => {
+            const primary = ['routine', 'habits', 'schedule', 'inbox', 'stats'];
+            const secondaryActive = !primary.includes(activeTab);
+            return (
+              <>
+                {navTabs.filter(t => primary.includes(t.id)).map(tab => (
+                  <button key={tab.id} onClick={() => { setActiveTab(tab.id as TabType); setIsReorderMode(false); setShowMoreNav(false); }} aria-current={activeTab === tab.id ? 'page' : undefined}
+                    className={`flex flex-col items-center gap-1 py-1.5 rounded-xl transition-all ${activeTab === tab.id ? 'text-accent' : 'text-[#18181B]/60 dark:text-[#E6E8E6]/60'}`}>
+                    <tab.icon size={21} strokeWidth={activeTab === tab.id ? 2.5 : 2} />
+                    <span className="text-[9px] font-black whitespace-nowrap">{tab.label === 'Analytics' ? 'Stats' : tab.label}</span>
+                  </button>
+                ))}
+                <button onClick={() => setShowMoreNav(v => !v)} aria-expanded={showMoreNav}
+                  className={`flex flex-col items-center gap-1 py-1.5 rounded-xl transition-all ${secondaryActive || showMoreNav ? 'text-accent' : 'text-[#18181B]/60 dark:text-[#E6E8E6]/60'}`}>
+                  <MoreHorizontal size={21} strokeWidth={secondaryActive ? 2.5 : 2} />
+                  <span className="text-[9px] font-black">Plus</span>
+                </button>
+              </>
+            );
+          })()}
+        </div>
+      </nav>
+      {showMoreNav && (
+        <div className="md:hidden fixed inset-0 z-[45]" onClick={() => setShowMoreNav(false)}>
+          <div className="absolute inset-0 bg-black/40" />
+          <div className="absolute left-3 right-3 glass bg-[#F4F4F5] dark:bg-[#111] rounded-3xl p-3 space-y-1 animate-in slide-in-from-bottom-4" style={{ bottom: 'calc(max(0.6rem, env(safe-area-inset-bottom)) + 4.6rem)' }} onClick={e => e.stopPropagation()}>
+            {navTabs.filter(t => !['routine', 'habits', 'schedule', 'inbox', 'stats'].includes(t.id)).map(tab => (
+              <button key={tab.id} onClick={() => { setActiveTab(tab.id as TabType); setIsReorderMode(false); setShowMoreNav(false); }}
+                className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-sm font-bold transition-all ${activeTab === tab.id ? 'bg-accent/15 text-accent' : 'text-[#18181B] dark:text-[#E6E8E6] hover:bg-[#18181B]/5 dark:hover:bg-[#E6E8E6]/5'}`}>
+                <tab.icon size={19} /> {tab.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Navigation ordinateur (barre du bas) */}
+      <nav className={`hidden md:block fixed bottom-0 left-0 right-0 z-50 bg-[#F4F4F5]/90 dark:bg-[#080708]/90 backdrop-blur-3xl border-t border-[#18181B]/5 dark:border-[#E6E8E6]/5 pb-6 pt-4 px-4 overflow-x-auto custom-scrollbar transition-colors duration-300 ${navPosition === 'left' ? 'md:hidden' : ''}`}>
         <div className="max-w-4xl mx-auto flex items-center justify-between gap-4 min-w-max px-4">
           {navTabs.map(tab => (
             <button key={tab.id} onClick={() => { setActiveTab(tab.id as TabType); setIsReorderMode(false); }} className={`flex flex-col items-center gap-2 transition-all px-2 ${activeTab === tab.id ? 'text-accent scale-110' : 'text-[#18181B]/60 dark:text-[#E6E8E6]/60'}`}>
@@ -3235,7 +3276,7 @@ const App: React.FC = () => {
 
       {showLevelUpModal && (
         <div className="fixed inset-0 z-[200] bg-[#080708]/90 backdrop-blur-2xl flex items-center justify-center p-6 animate-in zoom-in-50 duration-500">
-           <div className="glass w-full max-w-sm p-10 rounded-[3.5rem] shadow-[0_0_50px_rgba(47, 176, 166,0.3)] border border-accent/30 relative overflow-hidden group text-center space-y-6">
+           <div className="glass w-full max-w-sm p-6 sm:p-10 rounded-[3.5rem] shadow-[0_0_50px_rgba(47, 176, 166,0.3)] border border-accent/30 relative overflow-hidden group text-center space-y-6">
               {/* Confetti / Rays effect bg */}
               <div className="absolute inset-0 bg-gradient-to-tr from-accent/20 via-transparent to-[#FDCA40]/20 animate-pulse" />
               
@@ -3267,7 +3308,7 @@ const App: React.FC = () => {
         <div className="fixed inset-0 z-[110] bg-[#F4F4F5]/95 dark:bg-[#080708]/95 backdrop-blur-xl flex items-center justify-center p-4 sm:p-6 animate-in fade-in">
            <div className="glass relative w-full rounded-[3rem] max-h-[94vh] flex flex-col" style={{ maxWidth: logSize.width }}>
               <SideResizeHandles onStart={logSize.startResize} onReset={logSize.reset} />
-              <div className="p-10 space-y-6 overflow-y-auto custom-scrollbar">
+              <div className="p-6 sm:p-10 space-y-6 overflow-y-auto custom-scrollbar">
               <button
                 onClick={() => { setLogModal(null); setCurrentLogText(""); }}
                 title="Fermer (Échap)"
@@ -3318,7 +3359,7 @@ const App: React.FC = () => {
           <div className="glass relative w-full rounded-[3rem] max-h-[90vh] flex flex-col" style={{ maxWidth: configSize.width }}>
             <SideResizeHandles onStart={configSize.startResize} onReset={configSize.reset} />
 
-            <div className="relative shrink-0 px-10 pt-8 pb-4 text-center">
+            <div className="relative shrink-0 px-6 sm:px-10 pt-7 sm:pt-8 pb-4 text-center">
               <h3 className="font-black uppercase text-sm tracking-widest italic text-[#18181B] dark:text-[#E6E8E6]">Configuration</h3>
               <button
                 onClick={() => setConfigModal(null)}
@@ -3330,7 +3371,7 @@ const App: React.FC = () => {
               </button>
             </div>
 
-          <div className="px-10 pb-10 space-y-6 overflow-y-auto custom-scrollbar">
+          <div className="px-5 sm:px-10 pb-8 sm:pb-10 space-y-6 overflow-y-auto custom-scrollbar">
             
             <div className="space-y-4">
               <div className="space-y-2">
@@ -3647,7 +3688,7 @@ const App: React.FC = () => {
       {/* SKIP TODAY MODAL — remplace window.prompt pour respecter le design de l'app */}
       {skipModal && (
         <div className="fixed inset-0 z-[120] bg-[#F4F4F5]/95 dark:bg-[#080708]/95 backdrop-blur-xl flex items-center justify-center p-6 animate-in fade-in" onMouseDown={(e) => { if (e.target === e.currentTarget) setSkipModal(null); }}>
-           <div className="glass relative w-full max-w-sm p-10 rounded-[3rem] space-y-6 animate-in zoom-in-95">
+           <div className="glass relative w-full max-w-sm p-6 sm:p-10 rounded-[3rem] space-y-6 animate-in zoom-in-95">
               <button
                 onClick={() => setSkipModal(null)}
                 aria-label="Fermer"
@@ -3711,7 +3752,7 @@ const App: React.FC = () => {
       {/* RESCHEDULE MODAL */}
       {rescheduleModal && (
         <div className="fixed inset-0 z-[110] bg-[#F4F4F5]/95 dark:bg-[#080708]/95 backdrop-blur-xl flex items-center justify-center p-6 animate-in fade-in">
-           <div className="glass w-full max-w-sm p-10 rounded-[3rem] space-y-6">
+           <div className="glass w-full max-w-sm p-6 sm:p-10 rounded-[3rem] space-y-6">
               <div className="text-center">
                  <div className="w-16 h-16 bg-[#FDCA40]/10 rounded-2xl flex items-center justify-center mx-auto mb-4">
                     <CalendarClock className="text-[#FDCA40]" size={24} />
@@ -3808,7 +3849,7 @@ const App: React.FC = () => {
            <div className="glass relative w-full rounded-[3rem] max-h-[92vh] flex flex-col" style={{ maxWidth: deploySize.width }}>
               <SideResizeHandles onStart={deploySize.startResize} onReset={deploySize.reset} />
               <button onClick={closeDeploy} title="Fermer (Échap)" aria-label="Fermer" className="absolute z-20 top-7 right-7 w-7 h-7 rounded-full flex items-center justify-center bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:bg-accent hover:text-white transition-all"><X size={14} strokeWidth={3} /></button>
-              <div className="p-8 sm:p-10 space-y-6 overflow-y-auto custom-scrollbar">
+              <div className="p-6 sm:p-10 space-y-6 overflow-y-auto custom-scrollbar">
               <div className="text-center space-y-2">
                  <div className="w-14 h-14 bg-accent/10 rounded-2xl flex items-center justify-center mx-auto mb-3">
                     <Send className="text-accent" size={22} />
@@ -4007,7 +4048,7 @@ const App: React.FC = () => {
 
       {showAiGen && (
         <div className="fixed inset-0 z-[100] bg-[#F4F4F5]/95 dark:bg-[#080708]/95 backdrop-blur-xl flex items-center justify-center p-6 animate-in fade-in">
-          <div className="glass w-full max-w-sm p-10 rounded-[3rem] space-y-6 shadow-2xl border border-[#FDCA40]/20">
+          <div className="glass w-full max-w-sm p-6 sm:p-10 rounded-[3rem] space-y-6 shadow-2xl border border-[#FDCA40]/20">
             <div className="text-center"><div className="w-16 h-16 bg-[#FDCA40]/10 rounded-3xl flex items-center justify-center mx-auto mb-4"><Wand2 className="text-[#FDCA40]" size={28} /></div><h3 className="text-xl font-black uppercase text-[#18181B] dark:text-[#E6E8E6]">Architecte IA</h3></div>
             <textarea className="w-full bg-[#18181B]/5 dark:bg-[#080708] p-5 rounded-[2rem] text-sm border border-[#18181B]/5 dark:border-[#E6E8E6]/5 outline-none focus:border-[#FDCA40] h-32 font-semibold text-[#18181B] dark:text-[#E6E8E6]" placeholder="Décrivez vos objectifs de vie..." value={aiGoal} onChange={e => setAiGoal(e.target.value)} />
             <div className="flex gap-4"><button onClick={() => setShowAiGen(false)} className="flex-1 py-5 text-[#18181B]/60 dark:text-[#E6E8E6]/60 font-black uppercase text-[10px]">Annuler</button><button onClick={handleGenerateRoutine} disabled={isAiLoading || !aiGoal} className="flex-1 bg-[#FDCA40] py-5 rounded-[2rem] text-[10px] font-black uppercase text-[#080708]">{isAiLoading ? <Loader2 className="animate-spin mx-auto" size={16} /> : "Générer"}</button></div>

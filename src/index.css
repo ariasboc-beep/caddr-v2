@@ -59,3 +59,25 @@ body {
 }
 .analytics-embed > .glass h2,
 .analytics-embed > div > .glass h2 { display: none; }
+
+/* Écrans tactiles : pas de survol → les boutons « révélés au survol » restent visibles */
+@media (hover: none) {
+  .group-hover\:opacity-100,
+  .group-hover\/sub\:opacity-100 { opacity: 1 !important; }
+}
+/* Pas de zoom automatique iOS sur les champs (police ≥ 16 px au focus) */
+@media (max-width: 640px) and (pointer: coarse) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), textarea, select { font-size: max(16px, 1em); }
+}
+/* Pas de surbrillance grise au toucher */
+* { -webkit-tap-highlight-color: transparent; }
+/* Écrans tactiles : zone de toucher d'au moins 34 px pour les boutons-icônes */
+@media (pointer: coarse) {
+  main button:has(> svg:only-child):not([aria-label="Marquer comme réglée"]) {
+    min-width: 34px;
+    min-height: 34px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
