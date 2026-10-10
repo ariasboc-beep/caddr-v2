@@ -2246,7 +2246,7 @@ const App: React.FC = () => {
                                    <span className="p-1 rounded-lg bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 text-[#18181B]/60 dark:text-[#E6E8E6]/60 group-hover/title:bg-accent group-hover/title:text-white transition-all">
                                       {block.isCollapsed ? <ChevronRight size={12} /> : <ChevronDown size={12} />}
                                    </span>
-                                   <span className="text-[10px] font-black text-[#18181B]/60 dark:text-[#E6E8E6]/60 uppercase tracking-widest flex items-center gap-2"><span className="w-1.5 h-1.5 bg-accent rounded-full" /> {block.title}</span>
+                                   <span className="font-heading text-[10px] font-black text-[#18181B]/60 dark:text-[#E6E8E6]/60 uppercase tracking-widest flex items-center gap-2"><span className="w-1.5 h-1.5 bg-accent rounded-full" /> {block.title}</span>
                                 </button>
                                 {block.description && !block.isCollapsed && <p className="text-[8px] text-[#18181B]/50 dark:text-[#E6E8E6]/50 font-medium ml-8 mt-0.5 whitespace-pre-wrap break-words animate-in slide-in-from-top-1 pr-4"><span dangerouslySetInnerHTML={{ __html: sanitizeHtml(block.description || '') }} /></p>}
                               </div>
@@ -2544,7 +2544,7 @@ const App: React.FC = () => {
                              <button onClick={() => toggleBlockCollapse(block.id)} className="p-1 rounded-lg bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:bg-accent hover:text-white transition-all">
                                 {block.isCollapsed ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
                              </button>
-                             <input className="bg-transparent font-black text-sm outline-none border-b border-transparent focus:border-accent w-full text-[#18181B] dark:text-[#E6E8E6]" value={block.title} readOnly={block.isLocked} onChange={e => updateAppData(prev => ({ ...prev, blocks: prev.blocks.map(b => b.id === block.id ? { ...b, title: e.target.value } : b) }))} />
+                             <input className="font-heading bg-transparent font-black text-sm outline-none border-b border-transparent focus:border-accent w-full text-[#18181B] dark:text-[#E6E8E6]" value={block.title} readOnly={block.isLocked} onChange={e => updateAppData(prev => ({ ...prev, blocks: prev.blocks.map(b => b.id === block.id ? { ...b, title: e.target.value } : b) }))} />
                              {block.isLocked && <Lock size={12} className="text-accent/60 shrink-0" />}
                           </div>
                           {block.description && !block.isCollapsed && <p className="text-[10px] text-[#18181B]/60 dark:text-[#E6E8E6]/60 font-medium whitespace-pre-wrap break-words mt-1 ml-8"><span dangerouslySetInnerHTML={{ __html: sanitizeHtml(block.description || '') }} /></p>}
@@ -3030,7 +3030,7 @@ const App: React.FC = () => {
       {navPosition === 'left' && (
         <aside className={`hidden md:flex fixed left-0 top-0 bottom-0 z-50 flex-col bg-[#F4F4F5]/90 dark:bg-[#080708]/90 backdrop-blur-3xl border-r border-[#18181B]/5 dark:border-[#E6E8E6]/5 py-6 transition-all duration-300 ${navCollapsed ? 'w-20 px-2' : 'w-52 px-4'}`}>
           <div className={`flex items-center mb-8 ${navCollapsed ? 'justify-center' : 'justify-between px-2'}`}>
-            {!navCollapsed && <span className="font-black text-lg text-[#18181B] dark:text-[#E6E8E6]">Caddr.</span>}
+            {!navCollapsed && <span className="font-heading font-black text-lg text-[#18181B] dark:text-[#E6E8E6]">Caddr.</span>}
             <button
               onClick={() => updateAppData(prev => ({ ...prev, settings: { ...(prev.settings || {}), navCollapsed: !navCollapsed } }))}
               className="p-2 rounded-xl text-[#18181B]/50 dark:text-[#E6E8E6]/50 hover:text-accent hover:bg-[#18181B]/5 dark:hover:bg-[#E6E8E6]/5 transition-all"
@@ -3626,7 +3626,7 @@ const App: React.FC = () => {
                      className="w-full flex items-center gap-3 p-4 bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 hover:bg-accent/20 rounded-2xl border border-transparent hover:border-accent/50 transition-all text-left"
                    >
                       <Circle size={8} className="text-accent fill-accent" />
-                      <span className="text-xs font-black uppercase tracking-wider text-[#18181B] dark:text-[#E6E8E6]">{block.title}</span>
+                      <span className="font-heading text-xs font-black uppercase tracking-wider text-[#18181B] dark:text-[#E6E8E6]">{block.title}</span>
                    </button>
                  ))}
                  {appData.blocks.length === 0 && <p className="text-[10px] text-[#18181B]/60 dark:text-[#E6E8E6]/60 italic text-center py-4">Aucun bloc configuré dans le planning.</p>}

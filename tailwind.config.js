@@ -4,6 +4,10 @@ export default {
   content: ['./index.html', './src/**/*.{ts,tsx}'],
   theme: {
     extend: {
+      fontFamily: {
+        heading: ['var(--font-heading)'],
+        body: ['var(--font-body)'],
+      },
       colors: {
         accent: 'rgb(var(--accent-rgb) / <alpha-value>)',
         dark: '#080708',
