@@ -1,5 +1,5 @@
 
-export type RecurrenceType = 'once' | 'daily' | 'weekdays' | 'weekends' | 'specific' | 'week' | 'month' | 'period';
+export type RecurrenceType = 'once' | 'daily' | 'weekdays' | 'weekends' | 'specific' | 'week' | 'month' | 'period' | 'weekly'; // weekly : même jour chaque semaine, à partir de specificDate
 
 export type PriorityType = 'low' | 'medium' | 'high';
 
@@ -19,6 +19,9 @@ export interface Task {
   priority?: PriorityType;
   executionNotes?: { [dateKey: string]: string }; // Journal de bord : Date -> Description détaillée
   stackAnchor?: string; // Empilement d'habitudes : "après [ancre]"
+  deadline?: string;    // Échéance (date limite), distincte de la date prévue
+  labels?: string[];    // Étiquettes (ex. « appel », « courses »)
+  doneAt?: string;      // Boîte de tâches : idée réglée sans passer par la Routine
 }
 
 export interface Block {

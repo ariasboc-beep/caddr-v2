@@ -24,6 +24,10 @@ function isDueToday(recurrence: string, specificDate: string | undefined, todayK
 // Tient compte des dates enregistrées (semaine, mois, période) et de l'arrêt de la récurrence
 function isItemDue(item: any, todayKey: string, dow: number): boolean {
   if (item?.stopDate && todayKey > item.stopDate) return false;
+  if (item?.recurrence === "weekly") {
+    if (!item.specificDate || todayKey < item.specificDate) return false;
+    return new Date(item.specificDate + "T12:00:00Z").getUTCDay() === dow;
+  }
   if (["week", "month", "period"].includes(item?.recurrence) && item.startDate && item.endDate) {
     if (todayKey < item.startDate || todayKey > item.endDate) return false;
   }

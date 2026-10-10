@@ -30,6 +30,13 @@ export const isDateInRange = (date: Date, type: RecurrenceType, specificDate?: s
       // Dimanche (0) ou Samedi (6)
       return day === 0 || day === 6;
       
+    case 'weekly': {
+      // Même jour de la semaine que la date de départ, à partir de celle-ci
+      if (!specificDate) return false;
+      const anchor = new Date(specificDate + 'T12:00:00');
+      return dateStr >= specificDate && day === anchor.getDay();
+    }
+
     case 'specific': 
       return dateStr === specificDate;
       

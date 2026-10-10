@@ -15,7 +15,7 @@ import {
   Lock, LockOpen, User, LogOut, ShieldCheck, Mail, Key, Settings2, Info,
   Download, Upload, Power, Pencil, Edit3, PieChart, FileText,
   CalendarClock, ArrowUpCircle, BookOpen, PenTool, Crown, Swords,
-  Medal, Sun, Moon, RotateCcw, CloudOff, SkipForward
+  Medal, Sun, Moon, RotateCcw, CloudOff, SkipForward, Hourglass
 } from 'lucide-react';
 import { AppData, Block, TabType, RecurrenceType, TimeframeType, RecurringGoal, Task, PriorityType, DayRoutine, UserProfile } from './types';
 import { getKeyFromDate, generateId, isDateInRange } from './utils';
@@ -111,7 +111,7 @@ const App: React.FC = () => {
   const [newInboxTitle, setNewInboxTitle] = useState("");
   const [transferTask, setTransferTask] = useState<Task | null>(null);
   // Fenêtre « Déployer la tâche » : quand, dans quel bloc, ou nouveau bloc
-  type DeployWhen = 'today' | 'tomorrow' | 'date' | 'daily' | 'weekdays' | 'weekends' | 'week' | 'month' | 'period';
+  type DeployWhen = 'today' | 'tomorrow' | 'date' | 'daily' | 'weekdays' | 'weekends' | 'week' | 'month' | 'period' | 'weekly';
   const [deployWhen, setDeployWhen] = useState<DeployWhen>('today');
   const [deployDate, setDeployDate] = useState('');
   const [deployStart, setDeployStart] = useState('');
@@ -1552,7 +1552,7 @@ const App: React.FC = () => {
   const addInboxTask = () => {
     if (!newInboxTitle.trim()) return;
     const p = parseCapture(newInboxTitle);
-    const newTask: Task = { id: generateId(), title: p.title, completedDates: [], recurrence: p.recurrence || 'daily', subTasks: [], specificDate: p.specificDate, startTime: p.startTime, priority: p.priority };
+    const newTask: Task = JSON.parse(JSON.stringify({ id: generateId(), title: p.title, completedDates: [], recurrence: p.recurrence || 'daily', subTasks: [], specificDate: p.specificDate, startTime: p.startTime, priority: p.priority, labels: p.labels, deadline: p.deadline }));
     updateAppData(prev => ({ ...prev, inboxTasks: [newTask, ...(prev.inboxTasks || [])] }));
     setNewInboxTitle("");
   };
@@ -1561,7 +1561,7 @@ const App: React.FC = () => {
   const openDeploy = (task: Task) => {
     const todayK = getKeyFromDate(new Date());
     setTransferTask(task);
-    setDeployWhen(task.specificDate ? (task.specificDate === todayK ? 'today' : 'date') : 'today');
+    setDeployWhen(task.recurrence === 'weekly' && task.specificDate ? 'weekly' : task.specificDate ? (task.specificDate === todayK ? 'today' : 'date') : 'today');
     setDeployDate(task.specificDate || todayK);
     setDeployStart(todayK);
     setDeployEnd(todayK);
@@ -1594,6 +1594,9 @@ const App: React.FC = () => {
     if (deployWhen === 'month') {
       return { recurrence: 'month', startDate: getKeyFromDate(new Date(now.getFullYear(), now.getMonth(), 1)), endDate: getKeyFromDate(new Date(now.getFullYear(), now.getMonth() + 1, 0)), specificDate: undefined, stopDate: undefined };
     }
+    if (deployWhen === 'weekly') {
+      return { recurrence: 'weekly', specificDate: deployDate || getKeyFromDate(now), startDate: undefined, endDate: undefined, stopDate: undefined };
+    }
     if (deployWhen === 'period') {
       const a = deployStart || getKeyFromDate(now); const b = deployEnd && deployEnd >= a ? deployEnd : a;
       return { recurrence: 'period', startDate: a, endDate: b, specificDate: undefined, stopDate: undefined };
@@ -1625,7 +1628,7 @@ const App: React.FC = () => {
     if (!deployBlockId && !newName) return;
     saveToHistory();
     const fields = deployRecurrenceFields();
-    const task: Task = JSON.parse(JSON.stringify({ ...transferTask, ...fields }));
+    const task: Task = JSON.parse(JSON.stringify({ ...transferTask, ...fields, doneAt: undefined }));
     const day = deploySingleDay();
     const todayK = getKeyFromDate(new Date());
     const targetTitle = newName || (appData.blocks.find(b => b.id === deployBlockId) || (day ? appData.days[day]?.blocks?.find(b => b.id === deployBlockId) : undefined))?.title || '';
@@ -2062,6 +2065,7 @@ const App: React.FC = () => {
     const current: any = getConfigItem() || {};
     const fields: any = { recurrence, ...getRecurrenceBounds(recurrence, current), stopDate: undefined };
     if (recurrence === 'specific') fields.specificDate = current.specificDate || dateKey;
+    if (recurrence === 'weekly') fields.specificDate = current.recurrence === 'weekly' && current.specificDate ? current.specificDate : dateKey;
     applyItemFields(fields);
   };
 
@@ -2088,6 +2092,7 @@ const App: React.FC = () => {
       case 'week': return item.startDate ? `Visible cette semaine uniquement : du ${fmt(item.startDate)} au ${fmt(item.endDate)}.` : 'Visible cette semaine.';
       case 'month': return item.startDate ? `Visible ce mois uniquement : du ${fmt(item.startDate)} au ${fmt(item.endDate)}.` : 'Visible ce mois-ci.';
       case 'period': return `Visible du ${fmt(item.startDate)} au ${fmt(item.endDate)}.`;
+      case 'weekly': return item.specificDate ? `Visible chaque ${new Date(item.specificDate + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'long' })}, à partir du ${fmt(item.specificDate)}.` : 'Visible chaque semaine.';
       case 'specific': case 'once': return `Visible uniquement le ${fmt(item.specificDate)}.`;
       default: return '';
     }
@@ -2467,6 +2472,7 @@ const App: React.FC = () => {
                                           )}
                                           {task.startTime && <span className={`text-[9px] font-black flex items-center gap-1 mt-0.5 ${active ? 'text-accent' : 'text-[#18181B]/60 dark:text-[#E6E8E6]/60'} uppercase tracking-widest`}><Clock size={10} /> {formatTaskTime(task.startTime, task.duration)}{active && <span className="ml-2 flex h-1.5 w-1.5 rounded-full bg-accent animate-pulse"></span>}</span>}
                                           {task.stackAnchor && <span className="text-[9px] font-bold flex items-center gap-1 mt-0.5 text-[#18181B]/40 dark:text-[#E6E8E6]/40 italic"><Link2 size={9} /> après {task.stackAnchor}</span>}
+                                          {task.deadline && !task.completedDates?.includes(dateKey) && (() => { const late = task.deadline < getKeyFromDate(new Date()); const today = task.deadline === getKeyFromDate(new Date()); return <span className={`text-[9px] font-black flex items-center gap-1 mt-0.5 uppercase tracking-widest ${late || today ? 'text-[#DF2935]' : 'text-[#FDCA40]'}`}><Hourglass size={10} /> {late ? 'En retard · ' : today ? "Échéance aujourd'hui · " : 'Échéance · '}{formatDayLabel(task.deadline)}</span>; })()}
                                       </div>
                                       <div className="flex items-center gap-2">
                                         <button 
@@ -2812,7 +2818,7 @@ const App: React.FC = () => {
             {/* ... Existing Inbox Code ... */}
             <div className="glass p-8 rounded-[2.5rem] space-y-4 border border-accent/20 bg-accent/5">
               <div className="flex items-center gap-3"><div className="w-12 h-12 bg-accent/10 rounded-2xl flex items-center justify-center"><Archive className="text-accent" size={24} /></div><div><h2 className="font-black text-lg uppercase leading-tight text-[#18181B] dark:text-[#E6E8E6]">Boîte de tâches</h2><p className="text-[9px] text-[#18181B]/60 dark:text-[#E6E8E6]/60 uppercase font-black">Capturer vos idées en un clin d'œil</p></div></div>
-              <div className="space-y-1.5 pt-2"><div className="flex gap-2"><input className="flex-1 bg-white dark:bg-[#080708] p-4 rounded-2xl text-sm font-bold border border-[#18181B]/5 dark:border-[#E6E8E6]/5 outline-none focus:border-accent transition-all text-[#18181B] dark:text-[#E6E8E6]" placeholder="Ex : Appeler Paul demain 15h p1" value={newInboxTitle} onChange={e => setNewInboxTitle(e.target.value)} onKeyDown={e => e.key === 'Enter' && addInboxTask()} /><button onClick={addInboxTask} className="p-4 bg-accent rounded-2xl text-white shadow-lg shadow-accent/20 active:scale-95 transition-all"><Plus size={20} /></button></div><p className="text-[9px] font-medium text-[#18181B]/40 dark:text-[#E6E8E6]/40 px-1">Reconnaît « demain », « lundi », « chaque mardi », « 15h30 », « p1/p2/p3 » automatiquement.</p></div>
+              <div className="space-y-1.5 pt-2"><div className="flex gap-2"><input className="flex-1 bg-white dark:bg-[#080708] p-4 rounded-2xl text-sm font-bold border border-[#18181B]/5 dark:border-[#E6E8E6]/5 outline-none focus:border-accent transition-all text-[#18181B] dark:text-[#E6E8E6]" placeholder="Ex : Appeler Paul demain 15h p1 @appel" value={newInboxTitle} onChange={e => setNewInboxTitle(e.target.value)} onKeyDown={e => e.key === 'Enter' && addInboxTask()} /><button onClick={addInboxTask} className="p-4 bg-accent rounded-2xl text-white shadow-lg shadow-accent/20 active:scale-95 transition-all"><Plus size={20} /></button></div><p className="text-[9px] font-medium text-[#18181B]/40 dark:text-[#E6E8E6]/40 px-1">Reconnaît « demain », « lundi », « 20/10 », « chaque mardi », « 15h30 », « p1/p2/p3 », « @étiquette » et « avant vendredi » (échéance).</p></div>
             </div>
             <InboxView
               items={appData.inboxTasks || []}
@@ -3490,6 +3496,14 @@ const App: React.FC = () => {
                         <div className="flex items-center gap-3 bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 p-4 rounded-3xl border border-[#18181B]/10 dark:border-[#E6E8E6]/10"><Timer size={18} className="text-accent" /><input type="number" min="0" placeholder="Ex: 30" className="bg-transparent flex-1 font-black text-lg outline-none text-[#18181B] dark:text-[#E6E8E6]" value={(configModal.parentTaskId ? (activeTab === 'routine' && appData.days[dateKey]?.blocks ? appData.days[dateKey].blocks?.find(b => b.id === configModal.blockId) : appData.blocks.find(b => b.id === configModal.blockId))?.tasks.find(t => t.id === configModal.parentTaskId)?.subTasks?.find(s => s.id === configModal.id)?.duration : (activeTab === 'routine' && appData.days[dateKey]?.blocks ? appData.days[dateKey].blocks?.find(b => b.id === configModal.blockId) : appData.blocks.find(b => b.id === configModal.blockId))?.tasks.find(t => t.id === configModal.id)?.duration) || ""} onChange={(e) => updateConfiguredItem('duration', parseInt(e.target.value) || 0)} /></div>
                       </div>
                       <div className="space-y-2">
+                        <p className="text-[8px] font-black text-[#18181B]/60 dark:text-[#E6E8E6]/60 uppercase px-2">Échéance (date limite)</p>
+                        <div className="flex items-center gap-3 bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 p-4 rounded-3xl border border-[#18181B]/10 dark:border-[#E6E8E6]/10">
+                          <Hourglass size={18} className="text-[#FDCA40]" />
+                          <input type="date" aria-label="Échéance" className="bg-transparent flex-1 font-black text-sm outline-none text-[#18181B] dark:text-[#E6E8E6] [color-scheme:dark]" value={(configItem as any)?.deadline || ''} onChange={(e) => applyItemFields({ deadline: e.target.value || undefined })} />
+                          {(configItem as any)?.deadline && <button type="button" onClick={() => applyItemFields({ deadline: undefined })} aria-label="Retirer l'échéance" className="p-1 text-[#18181B]/40 dark:text-[#E6E8E6]/40 hover:text-[#DF2935]"><X size={14} /></button>}
+                        </div>
+                      </div>
+                      <div className="space-y-2">
                         <p className="text-[8px] font-black text-[#18181B]/60 dark:text-[#E6E8E6]/60 uppercase px-2">Priorité</p>
                         <div className="grid grid-cols-3 gap-2">
                           {(['low', 'medium', 'high'] as PriorityType[]).map(p => {
@@ -3519,7 +3533,7 @@ const App: React.FC = () => {
                     <div className="grid gap-2">
                       <p className="text-[8px] font-black text-[#18181B]/60 dark:text-[#E6E8E6]/60 uppercase px-2 mt-4">Récurrence</p>
                       <div className="grid grid-cols-2 gap-2">
-                      {[ { id: 'daily', label: 'Quotidien' }, { id: 'weekdays', label: 'Semaine (L-V)' }, { id: 'weekends', label: 'Week-end' }, { id: 'week', label: 'Cette semaine' }, { id: 'month', label: 'Ce mois' }, { id: 'period', label: 'Période perso.' }, { id: 'specific', label: 'Date précise' } ].map((opt, idx, arr) => {
+                      {[ { id: 'daily', label: 'Quotidien' }, { id: 'weekdays', label: 'Semaine (L-V)' }, { id: 'weekends', label: 'Week-end' }, { id: 'weekly', label: 'Chaque semaine' }, { id: 'week', label: 'Cette semaine' }, { id: 'month', label: 'Ce mois' }, { id: 'period', label: 'Période perso.' }, { id: 'specific', label: 'Date précise' } ].map((opt, idx, arr) => {
                         const isActive = !dayOnly && (configItem?.recurrence || 'daily') === opt.id;
                         return (
                           <button
@@ -3543,9 +3557,9 @@ const App: React.FC = () => {
                       )}
                     </div>
 
-                    {configItem && configItem.recurrence === 'specific' && (
+                    {configItem && (configItem.recurrence === 'specific' || configItem.recurrence === 'weekly') && (
                         <div className="animate-in slide-in-from-top-2 mt-2">
-                           <p className="text-[8px] font-black text-[#18181B]/60 dark:text-[#E6E8E6]/60 uppercase px-2 mb-1">Date précise</p>
+                           <p className="text-[8px] font-black text-[#18181B]/60 dark:text-[#E6E8E6]/60 uppercase px-2 mb-1">{configItem.recurrence === 'weekly' ? 'À partir du (fixe le jour de la semaine)' : 'Date précise'}</p>
                            <input 
                               type="date" 
                               className="w-full bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 p-4 rounded-2xl text-sm font-bold border border-[#18181B]/10 dark:border-[#E6E8E6]/10 outline-none focus:border-accent transition-all text-[#18181B] dark:text-[#E6E8E6] [color-scheme:dark]" 
@@ -3853,10 +3867,13 @@ const App: React.FC = () => {
                  )}
                  <p className="text-[8px] font-bold text-[#18181B]/40 dark:text-[#E6E8E6]/40 uppercase px-2 pt-2">Plusieurs jours</p>
                  <div className="grid grid-cols-3 gap-2">
-                   {([['daily', 'Tous les jours'], ['weekdays', 'Lun – Ven'], ['weekends', 'Week-end'], ['week', 'Cette semaine'], ['month', 'Ce mois'], ['period', 'Période']] as const).map(([id, label]) => (
+                   {([['daily', 'Tous les jours'], ['weekdays', 'Lun – Ven'], ['weekends', 'Week-end'], ['weekly', 'Chaque semaine'], ['week', 'Cette semaine'], ['month', 'Ce mois'], ['period', 'Période']] as const).map(([id, label]) => (
                      <button key={id} type="button" onClick={() => { setDeployWhen(id); setDeployBlockId(null); }} className={chip(deployWhen === id)}>{label}</button>
                    ))}
                  </div>
+                 {deployWhen === 'weekly' && (
+                   <div><p className="text-[8px] font-black text-[#18181B]/60 dark:text-[#E6E8E6]/60 uppercase px-2 mb-1">À partir du (le jour de la semaine est repris)</p><input type="date" aria-label="Premier jour" className={dateCls} value={deployDate} onChange={(e) => setDeployDate(e.target.value)} /></div>
+                 )}
                  {deployWhen === 'period' && (
                    <div className="grid grid-cols-2 gap-2">
                      <div><p className="text-[8px] font-black text-[#18181B]/60 dark:text-[#E6E8E6]/60 uppercase px-2 mb-1">Début</p><input type="date" className={dateCls} value={deployStart} onChange={(e) => setDeployStart(e.target.value)} /></div>

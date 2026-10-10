@@ -7,18 +7,53 @@ export interface ParsedCapture {
   startTime?: string;
   priority?: 'high' | 'medium' | 'low';
   recurrence?: RecurrenceType;
+  labels?: string[];
+  deadline?: string;
 }
 
 const WEEKDAYS: Record<string, number> = {
   dimanche: 0, lundi: 1, mardi: 2, mercredi: 3, jeudi: 4, vendredi: 5, samedi: 6,
 };
 
-// Analyse "Appeler Paul demain 15h p1" ou "Sport chaque mardi 7h30"
+// "20/10" ou "20/10/2026" → clé de date (année en cours, ou suivante si la date est passée)
+function parseDayMonth(dd: string, mm: string, yyyy?: string): string | undefined {
+  const d = parseInt(dd), m = parseInt(mm);
+  if (!(d >= 1 && d <= 31 && m >= 1 && m <= 12)) return undefined;
+  const now = new Date(); now.setHours(0, 0, 0, 0);
+  let y = yyyy ? parseInt(yyyy.length === 2 ? '20' + yyyy : yyyy) : now.getFullYear();
+  let date = new Date(y, m - 1, d);
+  if (!yyyy && date < now) date = new Date(y + 1, m - 1, d);
+  return getKeyFromDate(date);
+}
+
+// Expression de jour isolée : demain, après-demain, lundi…, 20/10
+function parseDayWord(word: string): string | undefined {
+  const w = word.toLowerCase();
+  if (/^aujourd'?hui$/.test(w)) return getKeyFromDate(new Date());
+  if (w === 'demain') { const d = new Date(); d.setDate(d.getDate() + 1); return getKeyFromDate(d); }
+  if (/^après-?demain$/.test(w)) { const d = new Date(); d.setDate(d.getDate() + 2); return getKeyFromDate(d); }
+  if (w in WEEKDAYS) return getKeyFromDate(nextWeekday(WEEKDAYS[w]));
+  const dm = w.match(/^(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?$/);
+  if (dm) return parseDayMonth(dm[1], dm[2], dm[3]);
+  return undefined;
+}
+
+const DAY_TOKEN = "aujourd'?hui|après-?demain|demain|dimanche|lundi|mardi|mercredi|jeudi|vendredi|samedi|\\d{1,2}\\/\\d{1,2}(?:\\/\\d{2,4})?";
+
+// Analyse "Appeler Paul demain 15h p1 @appel avant vendredi" ou "Sport chaque mardi 7h30"
 export function parseCapture(input: string): ParsedCapture {
   let text = ' ' + input.trim() + ' ';
   const result: ParsedCapture = { title: input.trim() };
 
   const strip = (re: RegExp) => { text = text.replace(re, ' '); };
+
+  // Étiquettes : @appel, @courses
+  const labels = [...text.matchAll(/(?:^|\s)@([\p{L}\d_-]+)/gu)].map(m => m[1].toLowerCase());
+  if (labels.length) { result.labels = [...new Set(labels)]; strip(/(?:^|\s)@[\p{L}\d_-]+/gu); }
+
+  // Échéance : "avant vendredi", "avant le 20/10", "pour le 20/10"
+  const dl = text.match(new RegExp(`\\b(?:avant|pour)\\s+(?:le\\s+)?(${DAY_TOKEN})(?=\\s)`, 'i'));
+  if (dl) { const k = parseDayWord(dl[1]); if (k) { result.deadline = k; text = text.replace(dl[0], ' '); } }
 
   // Priorité : p1/p2/p3 ou !haute/!moyenne/!basse
   if (/\bp1\b|!haute?\b/i.test(text)) { result.priority = 'high'; strip(/\bp1\b|!haute?\b/gi); }
@@ -30,13 +65,13 @@ export function parseCapture(input: string): ParsedCapture {
   else if (/\ben semaine\b/i.test(text)) { result.recurrence = 'weekdays'; strip(/\ben semaine\b/gi); }
   else if (/\bweek-?end\b/i.test(text)) { result.recurrence = 'weekends'; strip(/\bweek-?end\b/gi); }
   else {
-    const rec = text.match(/\bchaque\s+(dimanche|lundi|mardi|mercredi|jeudi|vendredi|samedi)\b/i);
+    const rec = text.match(/\b(?:chaque|tous les)\s+(dimanche|lundi|mardi|mercredi|jeudi|vendredi|samedi)s?\b/i);
     if (rec) {
-      // Récurrence hebdo un jour précis : on approxime avec la date du prochain jour concerné
-      result.recurrence = 'daily'; // pas de "weekly single day" natif → on garde daily + date
-      const target = nextWeekday(WEEKDAYS[rec[1].toLowerCase()]);
+      // Récurrence hebdomadaire : même jour chaque semaine, à partir de la prochaine occurrence (aujourd'hui inclus)
+      result.recurrence = 'weekly';
+      const target = nextWeekday(WEEKDAYS[rec[1].toLowerCase()], true);
       result.specificDate = getKeyFromDate(target);
-      strip(/\bchaque\s+(dimanche|lundi|mardi|mercredi|jeudi|vendredi|samedi)\b/gi);
+      strip(/\b(?:chaque|tous les)\s+(dimanche|lundi|mardi|mercredi|jeudi|vendredi|samedi)s?\b/gi);
     }
   }
 
@@ -48,6 +83,10 @@ export function parseCapture(input: string): ParsedCapture {
     else {
       const wd = text.match(/\b(dimanche|lundi|mardi|mercredi|jeudi|vendredi|samedi)\b/i);
       if (wd) { result.specificDate = getKeyFromDate(nextWeekday(WEEKDAYS[wd[1].toLowerCase()])); strip(/\b(dimanche|lundi|mardi|mercredi|jeudi|vendredi|samedi)\b/gi); }
+      else {
+        const dm = text.match(/\b(?:le\s+)?(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?\b/i);
+        if (dm) { const k = parseDayMonth(dm[1], dm[2], dm[3]); if (k) { result.specificDate = k; text = text.replace(dm[0], ' '); } }
+      }
     }
   }
 
@@ -68,10 +107,10 @@ export function parseCapture(input: string): ParsedCapture {
   return result;
 }
 
-function nextWeekday(target: number): Date {
+function nextWeekday(target: number, includeToday = false): Date {
   const d = new Date();
   d.setHours(0, 0, 0, 0);
-  const diff = (target - d.getDay() + 7) % 7 || 7;
+  const diff = (target - d.getDay() + 7) % 7 || (includeToday ? 0 : 7);
   d.setDate(d.getDate() + diff);
   return d;
 }
