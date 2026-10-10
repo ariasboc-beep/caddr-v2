@@ -35,7 +35,6 @@ import YearHeatmap from './components/YearHeatmap';
 import MoodPerfChart from './components/MoodPerfChart';
 import Badges from './components/Badges';
 import FocusMode from './components/FocusMode';
-import DayTimeline from './components/DayTimeline';
 import InboxView from './components/InboxView';
 import Analytics, { Section } from './components/Analytics';
 import Reviews from './components/Reviews';
@@ -47,7 +46,8 @@ import LongTermGoals from './components/LongTermGoals';
 import WeeklyReview from './components/WeeklyReview';
 import FocusStats from './components/FocusStats';
 import Insights from './components/Insights';
-import WeekAgenda from './components/WeekAgenda';
+import Agenda from './components/Agenda';
+import { computePeriod, getPeriod } from './analytics';
 import AnnualReview from './components/AnnualReview';
 import LandingPage from './components/LandingPage';
 import RichText, { RichTextView, sanitizeHtml, stripHtml } from './components/RichText';
@@ -721,6 +721,19 @@ const App: React.FC = () => {
   const getVisibleTasks = useCallback((tasks: Task[]) => {
     return (tasks || []).filter(t => isDateInRange(currentDate, t.recurrence, t.specificDate, t.startDate, t.endDate, t.stopDate));
   }, [currentDate]);
+
+  // Discipline du mois en cours (jours écoulés) + écart avec le mois précédent
+  const headerBar = appData.settings?.headerBar || 'discipline';
+  const monthDiscipline = useMemo(() => {
+    const now = new Date(); const tk = getKeyFromDate(now);
+    const cur = getPeriod('month', now);
+    const c = computePeriod(appData, cur.start, cur.end, tk);
+    const prevAnchor = new Date(now.getFullYear(), now.getMonth() - 1, 15);
+    const pp = getPeriod('month', prevAnchor);
+    const p = computePeriod(appData, pp.start, pp.end, tk);
+    const name = (d: Date) => d.toLocaleDateString('fr-FR', { month: 'long' });
+    return { rate: c.rate, done: c.done, total: c.total, label: name(now), prevLabel: name(prevAnchor), delta: p.total && c.total ? c.rate - p.rate : null };
+  }, [appData, currentTime.getDate()]);
 
   const perfToday = useMemo(() => {
     let total = 0; let done = 0;
@@ -1921,21 +1934,65 @@ const App: React.FC = () => {
     setFocusTarget(null);
   };
 
+  // Agenda : changer l'heure / la durée d'une tâche (plan + jours déjà figés à venir)
+  const setTaskTime = (blockId: string, taskId: string, patch: { startTime?: string; duration?: number }, k: string) => {
+    const todayKey = getKeyFromDate(new Date());
+    const upd = (blocks: Block[]) => blocks.map(b => b.tasks.some(t => t.id === taskId) ? { ...b, tasks: b.tasks.map(t => t.id === taskId ? { ...t, ...patch } : t) } : b);
+    updateAppData(prev => {
+      const days = { ...prev.days };
+      Object.keys(days).forEach(key => { const d = days[key]; if (d?.blocks && (key >= todayKey || key === k)) days[key] = { ...d, blocks: upd(d.blocks) }; });
+      return { ...prev, blocks: upd(prev.blocks), days };
+    });
+    if (patch.startTime) { setActiveNotification(`Programmé à ${patch.startTime} ⏱`); setTimeout(() => setActiveNotification(null), 2500); }
+  };
+
+  // Agenda : ajout rapide d'une tâche ponctuelle sur un créneau
+  const quickAddTask = (blockId: string, title: string, startTime: string, duration: number, k: string) => {
+    const task: Task = { id: generateId(), title, completedDates: [], recurrence: 'specific' as RecurrenceType, specificDate: k, startTime, duration, subTasks: [] } as Task;
+    updateAppData(prev => {
+      const inPlan = prev.blocks.some(b => b.id === blockId);
+      const blocks = inPlan ? prev.blocks.map(b => b.id === blockId ? { ...b, tasks: [...b.tasks, task] } : b) : prev.blocks;
+      const days = { ...prev.days };
+      const d = days[k];
+      if (d?.blocks?.some(b => b.id === blockId)) days[k] = { ...d, blocks: d.blocks.map(b => b.id === blockId ? { ...b, tasks: [...b.tasks, task] } : b) };
+      return { ...prev, blocks, days };
+    });
+    setActiveNotification(`« ${title} » ajoutée à ${startTime} ✓`);
+    setTimeout(() => setActiveNotification(null), 2500);
+  };
+
+  // Agenda semaine : déplacer une tâche vers un autre jour / une autre heure
   const handleRescheduleTask = (taskId: string, targetDateKey: string, startTime: string) => {
-    updateAppData(prev => ({
-      ...prev,
-      blocks: prev.blocks.map(b => ({
-        ...b,
-        tasks: b.tasks.map(t => {
-          if (t.id !== taskId) return t;
-          const moved: Task = { ...t, startTime };
-          // Tâche ponctuelle : on la déplace aussi sur le jour cible
-          if (t.recurrence === 'specific' || t.recurrence === 'once') moved.specificDate = targetDateKey;
-          return moved;
-        }),
-      })),
-    }));
-    setActiveNotification(`Reprogrammé à ${startTime} ⏱`);
+    const todayKey = getKeyFromDate(new Date());
+    updateAppData(prev => {
+      // Retrouver la tâche et son bloc (plan d'abord, sinon un jour figé)
+      let found: { task: Task; blockId: string; blockTitle: string } | null = null;
+      prev.blocks.forEach(b => b.tasks.forEach(t => { if (!found && t.id === taskId) found = { task: t, blockId: b.id, blockTitle: b.title }; }));
+      let inPlan = !!found;
+      if (!found) Object.values(prev.days).forEach(d => d.blocks?.forEach(b => b.tasks.forEach(t => { if (!found && t.id === taskId) found = { task: t, blockId: b.id, blockTitle: b.title }; })));
+      if (!found) return prev;
+      const f = found as { task: Task; blockId: string; blockTitle: string };
+      const oneOff = f.task.recurrence === 'specific' || f.task.recurrence === 'once' || !inPlan;
+      const move = (t: Task): Task => ({ ...t, startTime, ...(oneOff ? { recurrence: (t.recurrence === 'once' ? 'once' : 'specific') as RecurrenceType, specificDate: targetDateKey } : {}) });
+      const upd = (blocks: Block[]) => blocks.map(b => b.tasks.some(t => t.id === taskId) ? { ...b, tasks: b.tasks.map(t => t.id === taskId ? move(t) : t) } : b);
+      let blocks = upd(prev.blocks);
+      const days = { ...prev.days };
+      Object.keys(days).forEach(key => { const d = days[key]; if (d?.blocks && (key >= todayKey || d.blocks.some(b => b.tasks.some(t => t.id === taskId)))) days[key] = { ...d, blocks: upd(d.blocks) }; });
+      if (oneOff) {
+        const moved = move(f.task);
+        // Tâche qui n'existait que dans un jour figé : l'ajouter au plan pour le jour cible
+        if (!inPlan) blocks = blocks.map(b => (b.id === f.blockId || b.title === f.blockTitle) && !b.tasks.some(t => t.id === taskId) ? { ...b, tasks: [...b.tasks, moved] } : b);
+        // Jour cible déjà figé : y insérer la tâche si elle n'y est pas
+        const td = days[targetDateKey];
+        if (td?.blocks && !td.blocks.some(b => b.tasks.some(t => t.id === taskId))) {
+          const target = td.blocks.find(b => b.id === f.blockId) || td.blocks.find(b => b.title === f.blockTitle);
+          if (target) days[targetDateKey] = { ...td, blocks: td.blocks.map(b => b === target ? { ...b, tasks: [...b.tasks, moved] } : b) };
+        }
+      }
+      return { ...prev, blocks, days };
+    });
+    const label = new Date(targetDateKey + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric' });
+    setActiveNotification(`Déplacé ${label} à ${startTime} ⏱`);
     setTimeout(() => setActiveNotification(null), 3000);
   };
 
@@ -2334,8 +2391,22 @@ const App: React.FC = () => {
             </div>
         </div>
 
-        {/* RPG Bar */}
-        <div className="relative pt-1">
+        {/* Barre d'en-tête : discipline du mois (défaut) ou niveau XP — touche pour basculer */}
+        {headerBar === 'discipline' ? (
+          <button onClick={() => updateAppData(prev => ({ ...prev, settings: { ...(prev.settings || {}), headerBar: 'xp' } }))} title="Touche pour afficher le niveau XP" className="relative pt-1 w-full text-left block">
+            <div className="flex items-center justify-between mb-1 gap-2">
+                <div className="flex items-center gap-1.5 min-w-0">
+                    <span className="text-[10px] font-black text-accent uppercase tracking-wider flex items-center gap-1"><Target size={12} /> Discipline · {monthDiscipline.label}</span>
+                    {monthDiscipline.delta !== null && <span className={`text-[8px] font-black uppercase tracking-widest ${monthDiscipline.delta >= 0 ? 'text-[#199e70]' : 'text-[#e66767]'}`}>{monthDiscipline.delta >= 0 ? '▲' : '▼'} {Math.abs(monthDiscipline.delta)} pt{Math.abs(monthDiscipline.delta) > 1 ? 's' : ''} vs {monthDiscipline.prevLabel}</span>}
+                </div>
+                <span className="text-[8px] font-black text-[#18181B]/40 dark:text-[#E6E8E6]/40 uppercase tracking-widest whitespace-nowrap"><span className="text-[11px] text-[#18181B] dark:text-[#E6E8E6]">{monthDiscipline.total ? `${monthDiscipline.rate} %` : '—'}</span> · {monthDiscipline.done}/{monthDiscipline.total}</span>
+            </div>
+            <div className="h-1.5 w-full bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 rounded-full overflow-hidden">
+                <div className="h-full bg-accent transition-all duration-700 ease-out" style={{ width: `${monthDiscipline.rate}%` }} />
+            </div>
+          </button>
+        ) : (
+          <button onClick={() => updateAppData(prev => ({ ...prev, settings: { ...(prev.settings || {}), headerBar: 'discipline' } }))} title="Touche pour afficher la discipline du mois" className="relative pt-1 w-full text-left block">
             <div className="flex items-center justify-between mb-1">
                 <div className="flex items-center gap-1.5">
                     <span className="text-[10px] font-black text-[#FDCA40] uppercase tracking-wider flex items-center gap-1"><Crown size={12} /> Lvl {currentLevel}</span>
@@ -2349,7 +2420,8 @@ const App: React.FC = () => {
                     style={{ width: `${xpProgress}%` }} 
                 />
             </div>
-        </div>
+          </button>
+        )}
       </header>
 
       <main className="max-w-4xl mx-auto px-4 sm:px-6 mt-4 space-y-8 pb-24 md:pb-16">
@@ -2731,16 +2803,9 @@ const App: React.FC = () => {
         {activeTab === 'schedule' && (
           <div className="space-y-8 animate-in slide-in-from-right-4 duration-500 pb-20">
             {!templateEditState && (
-              <div className="flex p-1 bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 rounded-2xl border border-[#18181B]/5 dark:border-[#E6E8E6]/5 max-w-xs">
-                <button onClick={() => setPlanningView('day')} className={`flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${planningView === 'day' ? 'bg-accent text-white shadow' : 'text-[#18181B]/60 dark:text-[#E6E8E6]/60'}`}>Jour</button>
-                <button onClick={() => setPlanningView('week')} className={`flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${planningView === 'week' ? 'bg-accent text-white shadow' : 'text-[#18181B]/60 dark:text-[#E6E8E6]/60'}`}>Semaine</button>
-              </div>
-            )}
-            {!templateEditState && planningView === 'day' && (
-              <DayTimeline blocks={routineBlocks} currentTime={currentTime} dateKey={dateKey} />
-            )}
-            {!templateEditState && planningView === 'week' && (
-              <WeekAgenda appData={appData} currentTime={currentTime} onReschedule={handleRescheduleTask} />
+              <Agenda appData={appData} date={currentDate} now={currentTime} view={planningView} onViewChange={setPlanningView}
+                onDateChange={setCurrentDate} onToggle={(b, t) => toggleTask(b, t)} onOpenTask={(b, t) => setConfigModal({ type: 'task', id: t, blockId: b })}
+                onSetTime={setTaskTime} onMoveTask={handleRescheduleTask} onQuickAdd={quickAddTask} />
             )}
             {!templateEditState && (
               <LongTermGoals
@@ -3069,6 +3134,15 @@ const App: React.FC = () => {
                       <span className="text-[8px] font-black uppercase tracking-wider">{THEMES[key].label}</span>
                     </button>
                   ))}
+                </div>
+              </div>
+              {/* Barre d'en-tête */}
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-[#18181B]/50 dark:text-[#E6E8E6]/50">Barre d'en-tête</label>
+                <p className="text-[10px] font-medium text-[#18181B]/50 dark:text-[#E6E8E6]/50">Ce qu'affiche la barre sous le titre. Tu peux aussi la toucher pour basculer.</p>
+                <div className="flex p-1 bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 rounded-2xl border border-[#18181B]/5 dark:border-[#E6E8E6]/5">
+                  <button onClick={() => updateAppData(prev => ({ ...prev, settings: { ...(prev.settings || {}), headerBar: 'discipline' } }))} className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${headerBar === 'discipline' ? 'bg-accent text-white shadow-lg' : 'text-[#18181B]/60 dark:text-[#E6E8E6]/60'}`}>Discipline du mois</button>
+                  <button onClick={() => updateAppData(prev => ({ ...prev, settings: { ...(prev.settings || {}), headerBar: 'xp' } }))} className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${headerBar === 'xp' ? 'bg-accent text-white shadow-lg' : 'text-[#18181B]/60 dark:text-[#E6E8E6]/60'}`}>Niveau XP</button>
                 </div>
               </div>
               {/* Position de la barre d'onglets */}

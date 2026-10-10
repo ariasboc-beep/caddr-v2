@@ -119,6 +119,7 @@ export interface AppSettings {
   navCollapsed?: boolean;           // barre latérale repliée (icônes seules)
   soundEffects?: boolean;           // retour sonore à la complétion
   simpleMode?: boolean;             // mode journée simplifiée (anti-surcharge)
+  headerBar?: 'discipline' | 'xp';  // barre d'en-tête : discipline du mois (défaut) ou niveau XP
 }
 
 export type TabType = 'routine' | 'stats' | 'schedule' | 'templates' | 'ai' | 'inbox' | 'settings' | 'habits';
