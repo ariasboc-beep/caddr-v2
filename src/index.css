@@ -10,16 +10,16 @@
 .theme-amber  { --accent-rgb: 245 144 12;  --accent: #F5900C; }
 .theme-rose   { --accent-rgb: 244 63 110;  --accent: #F43F6E; }
 
-/* === Typographie : 2 polices === */
-/* Titres : Fraunces · Textes : Plus Jakarta Sans. Changer une police = modifier une seule ligne ici. */
+/* === Typographie === */
+/* Une seule police pour toute l'app : Plus Jakarta Sans.
+   Pour donner une police différente aux titres, il suffit de changer --font-heading. */
 :root {
-  --font-heading: 'Fraunces Variable', Georgia, 'Times New Roman', serif;
+  --font-heading: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
   --font-body: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
 }
 
 h1, h2, h3, h4, h5, h6, .font-heading {
   font-family: var(--font-heading);
-  font-optical-sizing: auto;
 }
 
 body {
