@@ -53,6 +53,7 @@ import { parseCapture } from './nlParse';
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable';
 import { Sortable } from './components/Sortable';
+import { useResizableWidth, useResizableHeight, SideResizeHandles, BottomResizeHandle } from './components/ResizeHandles';
 import type { User as FirebaseUser } from 'firebase/auth';
 import { 
   CartesianGrid, Tooltip, ResponsiveContainer, 
@@ -150,10 +151,10 @@ const App: React.FC = () => {
   
   // Modals & Editing
   const [configModal, setConfigModal] = useState<{ type: 'block' | 'task' | 'goal', id: string, blockId?: string, parentTaskId?: string } | null>(null);
-  // Largeur de l'onglet Configuration (redimensionnable à la souris, mémorisée sur cet appareil)
-  const [configWidth, setConfigWidth] = useState<number>(() => {
-    try { const v = parseInt(localStorage.getItem('caddr_config_width') || '', 10); return v >= 320 ? v : 384; } catch { return 384; }
-  });
+  // Fenêtres redimensionnables (taille mémorisée sur l'appareil)
+  const configSize = useResizableWidth('caddr_config_width', 384);
+  const logSize = useResizableWidth('caddr_log_width', 384);
+  const logEditor = useResizableHeight('caddr_log_editor_height', 200);
   // Fenêtre « Sauter aujourd'hui » (remplace le prompt natif du navigateur)
   const [skipModal, setSkipModal] = useState<{ taskId: string, taskTitle: string } | null>(null);
   const [skipReason, setSkipReason] = useState('');
@@ -887,16 +888,33 @@ const App: React.FC = () => {
     });
   };
 
+  // Glisser-déposer d'une tâche dans Routine : le nouvel ordre vaut pour ce jour,
+  // pour le plan et pour les jours suivants déjà personnalisés (sinon l'ordre
+  // reviendrait à l'ancien dès le lendemain).
   const handleTaskDragEnd = (blockId: string) => (e: DragEndEvent) => {
     const { active, over } = e;
     if (!over || active.id === over.id) return;
-    handleRoutineStructureChange(blocks => blocks.map(b => {
+    const reorder = (blocks: Block[]): Block[] => blocks.map(b => {
       if (b.id !== blockId) return b;
       const oldI = b.tasks.findIndex(t => t.id === active.id);
       const newI = b.tasks.findIndex(t => t.id === over.id);
       if (oldI === -1 || newI === -1) return b;
       return { ...b, tasks: arrayMove(b.tasks, oldI, newI) };
-    }));
+    });
+    const todayKey = getKeyFromDate(new Date());
+    updateAppData(prev => {
+      const day = prev.days[dateKey] || { goalCompleted: false, note: "" };
+      const source = day.blocks
+        ? day.blocks
+        : prev.blocks.filter(b => isDateInRange(currentDate, b.recurrence, b.specificDate, b.startDate, b.endDate, b.stopDate));
+      const days = { ...prev.days, [dateKey]: { ...day, blocks: reorder(JSON.parse(JSON.stringify(source))) } };
+      Object.keys(days).forEach(k => {
+        if (k === dateKey || k < todayKey || k < dateKey) return;
+        const d = days[k];
+        if (d?.blocks) days[k] = { ...d, blocks: reorder(d.blocks) };
+      });
+      return { ...prev, blocks: reorder(prev.blocks), days };
+    });
   };
 
   const handleEngineBlockDragEnd = (e: DragEndEvent) => {
@@ -1827,48 +1845,18 @@ const App: React.FC = () => {
     setTimeout(() => setActiveNotification(null), 4000);
   };
 
-  // Redimensionnement de l'onglet Configuration : la fenêtre étant centrée,
-  // déplacer un bord de dx change la largeur de 2*dx.
-  const startConfigResize = (e: React.PointerEvent, side: 'left' | 'right') => {
-    e.preventDefault();
-    const startX = e.clientX;
-    const startW = configWidth;
-    let latest = startW;
-    const onMove = (ev: PointerEvent) => {
-      const dx = (ev.clientX - startX) * (side === 'right' ? 1 : -1);
-      const max = Math.max(320, window.innerWidth - 32);
-      latest = Math.round(Math.min(max, Math.max(320, startW + dx * 2)));
-      setConfigWidth(latest);
-    };
-    const onUp = () => {
-      window.removeEventListener('pointermove', onMove);
-      window.removeEventListener('pointerup', onUp);
-      document.body.style.cursor = '';
-      document.body.style.userSelect = '';
-      try { localStorage.setItem('caddr_config_width', String(latest)); } catch {}
-    };
-    document.body.style.cursor = 'ew-resize';
-    document.body.style.userSelect = 'none';
-    window.addEventListener('pointermove', onMove);
-    window.addEventListener('pointerup', onUp);
-  };
-
-  const resetConfigWidth = () => {
-    setConfigWidth(384);
-    try { localStorage.setItem('caddr_config_width', '384'); } catch {}
-  };
-
   // Échap ferme d'abord la fenêtre « Sauter », sinon l'onglet Configuration
   useEffect(() => {
-    if (!configModal && !skipModal) return;
+    if (!configModal && !skipModal && !logModal) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
       if (skipModal) setSkipModal(null);
+      else if (logModal) { setLogModal(null); setCurrentLogText(""); }
       else setConfigModal(null);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [configModal, skipModal]);
+  }, [configModal, skipModal, logModal]);
 
   // Récurrence : appliquée en une seule mise à jour au plan global ET à toutes les
   // copies « figées » des jours à partir d'aujourd'hui (l'app fige un jour dès qu'on
@@ -2176,7 +2164,7 @@ const App: React.FC = () => {
 
             <button onClick={requestNotificationPermission} className={`p-2 rounded-xl transition-all ${notificationsEnabled ? 'text-accent bg-accent/10' : 'text-[#18181B]/60 dark:text-[#E6E8E6]/60 bg-[#18181B]/5 dark:bg-[#E6E8E6]/5'}`}>{notificationsEnabled ? <Bell size={16} /> : <BellOff size={16} />}</button>
             {activeTab === 'routine' && <button onClick={() => updateAppData(prev => ({ ...prev, settings: { ...(prev.settings || {}), simpleMode: !prev.settings?.simpleMode } }))} title="Mode journée simplifiée" className={`p-2 rounded-xl transition-all ${appData.settings?.simpleMode ? 'bg-accent text-white' : 'bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 text-[#18181B]/60 dark:text-[#E6E8E6]/60'}`}><Minimize2 size={16} /></button>}
-            {activeTab === 'routine' && <button onClick={() => setIsReorderMode(!isReorderMode)} className={`p-2 rounded-xl transition-all ${isReorderMode ? 'bg-accent text-white' : 'bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 text-[#18181B]/60 dark:text-[#E6E8E6]/60'}`}><MoveVertical size={16} /></button>}
+            {activeTab === 'routine' && <button onClick={() => setIsReorderMode(!isReorderMode)} title={isReorderMode ? "Terminer le réordonnancement" : "Réordonner les blocs"} className={`p-2 rounded-xl transition-all ${isReorderMode ? 'bg-accent text-white' : 'bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 text-[#18181B]/60 dark:text-[#E6E8E6]/60'}`}><MoveVertical size={16} /></button>}
             <div className="bg-accent/10 px-3 py-1 rounded-full text-[10px] font-black text-accent border border-accent/20">{perfToday}%</div>
             </div>
         </div>
@@ -2348,10 +2336,21 @@ const App: React.FC = () => {
                                 const hasLogToday = !!task.executionNotes?.[dateKey];
                                 
                                 return (
-                                  <Sortable key={task.id} id={task.id} disabled={!isReorderMode}>
+                                  <Sortable key={task.id} id={task.id}>
                                     {(taskHandle) => (
                                   <div className={active ? 'bg-accent/5' : ''}>
-                                    <div className={`flex items-center p-5 gap-4 group transition-colors ${isReorderMode ? 'bg-[#18181B]/[0.01] dark:bg-[#E6E8E6]/[0.01]' : 'cursor-pointer hover:bg-[#18181B]/[0.02] dark:hover:bg-[#E6E8E6]/[0.02]'}`} onClick={() => toggleTask(block.id, task.id)}>
+                                    <div className={`relative flex items-center p-5 pl-7 gap-4 group transition-colors ${isReorderMode ? 'bg-[#18181B]/[0.01] dark:bg-[#E6E8E6]/[0.01]' : 'cursor-pointer hover:bg-[#18181B]/[0.02] dark:hover:bg-[#E6E8E6]/[0.02]'}`} onClick={() => toggleTask(block.id, task.id)}>
+                                      {/* Poignée de glisser-déposer : toujours disponible (visible au survol, discrète sur mobile) */}
+                                      <button
+                                        {...taskHandle}
+                                        type="button"
+                                        onClick={(e) => e.stopPropagation()}
+                                        className={`absolute left-1 top-1/2 -translate-y-1/2 p-1 rounded-lg cursor-grab active:cursor-grabbing touch-none transition-all ${isReorderMode ? 'opacity-100 text-accent' : 'opacity-40 sm:opacity-0 group-hover:opacity-100 text-[#18181B]/40 dark:text-[#E6E8E6]/40 hover:text-accent'}`}
+                                        title="Glisser pour changer l'ordre"
+                                        aria-label="Glisser pour changer l'ordre"
+                                      >
+                                        <GripVertical size={14} />
+                                      </button>
                                       <div className={`w-6 h-6 rounded-xl border-2 flex items-center justify-center transition-all ${task.completedDates?.includes(dateKey) ? 'bg-accent border-accent' : 'border-[#18181B]/20 dark:border-[#E6E8E6]/20'}`}>{task.completedDates?.includes(dateKey) && <Check size={14} className="text-white" strokeWidth={3} />}</div>
                                       {visibleSubTasks.length > 0 && (
                                         <button onClick={(e) => { e.stopPropagation(); toggleTaskCollapse(task.id); }} className="p-0.5 text-[#18181B]/40 dark:text-[#E6E8E6]/40 hover:text-accent shrink-0" title={collapsedTasks[task.id] ? 'Déplier' : 'Replier'}>
@@ -2416,7 +2415,6 @@ const App: React.FC = () => {
                                         >
                                           <Trash2 size={16} />
                                         </button>
-                                        {isReorderMode && <button {...taskHandle} onClick={(e) => e.stopPropagation()} className="cursor-grab active:cursor-grabbing touch-none text-accent p-1" title="Glisser pour réordonner"><GripVertical size={14}/></button>}
                                       </div>
                                     </div>
                                     {visibleSubTasks.length > 0 && !collapsedTasks[task.id] && <div className="pl-14 pr-5 pb-5 space-y-3">{visibleSubTasks.map(st => {
@@ -3229,8 +3227,18 @@ const App: React.FC = () => {
 
       {/* LOGBOOK MODAL */}
       {logModal && (
-        <div className="fixed inset-0 z-[110] bg-[#F4F4F5]/95 dark:bg-[#080708]/95 backdrop-blur-xl flex items-center justify-center p-6 animate-in fade-in">
-           <div className="glass w-full max-w-sm p-10 rounded-[3rem] space-y-6">
+        <div className="fixed inset-0 z-[110] bg-[#F4F4F5]/95 dark:bg-[#080708]/95 backdrop-blur-xl flex items-center justify-center p-4 sm:p-6 animate-in fade-in">
+           <div className="glass relative w-full rounded-[3rem] max-h-[94vh] flex flex-col" style={{ maxWidth: logSize.width }}>
+              <SideResizeHandles onStart={logSize.startResize} onReset={logSize.reset} />
+              <div className="p-10 space-y-6 overflow-y-auto custom-scrollbar">
+              <button
+                onClick={() => { setLogModal(null); setCurrentLogText(""); }}
+                title="Fermer (Échap)"
+                aria-label="Fermer"
+                className="absolute z-20 top-7 right-7 w-7 h-7 rounded-full flex items-center justify-center bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:bg-accent hover:text-white transition-all"
+              >
+                <X size={14} strokeWidth={3} />
+              </button>
               <div className="text-center">
                  <div className="w-16 h-16 bg-accent/10 rounded-2xl flex items-center justify-center mx-auto mb-4">
                     <BookOpen className="text-accent" size={24} />
@@ -3241,11 +3249,12 @@ const App: React.FC = () => {
               <div className="space-y-2">
                  <p className="text-[8px] font-black text-[#18181B]/60 dark:text-[#E6E8E6]/60 uppercase px-2">Notes d'exécution</p>
                  <RichText
-                    minHeight={200}
+                    minHeight={logEditor.height}
                     placeholder="Comment s'est passée cette tâche ? Détails, obstacles, réussites..."
                     value={currentLogText}
                     onChange={(html) => setCurrentLogText(html)}
                  />
+                 <BottomResizeHandle onStart={logEditor.startResize} onReset={logEditor.reset} />
               </div>
               <div className="flex gap-3 pt-2">
                  <button 
@@ -3261,6 +3270,7 @@ const App: React.FC = () => {
                     Annuler
                  </button>
               </div>
+              </div>
            </div>
         </div>
       )}
@@ -3268,19 +3278,8 @@ const App: React.FC = () => {
       {/* ... (Existing Modals kept same) */}
       {configModal && (
         <div className="fixed inset-0 z-[100] bg-[#F4F4F5]/95 dark:bg-[#080708]/95 backdrop-blur-xl flex items-center justify-center p-4 sm:p-6 animate-in fade-in" onMouseDown={(e) => { if (e.target === e.currentTarget) setConfigModal(null); }}>
-          <div className="glass relative w-full rounded-[3rem] max-h-[90vh] flex flex-col" style={{ maxWidth: configWidth }}>
-            {/* Poignées de redimensionnement (glisser à gauche ou à droite ; double-clic = taille d'origine) */}
-            {(['left', 'right'] as const).map(side => (
-              <div
-                key={side}
-                onPointerDown={(e) => startConfigResize(e, side)}
-                onDoubleClick={resetConfigWidth}
-                title="Glisser pour élargir · double-clic pour revenir à la taille d'origine"
-                className={`group/resize hidden sm:flex absolute top-0 bottom-0 ${side === 'left' ? '-left-3' : '-right-3'} w-6 cursor-ew-resize items-center justify-center z-10 touch-none`}
-              >
-                <span className="w-1 h-14 rounded-full bg-[#18181B]/15 dark:bg-[#E6E8E6]/15 group-hover/resize:bg-accent group-hover/resize:h-24 transition-all" />
-              </div>
-            ))}
+          <div className="glass relative w-full rounded-[3rem] max-h-[90vh] flex flex-col" style={{ maxWidth: configSize.width }}>
+            <SideResizeHandles onStart={configSize.startResize} onReset={configSize.reset} />
 
             <div className="relative shrink-0 px-10 pt-8 pb-4 text-center">
               <h3 className="font-black uppercase text-sm tracking-widest italic text-[#18181B] dark:text-[#E6E8E6]">Configuration</h3>
