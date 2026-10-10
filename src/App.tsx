@@ -15,7 +15,7 @@ import {
   Lock, LockOpen, User, LogOut, ShieldCheck, Mail, Key, Settings2, Info,
   Download, Upload, Power, Pencil, Edit3, PieChart, FileText,
   CalendarClock, ArrowUpCircle, BookOpen, PenTool, Crown, Swords,
-  Medal, Sun, Moon, RotateCcw, CloudOff
+  Medal, Sun, Moon, RotateCcw, CloudOff, SkipForward
 } from 'lucide-react';
 import { AppData, Block, TabType, RecurrenceType, TimeframeType, RecurringGoal, Task, PriorityType, DayRoutine, UserProfile } from './types';
 import { getKeyFromDate, generateId, isDateInRange } from './utils';
@@ -150,6 +150,13 @@ const App: React.FC = () => {
   
   // Modals & Editing
   const [configModal, setConfigModal] = useState<{ type: 'block' | 'task' | 'goal', id: string, blockId?: string, parentTaskId?: string } | null>(null);
+  // Largeur de l'onglet Configuration (redimensionnable à la souris, mémorisée sur cet appareil)
+  const [configWidth, setConfigWidth] = useState<number>(() => {
+    try { const v = parseInt(localStorage.getItem('caddr_config_width') || '', 10); return v >= 320 ? v : 384; } catch { return 384; }
+  });
+  // Fenêtre « Sauter aujourd'hui » (remplace le prompt natif du navigateur)
+  const [skipModal, setSkipModal] = useState<{ taskId: string, taskTitle: string } | null>(null);
+  const [skipReason, setSkipReason] = useState('');
   const [templateModal, setTemplateModal] = useState(false);
   const [editingTemplateId, setEditingTemplateId] = useState<string | null>(null);
   const [newTplName, setNewTplName] = useState("");
@@ -1801,15 +1808,133 @@ const App: React.FC = () => {
     if (!configModal || configModal.type !== 'task') return;
     const item = getConfigItem();
     if (!item) return;
-    const reason = window.prompt("Pourquoi sauter cette tâche aujourd'hui ? (le motif nourrit vos observations, sans culpabilité)");
-    if (reason === null) return;
+    setSkipReason('');
+    setSkipModal({ taskId: item.id, taskTitle: item.title });
+  };
+
+  const confirmSkipToday = () => {
+    if (!skipModal) return;
+    const { taskId, taskTitle } = skipModal;
     updateAppData(prev => ({
       ...prev,
-      skips: [...(prev.skips || []), { id: generateId(), taskId: item.id, taskTitle: item.title, date: dateKey, reason: reason.trim() }],
+      skips: [...(prev.skips || []), { id: generateId(), taskId, taskTitle, date: dateKey, reason: skipReason.trim() }],
     }));
+    setSkipModal(null);
+    setSkipReason('');
     setConfigModal(null);
     setActiveNotification("Tâche sautée. Ce n'est pas un échec, c'est un choix. 🌿");
     setTimeout(() => setActiveNotification(null), 4000);
+  };
+
+  // Redimensionnement de l'onglet Configuration : la fenêtre étant centrée,
+  // déplacer un bord de dx change la largeur de 2*dx.
+  const startConfigResize = (e: React.PointerEvent, side: 'left' | 'right') => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startW = configWidth;
+    let latest = startW;
+    const onMove = (ev: PointerEvent) => {
+      const dx = (ev.clientX - startX) * (side === 'right' ? 1 : -1);
+      const max = Math.max(320, window.innerWidth - 32);
+      latest = Math.round(Math.min(max, Math.max(320, startW + dx * 2)));
+      setConfigWidth(latest);
+    };
+    const onUp = () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      try { localStorage.setItem('caddr_config_width', String(latest)); } catch {}
+    };
+    document.body.style.cursor = 'ew-resize';
+    document.body.style.userSelect = 'none';
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+  };
+
+  const resetConfigWidth = () => {
+    setConfigWidth(384);
+    try { localStorage.setItem('caddr_config_width', '384'); } catch {}
+  };
+
+  // Échap ferme d'abord la fenêtre « Sauter », sinon l'onglet Configuration
+  useEffect(() => {
+    if (!configModal && !skipModal) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      if (skipModal) setSkipModal(null);
+      else setConfigModal(null);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [configModal, skipModal]);
+
+  // Récurrence : appliquée en une seule mise à jour, au plan global ET à la copie
+  // du jour (onglet Routine). Avant, dans l'onglet Routine, le changement ne
+  // touchait que la copie du jour : aucun effet visible ni sur les jours suivants.
+  const applyRecurrence = (recurrence: RecurrenceType) => {
+    if (!configModal) return;
+    const { type, id, blockId, parentTaskId } = configModal;
+    const current: any = getConfigItem() || {};
+    const fields: any = { recurrence };
+    if (recurrence === 'specific') fields.specificDate = current.specificDate || dateKey;
+    if (recurrence === 'period') {
+      fields.startDate = current.startDate || dateKey;
+      fields.endDate = current.endDate || current.startDate || dateKey;
+    }
+
+    if (type === 'goal') {
+      updateAppData(prev => ({ ...prev, recurringGoals: prev.recurringGoals.map(g => g.id === id ? { ...g, ...fields } : g) }));
+      return;
+    }
+
+    const updater = (blocks: Block[]): Block[] => {
+      if (type === 'block') return blocks.map(b => b.id === id ? { ...b, ...fields } : b);
+      return blocks.map(b => {
+        if (b.id !== blockId) return b;
+        return {
+          ...b,
+          tasks: b.tasks.map(t => {
+            if (parentTaskId) {
+              if (t.id !== parentTaskId) return t;
+              return { ...t, subTasks: (t.subTasks || []).map(st => st.id === id ? { ...st, ...fields } : st) };
+            }
+            return t.id === id ? { ...t, ...fields } : t;
+          })
+        };
+      });
+    };
+
+    updateAppData(prev => {
+      const next: AppData = { ...prev, blocks: updater(prev.blocks) };
+      const day = prev.days[dateKey];
+      if (activeTab === 'routine' && day?.blocks) {
+        next.days = { ...prev.days, [dateKey]: { ...day, blocks: updater(day.blocks) } };
+      }
+      return next;
+    });
+  };
+
+  // Les dates (précise / période) suivent la même règle que la récurrence
+  const updateRecurrenceDate = (field: 'specificDate' | 'startDate' | 'endDate', value: string) => {
+    if (!configModal) return;
+    if (configModal.type === 'goal' || activeTab !== 'routine') { updateConfiguredItem(field, value); return; }
+    const { type, id, blockId, parentTaskId } = configModal;
+    const updater = (blocks: Block[]): Block[] => {
+      if (type === 'block') return blocks.map(b => b.id === id ? { ...b, [field]: value } : b);
+      return blocks.map(b => b.id !== blockId ? b : {
+        ...b,
+        tasks: b.tasks.map(t => parentTaskId
+          ? (t.id !== parentTaskId ? t : { ...t, subTasks: (t.subTasks || []).map(st => st.id === id ? { ...st, [field]: value } : st) })
+          : (t.id === id ? { ...t, [field]: value } : t))
+      });
+    };
+    updateAppData(prev => {
+      const next: AppData = { ...prev, blocks: updater(prev.blocks) };
+      const day = prev.days[dateKey];
+      if (day?.blocks) next.days = { ...prev.days, [dateKey]: { ...day, blocks: updater(day.blocks) } };
+      return next;
+    });
   };
 
   const statsData = useMemo(() => {
@@ -3069,9 +3194,34 @@ const App: React.FC = () => {
 
       {/* ... (Existing Modals kept same) */}
       {configModal && (
-        <div className="fixed inset-0 z-[100] bg-[#F4F4F5]/95 dark:bg-[#080708]/95 backdrop-blur-xl flex items-center justify-center p-6 animate-in fade-in">
-          <div className="glass w-full max-w-sm p-10 rounded-[4rem] space-y-6 max-h-[90vh] overflow-y-auto custom-scrollbar">
-            <div className="text-center"><h3 className="font-black uppercase text-sm tracking-widest italic text-[#18181B] dark:text-[#E6E8E6]">Configuration</h3></div>
+        <div className="fixed inset-0 z-[100] bg-[#F4F4F5]/95 dark:bg-[#080708]/95 backdrop-blur-xl flex items-center justify-center p-4 sm:p-6 animate-in fade-in" onMouseDown={(e) => { if (e.target === e.currentTarget) setConfigModal(null); }}>
+          <div className="glass relative w-full rounded-[3rem] max-h-[90vh] flex flex-col" style={{ maxWidth: configWidth }}>
+            {/* Poignées de redimensionnement (glisser à gauche ou à droite ; double-clic = taille d'origine) */}
+            {(['left', 'right'] as const).map(side => (
+              <div
+                key={side}
+                onPointerDown={(e) => startConfigResize(e, side)}
+                onDoubleClick={resetConfigWidth}
+                title="Glisser pour élargir · double-clic pour revenir à la taille d'origine"
+                className={`group/resize hidden sm:flex absolute top-0 bottom-0 ${side === 'left' ? '-left-3' : '-right-3'} w-6 cursor-ew-resize items-center justify-center z-10 touch-none`}
+              >
+                <span className="w-1 h-14 rounded-full bg-[#18181B]/15 dark:bg-[#E6E8E6]/15 group-hover/resize:bg-accent group-hover/resize:h-24 transition-all" />
+              </div>
+            ))}
+
+            <div className="relative shrink-0 px-10 pt-8 pb-4 text-center">
+              <h3 className="font-black uppercase text-sm tracking-widest italic text-[#18181B] dark:text-[#E6E8E6]">Configuration</h3>
+              <button
+                onClick={() => setConfigModal(null)}
+                title="Fermer (Échap)"
+                aria-label="Fermer"
+                className="absolute top-7 right-7 w-7 h-7 rounded-full flex items-center justify-center bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:bg-accent hover:text-white transition-all"
+              >
+                <X size={14} strokeWidth={3} />
+              </button>
+            </div>
+
+          <div className="px-10 pb-10 space-y-6 overflow-y-auto custom-scrollbar">
             
             <div className="space-y-4">
               <div className="space-y-2">
@@ -3210,28 +3360,25 @@ const App: React.FC = () => {
                 <>
                     <div className="grid gap-2">
                       <p className="text-[8px] font-black text-[#18181B]/60 dark:text-[#E6E8E6]/60 uppercase px-2 mt-4">Récurrence</p>
-                      {[ { id: 'daily', label: 'Quotidien' }, { id: 'weekdays', label: 'Semaine (L-V)' }, { id: 'weekends', label: 'Week-end' }, { id: 'week', label: 'Cette semaine' }, { id: 'month', label: 'Ce mois' }, { id: 'period', label: 'Période personnalisée' }, { id: 'specific', label: 'Date précise' } ].map(opt => (<button key={opt.id} onClick={() => { 
-                          if (configModal.type === 'goal') {
-                              updateAppData(prev => ({
-                                  ...prev,
-                                  recurringGoals: prev.recurringGoals.map(g => g.id === configModal.id ? { 
-                                      ...g, 
-                                      recurrence: opt.id as any,
-                                      specificDate: opt.id === 'specific' ? dateKey : g.specificDate,
-                                      startDate: opt.id === 'period' ? dateKey : g.startDate,
-                                      endDate: opt.id === 'period' ? dateKey : g.endDate
-                                  } : g)
-                              }));
-                          } else {
-                              updateConfiguredItem('recurrence', opt.id);
-                              // Smart Defaults for better UX
-                              if (opt.id === 'specific') updateConfiguredItem('specificDate', dateKey);
-                              if (opt.id === 'period') {
-                                  updateConfiguredItem('startDate', dateKey);
-                                  updateConfiguredItem('endDate', dateKey);
-                              }
-                          }
-                      }} className="p-5 bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 rounded-2xl font-black text-xs uppercase hover:bg-accent/20 border border-transparent transition-all text-[#18181B] dark:text-[#E6E8E6]" > {opt.label} </button>))}
+                      <div className="grid grid-cols-2 gap-2">
+                      {[ { id: 'daily', label: 'Quotidien' }, { id: 'weekdays', label: 'Semaine (L-V)' }, { id: 'weekends', label: 'Week-end' }, { id: 'week', label: 'Cette semaine' }, { id: 'month', label: 'Ce mois' }, { id: 'period', label: 'Période perso.' }, { id: 'specific', label: 'Date précise' } ].map((opt, idx, arr) => {
+                        const isActive = (configItem?.recurrence || 'daily') === opt.id;
+                        return (
+                          <button
+                            key={opt.id}
+                            type="button"
+                            aria-pressed={isActive}
+                            onClick={() => applyRecurrence(opt.id as RecurrenceType)}
+                            className={`p-4 rounded-2xl font-black text-[10px] tracking-wider uppercase border transition-all ${idx === arr.length - 1 && arr.length % 2 === 1 ? 'col-span-2' : ''} ${isActive ? 'bg-accent text-white border-accent shadow-lg shadow-accent/20' : 'bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 border-transparent text-[#18181B] dark:text-[#E6E8E6] hover:bg-accent/20'}`}
+                          >
+                            {opt.label}
+                          </button>
+                        );
+                      })}
+                      </div>
+                      {activeTab === 'routine' && configModal.type !== 'goal' && (
+                        <p className="text-[9px] font-bold text-[#18181B]/50 dark:text-[#E6E8E6]/50 px-2 leading-relaxed">La récurrence s'applique aussi à votre plan : elle vaut pour les prochains jours.</p>
+                      )}
                     </div>
 
                     {configItem && configItem.recurrence === 'specific' && (
@@ -3241,7 +3388,7 @@ const App: React.FC = () => {
                               type="date" 
                               className="w-full bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 p-4 rounded-2xl text-sm font-bold border border-[#18181B]/10 dark:border-[#E6E8E6]/10 outline-none focus:border-accent transition-all text-[#18181B] dark:text-[#E6E8E6] [color-scheme:dark]" 
                               value={configItem.specificDate || ''} 
-                              onChange={(e) => updateConfiguredItem('specificDate', e.target.value)}
+                              onChange={(e) => updateRecurrenceDate('specificDate', e.target.value)}
                            />
                         </div>
                     )}
@@ -3254,7 +3401,7 @@ const App: React.FC = () => {
                                   type="date" 
                                   className="w-full bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 p-4 rounded-2xl text-sm font-bold border border-[#18181B]/10 dark:border-[#E6E8E6]/10 outline-none focus:border-accent transition-all text-[#18181B] dark:text-[#E6E8E6] [color-scheme:dark]" 
                                   value={configItem.startDate || ''} 
-                                  onChange={(e) => updateConfiguredItem('startDate', e.target.value)}
+                                  onChange={(e) => updateRecurrenceDate('startDate', e.target.value)}
                               />
                            </div>
                            <div>
@@ -3263,7 +3410,7 @@ const App: React.FC = () => {
                                   type="date" 
                                   className="w-full bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 p-4 rounded-2xl text-sm font-bold border border-[#18181B]/10 dark:border-[#E6E8E6]/10 outline-none focus:border-accent transition-all text-[#18181B] dark:text-[#E6E8E6] [color-scheme:dark]" 
                                   value={configItem.endDate || ''} 
-                                  onChange={(e) => updateConfiguredItem('endDate', e.target.value)}
+                                  onChange={(e) => updateRecurrenceDate('endDate', e.target.value)}
                               />
                            </div>
                         </div>
@@ -3302,6 +3449,71 @@ const App: React.FC = () => {
             )}
             <button onClick={() => setConfigModal(null)} className="w-full py-4 text-[#18181B]/60 dark:text-[#E6E8E6]/60 font-black uppercase text-[10px] tracking-widest">Fermer</button>
           </div>
+          </div>
+        </div>
+      )}
+
+      {/* SKIP TODAY MODAL — remplace window.prompt pour respecter le design de l'app */}
+      {skipModal && (
+        <div className="fixed inset-0 z-[120] bg-[#F4F4F5]/95 dark:bg-[#080708]/95 backdrop-blur-xl flex items-center justify-center p-6 animate-in fade-in" onMouseDown={(e) => { if (e.target === e.currentTarget) setSkipModal(null); }}>
+           <div className="glass relative w-full max-w-sm p-10 rounded-[3rem] space-y-6 animate-in zoom-in-95">
+              <button
+                onClick={() => setSkipModal(null)}
+                aria-label="Fermer"
+                className="absolute top-7 right-7 w-7 h-7 rounded-full flex items-center justify-center bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:bg-[#FDCA40] hover:text-white transition-all"
+              >
+                <X size={14} strokeWidth={3} />
+              </button>
+              <div className="text-center">
+                 <div className="w-16 h-16 bg-[#FDCA40]/10 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                    <SkipForward className="text-[#FDCA40]" size={24} />
+                 </div>
+                 <h3 className="text-xl font-black uppercase text-[#18181B] dark:text-[#E6E8E6]">Sauter aujourd'hui</h3>
+                 <p className="text-[10px] text-[#18181B]/60 dark:text-[#E6E8E6]/60 font-bold uppercase tracking-widest italic px-4 mt-2">"{skipModal.taskTitle}"</p>
+              </div>
+              <div className="space-y-3">
+                 <p className="text-[8px] font-black text-[#18181B]/60 dark:text-[#E6E8E6]/60 uppercase px-2">Pourquoi ? <span className="normal-case font-bold">(facultatif)</span></p>
+                 <div className="flex flex-wrap gap-2">
+                   {['Fatigue', 'Imprévu', 'Manque de temps', 'Pas prioritaire', 'Malade'].map(r => {
+                     const on = skipReason.trim() === r;
+                     return (
+                       <button
+                         key={r}
+                         type="button"
+                         onClick={() => setSkipReason(on ? '' : r)}
+                         className={`px-3 py-2 rounded-xl text-[9px] font-black uppercase tracking-wider border transition-all ${on ? 'bg-[#FDCA40] border-[#FDCA40] text-[#080708]' : 'bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 border-transparent text-[#18181B]/70 dark:text-[#E6E8E6]/70 hover:border-[#FDCA40]/40'}`}
+                       >
+                         {r}
+                       </button>
+                     );
+                   })}
+                 </div>
+                 <textarea
+                    autoFocus
+                    rows={3}
+                    placeholder="Ou écrivez votre motif…"
+                    className="w-full resize-none bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 p-4 rounded-2xl text-sm font-bold border border-[#18181B]/10 dark:border-[#E6E8E6]/10 outline-none focus:border-[#FDCA40] transition-all text-[#18181B] dark:text-[#E6E8E6] placeholder-[#18181B]/30 dark:placeholder-[#E6E8E6]/30"
+                    value={skipReason}
+                    onChange={(e) => setSkipReason(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); confirmSkipToday(); } }}
+                 />
+                 <p className="text-[9px] font-bold text-[#18181B]/50 dark:text-[#E6E8E6]/50 px-2 leading-relaxed">Le motif nourrit vos observations, sans culpabilité. 🌿</p>
+              </div>
+              <div className="flex gap-3 pt-2">
+                 <button
+                   onClick={confirmSkipToday}
+                   className="flex-1 bg-[#FDCA40] py-4 rounded-[2rem] text-[#080708] text-[10px] font-black uppercase tracking-widest shadow-lg shadow-[#FDCA40]/20 active:scale-95 transition-all"
+                 >
+                    Sauter
+                 </button>
+                 <button
+                   onClick={() => setSkipModal(null)}
+                   className="flex-1 py-4 text-[#18181B]/60 dark:text-[#E6E8E6]/60 font-black uppercase text-[10px] tracking-widest"
+                 >
+                    Annuler
+                 </button>
+              </div>
+           </div>
         </div>
       )}
 
