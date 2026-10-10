@@ -665,7 +665,8 @@ const App: React.FC = () => {
   // --- LOGIC: VISIBLE ITEMS ---
   const routineBlocks = useMemo(() => {
     if (appData.days[dateKey]?.blocks) {
-      return appData.days[dateKey].blocks!;
+      // La récurrence d'un bloc s'applique aussi aux jours « figés »
+      return appData.days[dateKey].blocks!.filter(b => isDateInRange(currentDate, b.recurrence, b.specificDate, b.startDate, b.endDate));
     }
     return appData.blocks.filter(b => isDateInRange(currentDate, b.recurrence, b.specificDate, b.startDate, b.endDate));
   }, [appData.blocks, appData.days, dateKey, currentDate]);
@@ -1869,19 +1870,14 @@ const App: React.FC = () => {
     return () => window.removeEventListener('keydown', onKey);
   }, [configModal, skipModal]);
 
-  // Récurrence : appliquée en une seule mise à jour, au plan global ET à la copie
-  // du jour (onglet Routine). Avant, dans l'onglet Routine, le changement ne
-  // touchait que la copie du jour : aucun effet visible ni sur les jours suivants.
-  const applyRecurrence = (recurrence: RecurrenceType) => {
+  // Récurrence : appliquée en une seule mise à jour au plan global ET à toutes les
+  // copies « figées » des jours à partir d'aujourd'hui (l'app fige un jour dès qu'on
+  // le modifie dans l'onglet Routine — plier un bloc suffit). Sans ça, un changement
+  // fait dans Planning ne touchait ni aujourd'hui ni les jours déjà visités.
+  // Les jours passés restent intacts pour préserver l'historique.
+  const applyItemFields = (fields: Record<string, any>) => {
     if (!configModal) return;
     const { type, id, blockId, parentTaskId } = configModal;
-    const current: any = getConfigItem() || {};
-    const fields: any = { recurrence };
-    if (recurrence === 'specific') fields.specificDate = current.specificDate || dateKey;
-    if (recurrence === 'period') {
-      fields.startDate = current.startDate || dateKey;
-      fields.endDate = current.endDate || current.startDate || dateKey;
-    }
 
     if (type === 'goal') {
       updateAppData(prev => ({ ...prev, recurringGoals: prev.recurringGoals.map(g => g.id === id ? { ...g, ...fields } : g) }));
@@ -1905,36 +1901,68 @@ const App: React.FC = () => {
       });
     };
 
+    const todayKey = getKeyFromDate(new Date());
     updateAppData(prev => {
-      const next: AppData = { ...prev, blocks: updater(prev.blocks) };
-      const day = prev.days[dateKey];
-      if (activeTab === 'routine' && day?.blocks) {
-        next.days = { ...prev.days, [dateKey]: { ...day, blocks: updater(day.blocks) } };
-      }
-      return next;
+      const days = { ...prev.days };
+      Object.keys(days).forEach(k => {
+        const d = days[k];
+        if (d?.blocks && (k >= todayKey || k === dateKey)) days[k] = { ...d, blocks: updater(d.blocks) };
+      });
+      return { ...prev, blocks: updater(prev.blocks), days };
     });
+  };
+
+  // Bornes concrètes pour « Cette semaine » (lundi → dimanche) et « Ce mois »,
+  // calculées à partir du jour affiché.
+  const getRecurrenceBounds = (recurrence: RecurrenceType, current: any) => {
+    const base = new Date(currentDate);
+    if (recurrence === 'week') {
+      const offset = (base.getDay() + 6) % 7; // lundi = 0
+      const start = new Date(base); start.setDate(base.getDate() - offset);
+      const end = new Date(start); end.setDate(start.getDate() + 6);
+      return { startDate: getKeyFromDate(start), endDate: getKeyFromDate(end) };
+    }
+    if (recurrence === 'month') {
+      const start = new Date(base.getFullYear(), base.getMonth(), 1);
+      const end = new Date(base.getFullYear(), base.getMonth() + 1, 0);
+      return { startDate: getKeyFromDate(start), endDate: getKeyFromDate(end) };
+    }
+    if (recurrence === 'period') {
+      const s0 = current.recurrence === 'period' && current.startDate ? current.startDate : dateKey;
+      const e0 = current.recurrence === 'period' && current.endDate ? current.endDate : s0;
+      return { startDate: s0, endDate: e0 };
+    }
+    return {};
+  };
+
+  const applyRecurrence = (recurrence: RecurrenceType) => {
+    if (!configModal) return;
+    const current: any = getConfigItem() || {};
+    const fields: any = { recurrence, ...getRecurrenceBounds(recurrence, current) };
+    if (recurrence === 'specific') fields.specificDate = current.specificDate || dateKey;
+    applyItemFields(fields);
   };
 
   // Les dates (précise / période) suivent la même règle que la récurrence
   const updateRecurrenceDate = (field: 'specificDate' | 'startDate' | 'endDate', value: string) => {
-    if (!configModal) return;
-    if (configModal.type === 'goal' || activeTab !== 'routine') { updateConfiguredItem(field, value); return; }
-    const { type, id, blockId, parentTaskId } = configModal;
-    const updater = (blocks: Block[]): Block[] => {
-      if (type === 'block') return blocks.map(b => b.id === id ? { ...b, [field]: value } : b);
-      return blocks.map(b => b.id !== blockId ? b : {
-        ...b,
-        tasks: b.tasks.map(t => parentTaskId
-          ? (t.id !== parentTaskId ? t : { ...t, subTasks: (t.subTasks || []).map(st => st.id === id ? { ...st, [field]: value } : st) })
-          : (t.id === id ? { ...t, [field]: value } : t))
-      });
-    };
-    updateAppData(prev => {
-      const next: AppData = { ...prev, blocks: updater(prev.blocks) };
-      const day = prev.days[dateKey];
-      if (day?.blocks) next.days = { ...prev.days, [dateKey]: { ...day, blocks: updater(day.blocks) } };
-      return next;
-    });
+    applyItemFields({ [field]: value });
+  };
+
+  // Phrase qui dit concrètement quand la tâche apparaît
+  const describeRecurrence = (item: any): string => describeRecurrenceRaw(item).replace(/\.\.$/, '.');
+  const describeRecurrenceRaw = (item: any): string => {
+    if (!item) return '';
+    const fmt = (k?: string) => k ? new Date(k + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' }) : '?';
+    switch (item.recurrence || 'daily') {
+      case 'daily': return 'Visible tous les jours.';
+      case 'weekdays': return 'Visible du lundi au vendredi.';
+      case 'weekends': return 'Visible le samedi et le dimanche.';
+      case 'week': return item.startDate ? `Visible cette semaine uniquement : du ${fmt(item.startDate)} au ${fmt(item.endDate)}.` : 'Visible cette semaine.';
+      case 'month': return item.startDate ? `Visible ce mois uniquement : du ${fmt(item.startDate)} au ${fmt(item.endDate)}.` : 'Visible ce mois-ci.';
+      case 'period': return `Visible du ${fmt(item.startDate)} au ${fmt(item.endDate)}.`;
+      case 'specific': case 'once': return `Visible uniquement le ${fmt(item.specificDate)}.`;
+      default: return '';
+    }
   };
 
   const statsData = useMemo(() => {
@@ -3376,8 +3404,8 @@ const App: React.FC = () => {
                         );
                       })}
                       </div>
-                      {activeTab === 'routine' && configModal.type !== 'goal' && (
-                        <p className="text-[9px] font-bold text-[#18181B]/50 dark:text-[#E6E8E6]/50 px-2 leading-relaxed">La récurrence s'applique aussi à votre plan : elle vaut pour les prochains jours.</p>
+                      {configItem && (
+                        <p className="text-[10px] font-bold text-accent px-2 leading-relaxed">{describeRecurrence(configItem)}</p>
                       )}
                     </div>
 

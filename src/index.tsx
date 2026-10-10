@@ -9,9 +9,8 @@ import '@fontsource/plus-jakarta-sans/600.css';
 import '@fontsource/plus-jakarta-sans/700.css';
 import '@fontsource/plus-jakarta-sans/800.css';
 // Police des titres
-import '@fontsource/sora/600.css';
-import '@fontsource/sora/700.css';
-import '@fontsource/sora/800.css';
+import '@fontsource-variable/fraunces/opsz.css';
+import '@fontsource-variable/fraunces/opsz-italic.css';
 import './index.css';
 
 const rootElement = document.getElementById('root');

@@ -35,6 +35,8 @@ export const isDateInRange = (date: Date, type: RecurrenceType, specificDate?: s
       return dateStr === specificDate;
       
     case 'week': {
+        // Bornes enregistrées au moment du choix (lundi → dimanche) : la tâche expire vraiment
+        if (startDate && endDate) return dateStr >= startDate && dateStr <= endDate;
         // Logique "Cette semaine" (Basée sur la semaine actuelle du calendrier réel)
         const now = new Date();
         const currentDayOfWeek = now.getDay(); // 0-6
@@ -55,6 +57,8 @@ export const isDateInRange = (date: Date, type: RecurrenceType, specificDate?: s
     }
     
     case 'month': {
+        // Bornes enregistrées au moment du choix (1er → dernier jour du mois)
+        if (startDate && endDate) return dateStr >= startDate && dateStr <= endDate;
         // Logique "Ce mois" (Basée sur le mois actuel du calendrier réel)
         const now = new Date();
         return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();

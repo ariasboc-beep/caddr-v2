@@ -11,15 +11,15 @@
 .theme-rose   { --accent-rgb: 244 63 110;  --accent: #F43F6E; }
 
 /* === Typographie : 2 polices === */
-/* Titres : Sora · Textes : Plus Jakarta Sans. Changer une police = modifier une seule ligne ici. */
+/* Titres : Fraunces · Textes : Plus Jakarta Sans. Changer une police = modifier une seule ligne ici. */
 :root {
-  --font-heading: 'Sora', 'Plus Jakarta Sans', system-ui, sans-serif;
+  --font-heading: 'Fraunces Variable', Georgia, 'Times New Roman', serif;
   --font-body: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
 }
 
 h1, h2, h3, h4, h5, h6, .font-heading {
   font-family: var(--font-heading);
-  letter-spacing: -0.01em;
+  font-optical-sizing: auto;
 }
 
 body {
