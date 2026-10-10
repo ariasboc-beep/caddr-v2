@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, ReferenceLine, Tooltip, Cell } from 'recharts';
 import {
   ChevronLeft, ChevronRight, ChevronDown, FileText, TrendingUp, TrendingDown, Minus,
-  Flame, Trophy, Target, Layers, Repeat, Check, CalendarDays, Star, ListChecks, Settings2,
+  Flame, Trophy, Target, Layers, Repeat, Check, CalendarDays, Star, ListChecks, Settings2, Loader2,
 } from 'lucide-react';
 import { AppData, TimeframeType } from '../types';
 import { getKeyFromDate } from '../utils';
@@ -88,11 +88,12 @@ interface Props {
   appData: AppData;
   accentHex: string;
   onToggleHabit: (taskId: string, value: boolean) => void;
-  onDownloadPDF: () => void;
+  onDownloadPDF: (tf: TimeframeType, period: ReturnType<typeof getPeriod>) => void | Promise<void>;
   children?: React.ReactNode; // sections complémentaires (rendues en bas)
 }
 
 const TF_LABEL: Record<TimeframeType, string> = { day: 'Jour', week: 'Semaine', month: 'Mois', year: 'Année', custom: 'Période' };
+const REPORT_NAME: Record<TimeframeType, string> = { day: 'rapport du jour', week: 'rapport hebdomadaire', month: 'rapport mensuel', year: 'rapport annuel', custom: 'rapport de la période' };
 
 const Analytics: React.FC<Props> = ({ appData, accentHex, onToggleHabit, onDownloadPDF, children }) => {
   const todayKey = getKeyFromDate(new Date());
@@ -104,6 +105,7 @@ const Analytics: React.FC<Props> = ({ appData, accentHex, onToggleHabit, onDownl
   });
   const [tip, setTip] = useState<Tip>(null);
   const [chooseHabits, setChooseHabits] = useState(false);
+  const [pdfBusy, setPdfBusy] = useState(false);
 
   const chooseTf = (t: TimeframeType) => { setTf(t); setAnchor(new Date()); try { localStorage.setItem('caddr_analytics_tf', t); } catch {} };
 
@@ -117,10 +119,10 @@ const Analytics: React.FC<Props> = ({ appData, accentHex, onToggleHabit, onDownl
   const buckets = useMemo(() => buildBuckets(stats.days, tf), [stats, tf]);
   const habits = useMemo(() => habitAggregates(appData, eachDay(period.start, period.end), todayKey), [appData, period, todayKey]);
   const streak = useMemo(() => perfectStreak(appData, todayKey), [appData, todayKey]);
+  const thisYear = new Date().getFullYear();
   const yearHistory = useMemo(() => {
-    const s = new Date(); s.setFullYear(s.getFullYear() - 1);
-    return computePeriod(appData, s, new Date(), todayKey).days.filter(d => d.rate !== null).map(d => ({ date: d.date, val: d.rate as number }));
-  }, [appData, todayKey]);
+    return computePeriod(appData, new Date(thisYear, 0, 1, 12), new Date(), todayKey).days.filter(d => d.rate !== null).map(d => ({ date: d.date, val: d.rate as number }));
+  }, [appData, todayKey, thisYear]);
 
   const prevLabel = tf === 'week' ? 'vs semaine préc.' : tf === 'month' ? 'vs mois préc.' : tf === 'year' ? 'vs année préc.' : tf === 'day' ? 'vs veille' : 'vs période préc.';
   const avg = stats.rate;
@@ -194,9 +196,9 @@ const Analytics: React.FC<Props> = ({ appData, accentHex, onToggleHabit, onDownl
               </button>
             ))}
           </div>
-          <button onClick={onDownloadPDF} title="Télécharger le rapport mensuel PDF" aria-label="Télécharger le rapport PDF"
+          <button onClick={async () => { setPdfBusy(true); try { await onDownloadPDF(tf, period); } finally { setPdfBusy(false); } }} disabled={pdfBusy} title={`Télécharger le ${REPORT_NAME[tf]} (PDF)`} aria-label={`Télécharger le ${REPORT_NAME[tf]} en PDF`}
             className={`p-3 rounded-2xl bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 ${muted} hover:text-white hover:bg-accent transition-all`}>
-            <FileText size={18} />
+            {pdfBusy ? <Loader2 size={18} className="animate-spin" /> : <FileText size={18} />}
           </button>
         </div>
         {tf !== 'custom' ? (
@@ -419,8 +421,8 @@ const Analytics: React.FC<Props> = ({ appData, accentHex, onToggleHabit, onDownl
       </Section>
 
       {/* 5. Vue de l'année */}
-      <Section id="year" title="L'année en un coup d'œil" icon={<CalendarDays size={16} />} subtitle="12 derniers mois, un carré par jour" defaultOpen={false} embedded>
-        <div><YearHeatmap history={yearHistory} streakCount={streak.current} days={365} title="12 derniers mois" /></div>
+      <Section id="year" title={`L'année ${thisYear} en un coup d'œil`} icon={<CalendarDays size={16} />} subtitle={`Du 1er janvier au 31 décembre ${thisYear}, un carré par jour`} defaultOpen={false} embedded>
+        <div><YearHeatmap history={yearHistory} streakCount={streak.current} rangeStart={`${thisYear}-01-01`} rangeEnd={`${thisYear}-12-31`} title={`Année ${thisYear}`} /></div>
       </Section>
 
       {children}

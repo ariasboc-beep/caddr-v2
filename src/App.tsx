@@ -35,6 +35,8 @@ import FocusMode from './components/FocusMode';
 import DayTimeline from './components/DayTimeline';
 import InboxView from './components/InboxView';
 import Analytics, { Section } from './components/Analytics';
+import Reviews from './components/Reviews';
+import { generateReport } from './report';
 import LongTermGoals from './components/LongTermGoals';
 import WeeklyReview from './components/WeeklyReview';
 import FocusStats from './components/FocusStats';
@@ -2874,7 +2876,7 @@ const App: React.FC = () => {
           <Analytics
             appData={appData}
             accentHex={accentHex}
-            onDownloadPDF={handleDownloadPDF}
+            onDownloadPDF={(tf, period) => generateReport(appData, tf, period, accentHex)}
             onToggleHabit={(taskId, value) => updateAppData(prev => {
               const mark = (blocks: Block[]) => blocks.map(b => ({ ...b, tasks: b.tasks.map(t => t.id === taskId ? { ...t, isHabit: value } : t) }));
               const days = { ...prev.days };
@@ -2885,15 +2887,15 @@ const App: React.FC = () => {
             <Section id="insights" title="Observations" icon={<Lightbulb size={16} />} subtitle="Ce que tes données révèlent" defaultOpen={false} embedded>
               <Insights history={yearStats.history.filter(h => h.val > 0 || appData.days[h.date])} days={appData.days} blockStats={yearStats.sortedBlockStats} />
             </Section>
-            <Section id="weekly-review" title="Revue de la semaine" icon={<CalendarRange size={16} />} subtitle="Bilan écrit de tes 7 derniers jours" defaultOpen={false} embedded>
-              <WeeklyReview
-                weekKey={currentWeekKey}
-                review={appData.weeklyReviews?.[currentWeekKey]}
-                stats={weekReviewStats}
-                onSave={(r) => updateAppData(prev => ({ ...prev, weeklyReviews: { ...(prev.weeklyReviews || {}), [r.weekKey]: r } }))}
+            <Section id="weekly-review" title="Bilans de la semaine et du mois" icon={<CalendarRange size={16} />} subtitle="Écris tes bilans et retrouve les précédents" defaultOpen={false}>
+              <Reviews
+                appData={appData}
+                onSave={(kind, r) => updateAppData(prev => kind === 'week'
+                  ? { ...prev, weeklyReviews: { ...(prev.weeklyReviews || {}), [r.weekKey]: r } }
+                  : { ...prev, monthlyReviews: { ...(prev.monthlyReviews || {}), [r.weekKey]: r } })}
                 onGenerate={async (summary) => {
-                  const res = await getDailyReviewFeedback([], weekReviewStats.avg, summary);
-                  return res ? { feedback: res.feedback, focusNextWeek: res.focusTomorrow } : null;
+                  const res = await getDailyReviewFeedback([], 0, summary);
+                  return res ? { feedback: (res as any).feedback, focusNextWeek: (res as any).focusTomorrow } : null;
                 }}
               />
             </Section>

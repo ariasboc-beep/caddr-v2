@@ -84,6 +84,7 @@ export interface AppData {
   userProfile?: UserProfile;
   longTermGoals?: LongTermGoal[];
   weeklyReviews?: { [weekKey: string]: WeeklyReview };
+  monthlyReviews?: { [monthKey: string]: WeeklyReview }; // même forme ; weekKey contient la clé du mois « AAAA-MM »
   settings?: AppSettings;
   focusSessions?: FocusSession[];
   skips?: SkipRecord[];
