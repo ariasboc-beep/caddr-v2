@@ -15,7 +15,7 @@ import {
   Lock, LockOpen, User, LogOut, ShieldCheck, Mail, Key, Settings2, Info,
   Download, Upload, Power, Pencil, Edit3, PieChart, FileText,
   CalendarClock, ArrowUpCircle, BookOpen, PenTool, Crown, Swords,
-  Medal, Sun, Moon, RotateCcw, CloudOff, SkipForward, Hourglass
+  Medal, Sun, Moon, RotateCcw, CloudOff, SkipForward, Hourglass, Lightbulb
 } from 'lucide-react';
 import { AppData, Block, TabType, RecurrenceType, TimeframeType, RecurringGoal, Task, PriorityType, DayRoutine, UserProfile } from './types';
 import { getKeyFromDate, generateId, isDateInRange } from './utils';
@@ -34,7 +34,7 @@ import Badges from './components/Badges';
 import FocusMode from './components/FocusMode';
 import DayTimeline from './components/DayTimeline';
 import InboxView from './components/InboxView';
-import HabitStreaks from './components/HabitStreaks';
+import Analytics, { Section } from './components/Analytics';
 import LongTermGoals from './components/LongTermGoals';
 import WeeklyReview from './components/WeeklyReview';
 import FocusStats from './components/FocusStats';
@@ -2871,151 +2871,45 @@ const App: React.FC = () => {
         {/* ... (Existing Analytics Tab) */}
         {/* TAB: ANALYTICS */}
         {activeTab === 'stats' && (
-          <div className="space-y-6 animate-in fade-in duration-500 pb-20">
-            {/* Titre */}
-            <div className="px-2">
-              <h1 className="text-2xl font-black text-[#18181B] dark:text-[#E6E8E6]">Analytics</h1>
-              <p className="text-xs font-bold text-[#18181B]/50 dark:text-[#E6E8E6]/50 mt-1">Ta discipline, mesurée.</p>
-            </div>
-            <AnnualReview appData={appData} history={yearStats.history} />
-            <div className="space-y-6">
-                {/* Timeframe Selector with PDF Download */}
-                <div className="flex items-center justify-between gap-4">
-                    <div className="flex justify-center p-1 bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 rounded-[2rem] border border-[#18181B]/5 dark:border-[#E6E8E6]/5 shadow-inner flex-1">{(['day', 'week', 'month', 'year', 'custom'] as TimeframeType[]).map((t) => (<button key={t} onClick={() => setStatsTimeframe(t)} className={`flex-1 py-3 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest transition-all ${statsTimeframe === t ? 'bg-accent text-white shadow-lg shadow-accent/20' : 'text-[#18181B]/60 dark:text-[#E6E8E6]/60'}`}>{t === 'day' ? 'Auj.' : t === 'week' ? 'Sem.' : t === 'month' ? 'Mois' : t === 'year' ? 'Ann.' : 'Perso.'}</button>))}</div>
-                    <button 
-                      onClick={handleDownloadPDF} 
-                      className="p-3 bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 rounded-2xl text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-white hover:bg-accent transition-all flex items-center justify-center shadow-lg"
-                      title="Télécharger le rapport mensuel PDF"
-                    >
-                      <FileText size={20} />
-                    </button>
-                </div>
-                
-                {statsTimeframe === 'custom' && (<div className="grid grid-cols-2 gap-4 animate-in slide-in-from-top-2"><div className="space-y-1"><label className="text-[8px] font-black text-[#18181B]/60 dark:text-[#E6E8E6]/60 uppercase ml-2">Début</label><input type="date" value={customRange.start} onChange={e => setCustomRange(prev => ({ ...prev, start: e.target.value }))} className="w-full bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 p-3 rounded-2xl text-xs font-bold border border-[#18181B]/5 dark:border-[#E6E8E6]/5 outline-none [color-scheme:dark] text-[#18181B] dark:text-[#E6E8E6]" /></div><div className="space-y-1"><label className="text-[8px] font-black text-[#18181B]/60 dark:text-[#E6E8E6]/60 uppercase ml-2">Fin</label><input type="date" value={customRange.end} onChange={e => setCustomRange(prev => ({ ...prev, end: e.target.value }))} className="w-full bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 p-3 rounded-2xl text-xs font-bold border border-[#18181B]/5 dark:border-[#E6E8E6]/5 outline-none [color-scheme:dark] text-[#18181B] dark:text-[#E6E8E6]" /></div></div>)}
-
-                {/* Global Stats Grid */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4"><div className="glass p-5 rounded-[2rem] flex flex-col items-center justify-center space-y-2"><div className="w-10 h-10 bg-accent/10 rounded-xl flex items-center justify-center"><TrendingUp size={20} className="text-accent" /></div><span className="text-xl font-black text-[#18181B] dark:text-[#E6E8E6]">{statsData.avg}%</span><span className="text-[8px] font-black text-[#18181B]/60 dark:text-[#E6E8E6]/60 uppercase tracking-widest text-center leading-tight">Constance Moyenne</span></div><div className="glass p-5 rounded-[2rem] flex flex-col items-center justify-center space-y-2"><div className="w-10 h-10 bg-[#FDCA40]/10 rounded-xl flex items-center justify-center"><Flame size={20} className="text-[#FDCA40]" /></div><span className="text-xl font-black text-[#18181B] dark:text-[#E6E8E6]">{gracedStreak} j</span><span className="text-[8px] font-black text-[#18181B]/60 dark:text-[#E6E8E6]/60 uppercase tracking-widest text-center leading-tight">Série Parfaite</span></div><div className="glass p-5 rounded-[2rem] flex flex-col items-center justify-center space-y-2"><div className="w-10 h-10 bg-[#18181B]/10 dark:bg-[#E6E8E6]/10 rounded-xl flex items-center justify-center"><Trophy size={20} className="text-[#18181B] dark:text-[#E6E8E6]" /></div><span className="text-xl font-black text-[#18181B] dark:text-[#E6E8E6]">{statsData.totalDoneCount}</span><span className="text-[8px] font-black text-[#18181B]/60 dark:text-[#E6E8E6]/60 uppercase tracking-widest text-center leading-tight">Succès Totaux</span></div><div className="glass p-5 rounded-[2rem] flex flex-col items-center justify-center space-y-2"><div className="w-10 h-10 bg-[#FDCA40]/10 rounded-xl flex items-center justify-center"><Star size={20} className="text-[#FDCA40]" /></div><span className="text-xl font-black text-[#18181B] dark:text-[#E6E8E6]">{statsData.bestDay.val}%</span><span className="text-[8px] font-black text-[#18181B]/60 dark:text-[#E6E8E6]/60 uppercase tracking-widest text-center leading-tight">Record Période</span></div></div>
-
-                {/* Heatmap — fenêtre pilotée par le sélecteur de période */}
-                {(() => {
-                  const winDays: Record<TimeframeType, number> = { day: 1, week: 7, month: 30, year: 365, custom: 30 };
-                  const winTitle: Record<TimeframeType, string> = { day: "Aujourd'hui", week: '7 derniers jours', month: '30 derniers jours', year: '12 derniers mois', custom: 'Période perso.' };
-                  return <YearHeatmap history={statsData.history} streakCount={yearStats.streakCount} days={winDays[statsTimeframe]} title={winTitle[statsTimeframe]} />;
-                })()}
-
-                {/* Global Performance Graph */}
-                <div className="glass p-4 sm:p-8 rounded-[3rem] space-y-4">
-                    <div className="flex items-center justify-between mb-4"><p className="text-[10px] font-black text-[#18181B]/40 dark:text-[#E6E8E6]/40 uppercase tracking-widest px-2">Constance au fil des jours</p><div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-accent" /><span className="text-[8px] font-black text-[#18181B]/60 dark:text-[#E6E8E6]/60 uppercase">Score %</span></div></div>
-                    <div className="relative h-48 w-full overflow-hidden"><ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}><AreaChart data={statsData.history} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}><defs><linearGradient id="colorVal" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor={accentHex} stopOpacity={0.3}/><stop offset="95%" stopColor={accentHex} stopOpacity={0}/></linearGradient></defs><Tooltip contentStyle={{ background: '#080708', border: '1px solid rgba(230, 232, 230, 0.1)', borderRadius: '1rem', fontSize: '10px', fontWeight: 'bold' }} itemStyle={{ color: accentHex }} /><Area type="monotone" dataKey="val" stroke={accentHex} strokeWidth={3} fillOpacity={1} fill="url(#colorVal)" /></AreaChart></ResponsiveContainer></div>
-                </div>
-
-                {/* Succès + Humeur */}
-                <Badges appData={appData} bestStreak={yearStats.streakCount} />
-                <Insights history={statsData.history} days={appData.days} blockStats={statsData.sortedBlockStats} />
-                <FocusStats sessions={appData.focusSessions || []} />
-                <HabitStreaks blocks={routineBlocks} />
-                <WeeklyReview
-                  weekKey={currentWeekKey}
-                  review={appData.weeklyReviews?.[currentWeekKey]}
-                  stats={weekReviewStats}
-                  onSave={(r) => updateAppData(prev => ({ ...prev, weeklyReviews: { ...(prev.weeklyReviews || {}), [r.weekKey]: r } }))}
-                  onGenerate={async (summary) => {
-                    const res = await getDailyReviewFeedback([], weekReviewStats.avg, summary);
-                    return res ? { feedback: res.feedback, focusNextWeek: res.focusTomorrow } : null;
-                  }}
-                />
-                <MoodPerfChart days={appData.days} history={statsData.history} />
-
-                {/* NEW: Block Validation Graph */}
-                <div className="glass p-4 sm:p-8 rounded-[3rem] space-y-4">
-                    <div className="flex items-center justify-between mb-4">
-                        <p className="text-[10px] font-black text-[#18181B]/40 dark:text-[#E6E8E6]/40 uppercase tracking-widest px-2">Constance des Blocs (Validés à 100%)</p>
-                    </div>
-                    <div className="relative h-48 w-full overflow-hidden">
-                        <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
-                            <BarChart data={statsData.dailyBlockHistory} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
-                                <Tooltip 
-                                    cursor={{fill: 'rgba(255,255,255,0.05)'}}
-                                    content={({ active, payload }) => {
-                                        if (active && payload && payload.length) {
-                                            return (
-                                                <div className="bg-white dark:bg-[#080708] border border-[#18181B]/10 dark:border-[#E6E8E6]/10 p-3 rounded-xl shadow-xl">
-                                                    <p className="text-[10px] font-black text-[#18181B]/60 dark:text-[#E6E8E6]/60 uppercase mb-1">{payload[0].payload.name}</p>
-                                                    <p className="text-xs font-bold text-[#18181B] dark:text-[#E6E8E6]">{payload[0].value} / {payload[0].payload.total} Blocs</p>
-                                                </div>
-                                            );
-                                        }
-                                        return null;
-                                    }}
-                                />
-                                <Bar dataKey="validated" fill={accentHex} radius={[4, 4, 4, 4]} barSize={8} />
-                            </BarChart>
-                        </ResponsiveContainer>
-                    </div>
-                </div>
-
-                {/* NEW: Block Habits & Suggestions */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="glass p-6 rounded-[2.5rem] space-y-4">
-                        <div className="flex items-center gap-2 mb-2">
-                            <Layout size={16} className="text-accent" />
-                            <h3 className="text-xs font-black uppercase tracking-widest text-[#18181B] dark:text-[#E6E8E6]">Habitudes de Blocs</h3>
-                        </div>
-                        <p className="text-[9px] font-medium text-[#18181B]/40 dark:text-[#E6E8E6]/40 -mt-2">Régularité sur la période : part des jours où le bloc a été complété à 100% (≠ progression du jour).</p>
-                        <div className="space-y-3 max-h-64 overflow-y-auto custom-scrollbar pr-2">
-                            {statsData.sortedBlockStats.length === 0 ? (
-                                <p className="text-[10px] text-[#18181B]/40 dark:text-[#E6E8E6]/40 italic">Aucune donnée de bloc disponible.</p>
-                            ) : (
-                                statsData.sortedBlockStats.map((stat, idx) => (
-                                    <div key={idx} className="space-y-1">
-                                        <div className="flex justify-between items-center text-[10px] font-bold text-[#18181B] dark:text-[#E6E8E6]">
-                                            <span>{stat.title}</span>
-                                            <span className="flex items-center gap-1.5">
-                                              <span className="text-[8px] font-medium text-[#18181B]/30 dark:text-[#E6E8E6]/30">{stat.fullyValidated}/{stat.totalAppearances} j</span>
-                                              <span className={`${stat.rate >= 80 ? 'text-accent' : stat.rate >= 50 ? 'text-[#FDCA40]' : 'text-[#18181B]/40 dark:text-[#E6E8E6]/40'}`}>{stat.rate}%</span>
-                                            </span>
-                                        </div>
-                                        <div className="h-2 w-full bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 rounded-full overflow-hidden">
-                                            <div 
-                                                className={`h-full rounded-full transition-all duration-500 ${stat.rate >= 80 ? 'bg-accent' : stat.rate >= 50 ? 'bg-[#FDCA40]' : 'bg-[#18181B]/20 dark:bg-[#E6E8E6]/20'}`} 
-                                                style={{ width: `${stat.rate}%` }} 
-                                            />
-                                        </div>
-                                    </div>
-                                ))
-                            )}
-                        </div>
-                    </div>
-
-                    <div className="flex flex-col gap-4">
-                        {statsData.sortedBlockStats.length > 0 && statsData.sortedBlockStats[0].rate > 0 && (
-                            <div className="flex-1 glass p-5 rounded-[2rem] flex items-center gap-4 bg-accent/5 border border-accent/20">
-                                <div className="w-10 h-10 bg-accent/10 rounded-xl flex items-center justify-center shrink-0">
-                                    <Trophy size={20} className="text-accent" />
-                                </div>
-                                <div>
-                                    <p className="text-[8px] font-black text-[#18181B]/60 dark:text-[#E6E8E6]/60 uppercase tracking-widest">Point Fort</p>
-                                    <p className="text-xs font-bold text-[#18181B] dark:text-[#E6E8E6]">{statsData.sortedBlockStats[0].title}</p>
-                                    <p className="text-[9px] text-accent font-medium mt-0.5">Validé {statsData.sortedBlockStats[0].fullyValidated} fois</p>
-                                </div>
-                            </div>
-                        )}
-                        {statsData.sortedBlockStats.length > 0 && statsData.sortedBlockStats[statsData.sortedBlockStats.length - 1].rate < 50 && (
-                            <div className="flex-1 glass p-5 rounded-[2rem] flex items-center gap-4 bg-[#FDCA40]/5 border border-[#FDCA40]/20">
-                                <div className="w-10 h-10 bg-[#FDCA40]/10 rounded-xl flex items-center justify-center shrink-0">
-                                    <Target size={20} className="text-[#FDCA40]" />
-                                </div>
-                                <div>
-                                    <p className="text-[8px] font-black text-[#18181B]/60 dark:text-[#E6E8E6]/60 uppercase tracking-widest">Zone d'effort</p>
-                                    <p className="text-xs font-bold text-[#18181B] dark:text-[#E6E8E6]">{statsData.sortedBlockStats[statsData.sortedBlockStats.length - 1].title}</p>
-                                    <p className="text-[9px] text-[#FDCA40] font-medium mt-0.5">Simplifiez ce bloc ?</p>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                </div>
-            </div>
-          </div>
+          <Analytics
+            appData={appData}
+            accentHex={accentHex}
+            onDownloadPDF={handleDownloadPDF}
+            onToggleHabit={(taskId, value) => updateAppData(prev => {
+              const mark = (blocks: Block[]) => blocks.map(b => ({ ...b, tasks: b.tasks.map(t => t.id === taskId ? { ...t, isHabit: value } : t) }));
+              const days = { ...prev.days };
+              Object.keys(days).forEach(k => { if (days[k]?.blocks) days[k] = { ...days[k], blocks: mark(days[k].blocks!) }; });
+              return { ...prev, blocks: mark(prev.blocks), days };
+            })}
+          >
+            <Section id="insights" title="Observations" icon={<Lightbulb size={16} />} subtitle="Ce que tes données révèlent" defaultOpen={false} embedded>
+              <Insights history={yearStats.history.filter(h => h.val > 0 || appData.days[h.date])} days={appData.days} blockStats={yearStats.sortedBlockStats} />
+            </Section>
+            <Section id="weekly-review" title="Revue de la semaine" icon={<CalendarRange size={16} />} subtitle="Bilan écrit de tes 7 derniers jours" defaultOpen={false} embedded>
+              <WeeklyReview
+                weekKey={currentWeekKey}
+                review={appData.weeklyReviews?.[currentWeekKey]}
+                stats={weekReviewStats}
+                onSave={(r) => updateAppData(prev => ({ ...prev, weeklyReviews: { ...(prev.weeklyReviews || {}), [r.weekKey]: r } }))}
+                onGenerate={async (summary) => {
+                  const res = await getDailyReviewFeedback([], weekReviewStats.avg, summary);
+                  return res ? { feedback: res.feedback, focusNextWeek: res.focusTomorrow } : null;
+                }}
+              />
+            </Section>
+            <Section id="mood" title="Humeur et performance" icon={<Smile size={16} />} subtitle="Ta constance selon ton humeur du jour" defaultOpen={false} embedded>
+              <MoodPerfChart days={appData.days} history={yearStats.history} />
+            </Section>
+            <Section id="focus" title="Concentration" icon={<Timer size={16} />} subtitle="Sessions du mode Focus" defaultOpen={false} embedded>
+              <FocusStats sessions={appData.focusSessions || []} />
+            </Section>
+            <Section id="badges" title="Succès" icon={<Trophy size={16} />} subtitle="Badges débloqués" defaultOpen={false} embedded>
+              <Badges appData={appData} bestStreak={yearStats.streakCount} />
+            </Section>
+            <Section id="annual" title="Bilan de l'année" icon={<Crown size={16} />} subtitle="Ton année en chiffres" defaultOpen={false} embedded>
+              <AnnualReview appData={appData} history={yearStats.history} />
+            </Section>
+          </Analytics>
         )}
 
         {/* ... (Existing Caddr AI Tab) */}
@@ -3657,6 +3551,25 @@ const App: React.FC = () => {
                     onChange={(e) => updateConfiguredItem('stackAnchor', e.target.value)}
                   />
                 </div>
+                {!configModal.parentTaskId && (
+                  <button
+                    type="button"
+                    onClick={() => applyItemFields({ isHabit: !(configItem as any).isHabit })}
+                    aria-pressed={!!(configItem as any).isHabit}
+                    className={`w-full flex items-center justify-between gap-3 p-4 rounded-2xl border transition-all ${(configItem as any).isHabit ? 'bg-accent/10 border-accent/40' : 'bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 border-transparent'}`}
+                  >
+                    <span className="flex items-center gap-2 text-left">
+                      <Flame size={16} className={(configItem as any).isHabit ? 'text-accent' : 'text-[#18181B]/40 dark:text-[#E6E8E6]/40'} />
+                      <span>
+                        <span className="block text-[10px] font-black uppercase tracking-wider text-[#18181B] dark:text-[#E6E8E6]">Suivre comme habitude</span>
+                        <span className="block text-[9px] font-medium text-[#18181B]/50 dark:text-[#E6E8E6]/50">Série et régularité visibles dans Analytics</span>
+                      </span>
+                    </span>
+                    <span className={`w-9 h-5 rounded-full p-0.5 transition-all shrink-0 ${(configItem as any).isHabit ? 'bg-accent' : 'bg-[#18181B]/15 dark:bg-[#E6E8E6]/15'}`}>
+                      <span className={`block w-4 h-4 rounded-full bg-white shadow transition-transform ${(configItem as any).isHabit ? 'translate-x-4' : ''}`} />
+                    </span>
+                  </button>
+                )}
                 <button
                   onClick={handleSkipToday}
                   className="w-full py-4 text-[#FDCA40] font-black uppercase text-[10px] tracking-widest bg-[#FDCA40]/5 rounded-2xl border border-[#FDCA40]/10 hover:bg-[#FDCA40] hover:text-white transition-all"

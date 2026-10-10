@@ -22,6 +22,7 @@ export interface Task {
   deadline?: string;    // Échéance (date limite), distincte de la date prévue
   labels?: string[];    // Étiquettes (ex. « appel », « courses »)
   doneAt?: string;      // Boîte de tâches : idée réglée sans passer par la Routine
+  isHabit?: boolean;    // Suivie comme habitude dans Analytics
 }
 
 export interface Block {

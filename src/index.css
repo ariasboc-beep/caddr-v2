@@ -47,3 +47,15 @@ body {
   background: var(--accent);
   border-radius: 10px;
 }
+
+/* Analytics : composant intégré dans une section pliable (pas de double carte ni double titre) */
+.analytics-embed > .glass,
+.analytics-embed > div > .glass {
+  background: transparent !important;
+  border: 0 !important;
+  padding: 0 !important;
+  backdrop-filter: none !important;
+  box-shadow: none !important;
+}
+.analytics-embed > .glass h2,
+.analytics-embed > div > .glass h2 { display: none; }
