@@ -44,8 +44,11 @@ export const onAuthChange = (callback: (user: User | null) => void): Unsubscribe
 export const saveDataToCloud = async (userId: string, data: AppData): Promise<boolean> => {
   try {
     const userDocRef = doc(db, 'users', userId);
+    // Firestore refuse les champs « undefined » (ex. récurrence relancée) :
+    // un aller-retour JSON les retire proprement.
+    const clean = JSON.parse(JSON.stringify(data));
     await setDoc(userDocRef, {
-      appData: data,
+      appData: clean,
       lastUpdated: serverTimestamp()
     }, { merge: true });
     return true;

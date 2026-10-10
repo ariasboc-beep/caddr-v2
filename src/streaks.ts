@@ -26,7 +26,7 @@ export function computeHabitStreak(task: Task, horizonDays = 365): HabitStreak {
   for (let i = 0; i < horizonDays; i++) {
     const d = new Date(today);
     d.setDate(d.getDate() - i);
-    const due = isDateInRange(d, task.recurrence, task.specificDate, task.startDate, task.endDate);
+    const due = isDateInRange(d, task.recurrence, task.specificDate, task.startDate, task.endDate, task.stopDate);
     if (!due) continue;
 
     dueTotal++;

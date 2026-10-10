@@ -59,12 +59,12 @@ const WeekAgenda: React.FC<Props> = ({ appData, currentTime, onReschedule }) => 
       const key = getKeyFromDate(date);
       const blocks: Block[] = appData.days[key]?.blocks
         ? appData.days[key].blocks!
-        : appData.blocks.filter((b) => isDateInRange(date, b.recurrence, b.specificDate, b.startDate, b.endDate));
+        : appData.blocks.filter((b) => isDateInRange(date, b.recurrence, b.specificDate, b.startDate, b.endDate, b.stopDate));
 
       const items: Item[] = [];
       blocks.forEach((b) => {
         (b.tasks || []).forEach((t) => {
-          if (!t.startTime || !isDateInRange(date, t.recurrence, t.specificDate, t.startDate, t.endDate)) return;
+          if (!t.startTime || !isDateInRange(date, t.recurrence, t.specificDate, t.startDate, t.endDate, t.stopDate)) return;
           const [h, m] = t.startTime.split(':').map(Number);
           items.push({ taskId: t.id, chipId: `${t.id}__${key}`, title: t.title, startMin: h * 60 + m, duration: t.duration || 30, done: (t.completedDates || []).includes(key) });
         });

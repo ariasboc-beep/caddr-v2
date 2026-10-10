@@ -12,8 +12,10 @@ export const getKeyFromDate = (date: Date) => {
 
 export const generateId = () => Math.random().toString(36).substring(2, 11);
 
-export const isDateInRange = (date: Date, type: RecurrenceType, specificDate?: string, startDate?: string, endDate?: string) => {
+export const isDateInRange = (date: Date, type: RecurrenceType, specificDate?: string, startDate?: string, endDate?: string, stopDate?: string) => {
   const dateStr = getKeyFromDate(date);
+  // Récurrence arrêtée : plus rien après le dernier jour choisi
+  if (stopDate && dateStr > stopDate) return false;
   const day = date.getDay(); // 0 = Dimanche, 1 = Lundi, ...
   
   switch (type) {

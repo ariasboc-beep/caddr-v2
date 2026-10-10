@@ -12,6 +12,7 @@ export interface Task {
   specificDate?: string;
   startDate?: string; // For period recurrence
   endDate?: string;   // For period recurrence
+  stopDate?: string;  // Dernier jour de la récurrence (arrêt volontaire), inclus
   subTasks?: Task[];
   startTime?: string; // Format "HH:mm"
   duration?: number;  // Durée en minutes
@@ -29,6 +30,7 @@ export interface Block {
   specificDate?: string;
   startDate?: string; // For period recurrence
   endDate?: string;   // For period recurrence
+  stopDate?: string;  // Dernier jour de la récurrence (arrêt volontaire), inclus
   isCollapsed?: boolean; // New field for UI state
   isLocked?: boolean; // New field for locking state
 }
@@ -40,6 +42,7 @@ export interface RecurringGoal {
   specificDate?: string;
   startDate?: string;
   endDate?: string;
+  stopDate?: string;
   reminderTime?: string; // Format "HH:mm"
 }
 

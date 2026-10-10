@@ -377,7 +377,7 @@ const App: React.FC = () => {
       const today = new Date();
       const dKey = getKeyFromDate(today);
       const dayData = appData.days[dKey];
-      const recurring = (appData.recurringGoals || []).filter(g => isDateInRange(today, g.recurrence, g.specificDate, g.startDate, g.endDate));
+      const recurring = (appData.recurringGoals || []).filter(g => isDateInRange(today, g.recurrence, g.specificDate, g.startDate, g.endDate, g.stopDate));
       const matchingGoal = recurring.find(g => g.reminderTime === currentTimeString);
       const matchingOverride = dayData?.reminderTime === currentTimeString ? { title: dayData.dailyGoalOverride || "Objectif Prioritaire" } : null;
       const target = matchingGoal || matchingOverride;
@@ -647,7 +647,7 @@ const App: React.FC = () => {
   const currentGoal = useMemo(() => {
     const dayData = appData.days[dateKey];
     if (dayData?.dailyGoalOverride) return dayData.dailyGoalOverride;
-    const recurring = (appData.recurringGoals || []).find(g => isDateInRange(currentDate, g.recurrence, g.specificDate, g.startDate, g.endDate));
+    const recurring = (appData.recurringGoals || []).find(g => isDateInRange(currentDate, g.recurrence, g.specificDate, g.startDate, g.endDate, g.stopDate));
     return recurring?.title || "";
   }, [appData.days, appData.recurringGoals, dateKey, currentDate]);
 
@@ -658,7 +658,7 @@ const App: React.FC = () => {
   const currentGoalReminder = useMemo(() => {
     const dayData = appData.days[dateKey];
     if (dayData?.reminderTime) return dayData.reminderTime;
-    const recurring = (appData.recurringGoals || []).find(g => isDateInRange(currentDate, g.recurrence, g.specificDate, g.startDate, g.endDate));
+    const recurring = (appData.recurringGoals || []).find(g => isDateInRange(currentDate, g.recurrence, g.specificDate, g.startDate, g.endDate, g.stopDate));
     return recurring?.reminderTime || "";
   }, [appData.days, appData.recurringGoals, dateKey, currentDate]);
 
@@ -666,13 +666,13 @@ const App: React.FC = () => {
   const routineBlocks = useMemo(() => {
     if (appData.days[dateKey]?.blocks) {
       // La récurrence d'un bloc s'applique aussi aux jours « figés »
-      return appData.days[dateKey].blocks!.filter(b => isDateInRange(currentDate, b.recurrence, b.specificDate, b.startDate, b.endDate));
+      return appData.days[dateKey].blocks!.filter(b => isDateInRange(currentDate, b.recurrence, b.specificDate, b.startDate, b.endDate, b.stopDate));
     }
-    return appData.blocks.filter(b => isDateInRange(currentDate, b.recurrence, b.specificDate, b.startDate, b.endDate));
+    return appData.blocks.filter(b => isDateInRange(currentDate, b.recurrence, b.specificDate, b.startDate, b.endDate, b.stopDate));
   }, [appData.blocks, appData.days, dateKey, currentDate]);
 
   const getVisibleTasks = useCallback((tasks: Task[]) => {
-    return (tasks || []).filter(t => isDateInRange(currentDate, t.recurrence, t.specificDate, t.startDate, t.endDate));
+    return (tasks || []).filter(t => isDateInRange(currentDate, t.recurrence, t.specificDate, t.startDate, t.endDate, t.stopDate));
   }, [currentDate]);
 
   const perfToday = useMemo(() => {
@@ -682,7 +682,7 @@ const App: React.FC = () => {
       tasks.forEach(task => {
         total++; if (task.completedDates?.includes(dateKey)) done++;
         (task.subTasks || []).forEach(st => {
-           if (isDateInRange(currentDate, st.recurrence, st.specificDate, st.startDate, st.endDate)) {
+           if (isDateInRange(currentDate, st.recurrence, st.specificDate, st.startDate, st.endDate, st.stopDate)) {
              total++; if (st.completedDates?.includes(dateKey)) done++;
            }
         });
@@ -698,7 +698,7 @@ const App: React.FC = () => {
       const hasLocalBlocks = !!day.blocks;
       const sourceBlocks = hasLocalBlocks 
         ? day.blocks! 
-        : prev.blocks.filter(b => isDateInRange(currentDate, b.recurrence, b.specificDate, b.startDate, b.endDate));
+        : prev.blocks.filter(b => isDateInRange(currentDate, b.recurrence, b.specificDate, b.startDate, b.endDate, b.stopDate));
       const detachedBlocks = JSON.parse(JSON.stringify(sourceBlocks));
       const updatedBlocks = updater(detachedBlocks);
       return {
@@ -1584,13 +1584,13 @@ const App: React.FC = () => {
       const hasOverrides = !!dayData?.blocks;
       const blocksForDay = hasOverrides 
          ? dayData.blocks! 
-         : appData.blocks.filter(b => isDateInRange(current, b.recurrence, b.specificDate, b.startDate, b.endDate));
+         : appData.blocks.filter(b => isDateInRange(current, b.recurrence, b.specificDate, b.startDate, b.endDate, b.stopDate));
 
       blocksForDay.forEach(b => {
           // Identify tasks for this block on this day
           const tasksForDay = hasOverrides 
              ? b.tasks 
-             : b.tasks.filter(t => isDateInRange(current, t.recurrence, t.specificDate, t.startDate, t.endDate));
+             : b.tasks.filter(t => isDateInRange(current, t.recurrence, t.specificDate, t.startDate, t.endDate, t.stopDate));
 
           // Only count block stats if the block actually has tasks today
           if (tasksForDay.length > 0) {
@@ -1618,7 +1618,7 @@ const App: React.FC = () => {
                 
                 const subTasksForDay = hasOverrides
                    ? (t.subTasks || [])
-                   : (t.subTasks || []).filter(st => isDateInRange(current, st.recurrence, st.specificDate, st.startDate, st.endDate));
+                   : (t.subTasks || []).filter(st => isDateInRange(current, st.recurrence, st.specificDate, st.startDate, st.endDate, st.stopDate));
 
                 subTasksForDay.forEach(st => { 
                       blockTasksTotal++;
@@ -1930,7 +1930,7 @@ const App: React.FC = () => {
           Object.keys(days).forEach(k => {
             const d = days[k];
             if (!d?.blocks || k <= dateKey || k < todayKey) return;
-            if (!isDateInRange(new Date(k + 'T12:00:00'), promoted.recurrence, promoted.specificDate, promoted.startDate, promoted.endDate)) return;
+            if (!isDateInRange(new Date(k + 'T12:00:00'), promoted.recurrence, promoted.specificDate, promoted.startDate, promoted.endDate, promoted.stopDate)) return;
             const hasBlock = d.blocks.some(b => b.id === blockId);
             const newBlocks = hasBlock
               ? d.blocks.map(b => b.id === blockId && !b.tasks.some(t => t.id === id) ? { ...b, tasks: [...b.tasks, JSON.parse(JSON.stringify(promoted))] } : b)
@@ -1976,7 +1976,7 @@ const App: React.FC = () => {
   const applyRecurrence = (recurrence: RecurrenceType) => {
     if (!configModal) return;
     const current: any = getConfigItem() || {};
-    const fields: any = { recurrence, ...getRecurrenceBounds(recurrence, current) };
+    const fields: any = { recurrence, ...getRecurrenceBounds(recurrence, current), stopDate: undefined };
     if (recurrence === 'specific') fields.specificDate = current.specificDate || dateKey;
     applyItemFields(fields);
   };
@@ -1986,8 +1986,14 @@ const App: React.FC = () => {
     applyItemFields({ [field]: value });
   };
 
+  const formatDayLabel = (k?: string) => k ? new Date(k + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' }).replace(/\.$/, '') : '?';
+
   // Phrase qui dit concrètement quand la tâche apparaît
-  const describeRecurrence = (item: any): string => describeRecurrenceRaw(item).replace(/\.\.$/, '.');
+  const describeRecurrence = (item: any): string => {
+    const base = describeRecurrenceRaw(item).replace(/\.\.$/, '.');
+    if (item?.stopDate && !['specific', 'once'].includes(item.recurrence)) return base.replace(/\.$/, '') + ` — jusqu'au ${formatDayLabel(item.stopDate)}.`;
+    return base;
+  };
   const describeRecurrenceRaw = (item: any): string => {
     if (!item) return '';
     const fmt = (k?: string) => k ? new Date(k + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' }) : '?';
@@ -2237,7 +2243,7 @@ const App: React.FC = () => {
               <div className="flex-1">
                 <div className="text-[8px] font-black text-[#18181B]/60 dark:text-[#E6E8E6]/60 uppercase tracking-widest mb-1 flex items-center justify-between">
                     <span className="flex items-center gap-1">Objectif Prioritaire {currentGoal && <Repeat size={8} className="text-accent" />} {currentGoalReminder && <Clock size={8} className="text-accent ml-1" />} <span className="text-accent normal-case ml-1 font-black">{currentGoalReminder}</span></span>
-                    <button onClick={() => { const id = generateId(); updateAppData(prev => { const existingGoal = (prev.recurringGoals || []).find(g => isDateInRange(currentDate, g.recurrence, g.specificDate, g.startDate, g.endDate)); if (existingGoal) { setConfigModal({ type: 'goal', id: existingGoal.id }); return prev; } setConfigModal({ type: 'goal', id }); return { ...prev, recurringGoals: [...(prev.recurringGoals || []), { id, title: currentGoal || "Nouvel Objectif", recurrence: 'specific', specificDate: dateKey }] }; }); }} className="text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-accent transition-colors"><Clock size={12} /></button>
+                    <button onClick={() => { const id = generateId(); updateAppData(prev => { const existingGoal = (prev.recurringGoals || []).find(g => isDateInRange(currentDate, g.recurrence, g.specificDate, g.startDate, g.endDate, g.stopDate)); if (existingGoal) { setConfigModal({ type: 'goal', id: existingGoal.id }); return prev; } setConfigModal({ type: 'goal', id }); return { ...prev, recurringGoals: [...(prev.recurringGoals || []), { id, title: currentGoal || "Nouvel Objectif", recurrence: 'specific', specificDate: dateKey }] }; }); }} className="text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-accent transition-colors"><Clock size={12} /></button>
                 </div>
                 <input className="bg-transparent w-full text-lg font-bold outline-none placeholder-[#18181B]/30 dark:placeholder-[#E6E8E6]/30 text-[#18181B] dark:text-[#E6E8E6]" placeholder="Focus du jour..." value={currentGoal} onChange={e => updateAppData(prev => ({ ...prev, days: { ...prev.days, [dateKey]: { ...currentDayData, dailyGoalOverride: e.target.value } } }))} />
               </div>
@@ -3485,6 +3491,57 @@ const App: React.FC = () => {
                               />
                            </div>
                         </div>
+                    )}
+
+                    {/* ARRÊTER LA RÉCURRENCE */}
+                    {configItem && !dayOnly && !['specific', 'once'].includes((configItem as any).recurrence || 'daily') && (
+                      <div className="mt-2 p-4 rounded-2xl border border-[#18181B]/10 dark:border-[#E6E8E6]/10 bg-[#18181B]/[0.03] dark:bg-[#E6E8E6]/[0.03] space-y-3">
+                        {(configItem as any).stopDate ? (
+                          <>
+                            <p className="text-[10px] font-bold text-[#FDCA40] leading-relaxed flex items-center gap-2">
+                              <Power size={12} /> Récurrence arrêtée : dernier jour le {formatDayLabel((configItem as any).stopDate)}.
+                            </p>
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="date"
+                                aria-label="Modifier le dernier jour"
+                                className="flex-1 min-w-0 bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 px-3 py-2.5 rounded-xl text-xs font-bold border border-[#18181B]/10 dark:border-[#E6E8E6]/10 outline-none focus:border-accent transition-all text-[#18181B] dark:text-[#E6E8E6] [color-scheme:dark]"
+                                value={(configItem as any).stopDate}
+                                onChange={(e) => e.target.value && applyItemFields({ stopDate: e.target.value })}
+                              />
+                              <button
+                                type="button"
+                                onClick={() => applyItemFields({ stopDate: undefined })}
+                                className="shrink-0 px-4 py-2.5 rounded-xl bg-accent text-white text-[9px] font-black uppercase tracking-wider shadow-lg shadow-accent/20 active:scale-95 transition-all"
+                              >
+                                Reprendre
+                              </button>
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <p className="text-[8px] font-black text-[#18181B]/60 dark:text-[#E6E8E6]/60 uppercase">Arrêter la récurrence</p>
+                            <button
+                              type="button"
+                              onClick={() => applyItemFields({ stopDate: dateKey })}
+                              className="w-full py-3 rounded-xl text-[10px] font-black uppercase tracking-wider border border-[#FDCA40]/20 bg-[#FDCA40]/5 text-[#FDCA40] hover:bg-[#FDCA40] hover:text-[#080708] transition-all flex items-center justify-center gap-2"
+                            >
+                              <Power size={12} /> {dateKey === getKeyFromDate(new Date()) ? "Arrêter après aujourd'hui" : `Arrêter après le ${formatDayLabel(dateKey)}`}
+                            </button>
+                            <div className="flex items-center gap-2">
+                              <span className="text-[9px] font-bold text-[#18181B]/50 dark:text-[#E6E8E6]/50 shrink-0">ou dernier jour le</span>
+                              <input
+                                type="date"
+                                aria-label="Choisir le dernier jour"
+                                min={dateKey}
+                                className="flex-1 min-w-0 bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 px-3 py-2.5 rounded-xl text-xs font-bold border border-[#18181B]/10 dark:border-[#E6E8E6]/10 outline-none focus:border-accent transition-all text-[#18181B] dark:text-[#E6E8E6] [color-scheme:dark]"
+                                value=""
+                                onChange={(e) => e.target.value && applyItemFields({ stopDate: e.target.value })}
+                              />
+                            </div>
+                          </>
+                        )}
+                      </div>
                     )}
                 </>
             )}

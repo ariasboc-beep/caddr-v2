@@ -26,11 +26,11 @@ export function buildICS(appData: AppData, days = 28): string {
 
     const blocks: Block[] = appData.days[key]?.blocks
       ? appData.days[key].blocks!
-      : appData.blocks.filter((b) => isDateInRange(date, b.recurrence, b.specificDate, b.startDate, b.endDate));
+      : appData.blocks.filter((b) => isDateInRange(date, b.recurrence, b.specificDate, b.startDate, b.endDate, b.stopDate));
 
     blocks.forEach((b) => {
       (b.tasks || []).forEach((t) => {
-        if (!t.startTime || !isDateInRange(date, t.recurrence, t.specificDate, t.startDate, t.endDate)) return;
+        if (!t.startTime || !isDateInRange(date, t.recurrence, t.specificDate, t.startDate, t.endDate, t.stopDate)) return;
         const [h, m] = t.startTime.split(':').map(Number);
         const dtStart = new Date(date);
         dtStart.setHours(h, m, 0, 0);

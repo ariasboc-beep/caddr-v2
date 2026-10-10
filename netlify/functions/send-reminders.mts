@@ -15,10 +15,19 @@ const REPEATING = new Set(["daily", "weekdays", "weekends", "week", "period"]);
 
 function isDueToday(recurrence: string, specificDate: string | undefined, todayKey: string, dow: number): boolean {
   if (recurrence === "specific" || recurrence === "once") return specificDate === todayKey;
-  if (recurrence === "daily" || recurrence === "week" || recurrence === "period") return true;
+  if (recurrence === "daily" || recurrence === "week" || recurrence === "month" || recurrence === "period") return true;
   if (recurrence === "weekdays") return dow >= 1 && dow <= 5;
   if (recurrence === "weekends") return dow === 0 || dow === 6;
   return REPEATING.has(recurrence);
+}
+
+// Tient compte des dates enregistrées (semaine, mois, période) et de l'arrêt de la récurrence
+function isItemDue(item: any, todayKey: string, dow: number): boolean {
+  if (item?.stopDate && todayKey > item.stopDate) return false;
+  if (["week", "month", "period"].includes(item?.recurrence) && item.startDate && item.endDate) {
+    if (todayKey < item.startDate || todayKey > item.endDate) return false;
+  }
+  return isDueToday(item?.recurrence, item?.specificDate, todayKey, dow);
 }
 
 let initialized = false;
@@ -70,9 +79,9 @@ export default async () => {
       // Collecte les tâches dues maintenant
       const due: string[] = [];
       for (const b of blocks) {
-        if (!isDueToday(b.recurrence, b.specificDate, todayKey, dow)) continue;
+        if (!isItemDue(b, todayKey, dow)) continue;
         for (const t of b.tasks || []) {
-          if (t.startTime === hhmm && isDueToday(t.recurrence, t.specificDate, todayKey, dow)) {
+          if (t.startTime === hhmm && isItemDue(t, todayKey, dow)) {
             const doneToday = (t.completedDates || []).includes(todayKey);
             if (!doneToday) due.push(t.title);
           }
