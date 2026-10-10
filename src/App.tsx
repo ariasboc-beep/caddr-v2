@@ -36,6 +36,8 @@ import DayTimeline from './components/DayTimeline';
 import InboxView from './components/InboxView';
 import Analytics, { Section } from './components/Analytics';
 import Reviews from './components/Reviews';
+import HabitsView, { DayDot } from './components/HabitsView';
+import { activeHabits, isScheduled as habitScheduled, stateOn as habitStateOn, habitStats as computeHabitStats, labelsFor as habitLabels } from './habits';
 import { generateReport } from './report';
 import LongTermGoals from './components/LongTermGoals';
 import WeeklyReview from './components/WeeklyReview';
@@ -338,6 +340,7 @@ const App: React.FC = () => {
   const navCollapsed = appData.settings?.navCollapsed || false;
   const navTabs = [
     { id: 'routine', icon: Layout, label: 'Routine' },
+    { id: 'habits', icon: Repeat, label: 'Habitudes' },
     { id: 'schedule', icon: CalendarDays, label: 'Planning' },
     { id: 'inbox', icon: Archive, label: 'Boîte' },
     { id: 'ai', icon: BrainCircuit, label: 'Caddr. IA' },
@@ -2340,6 +2343,47 @@ const App: React.FC = () => {
               </div>
             </div>
 
+            {/* Habitudes du jour (habitudes indépendantes des blocs) */}
+            {(() => {
+              const todays = activeHabits(appData.habits).filter(h => habitScheduled(h, dateKey) || h.entries?.[dateKey]?.s);
+              if (!todays.length || dateKey > getKeyFromDate(new Date())) return null;
+              const setStatus = (id: string, st: 'done' | 'fail') => updateAppData(prev => ({
+                ...prev,
+                habits: (prev.habits || []).map(h => {
+                  if (h.id !== id) return h;
+                  const cur = { ...(h.entries?.[dateKey] || {}) };
+                  if (cur.s === st) delete cur.s; else cur.s = st;
+                  const entries = { ...(h.entries || {}) };
+                  if (!cur.s && !cur.note) delete entries[dateKey]; else entries[dateKey] = cur;
+                  return { ...h, entries };
+                }),
+              }));
+              return (
+                <div className="glass p-5 rounded-3xl space-y-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-[9px] font-black uppercase tracking-widest text-[#18181B]/60 dark:text-[#E6E8E6]/60 flex items-center gap-1.5"><Repeat size={12} className="text-accent" /> Habitudes du jour</p>
+                    <button onClick={() => setActiveTab('habits')} className="text-[9px] font-black uppercase tracking-wider text-accent hover:opacity-70">Tout voir</button>
+                  </div>
+                  <div className="space-y-2">
+                    {todays.map(h => {
+                      const color = h.color || accentHex; const st = habitStateOn(h, dateKey); const L = habitLabels(h); const stt = computeHabitStats(h);
+                      return (
+                        <div key={h.id} className="flex items-center gap-3">
+                          <DayDot state={st} color={color} size={30} />
+                          <button onClick={() => setActiveTab('habits')} className="flex-1 min-w-0 text-left">
+                            <span className="block text-sm font-semibold truncate text-[#18181B] dark:text-[#E6E8E6]">{h.name}</span>
+                            <span className="text-[9px] font-bold text-[#18181B]/50 dark:text-[#E6E8E6]/50 flex items-center gap-1"><Flame size={10} style={{ color }} /> {stt.current} j{h.kind === 'quit' ? ` · ${stt.sinceLastFail} j sans rechute` : ''}</span>
+                          </button>
+                          <button onClick={() => setStatus(h.id, 'done')} aria-pressed={st === 'done'} className="px-3 py-2 rounded-xl text-[9px] font-black uppercase tracking-wider border transition-all" style={st === 'done' ? { backgroundColor: color, borderColor: color, color: '#fff' } : { borderColor: `${color}55`, color }}>{L.done}</button>
+                          <button onClick={() => setStatus(h.id, 'fail')} aria-pressed={st === 'fail'} className={`px-3 py-2 rounded-xl text-[9px] font-black uppercase tracking-wider border transition-all ${st === 'fail' ? 'bg-[#DF2935]/10 border-[#DF2935] text-[#DF2935]' : 'border-[#DF2935]/30 text-[#DF2935]/80'}`}>{L.fail}</button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })()}
+
             {/* Daily Summary Card if review exists */}
             {currentDayData.reflection && (
                <div className="glass p-6 rounded-[2.5rem] border border-accent/10 bg-accent/[0.02] space-y-4 animate-in zoom-in-95">
@@ -2872,11 +2916,16 @@ const App: React.FC = () => {
 
         {/* ... (Existing Analytics Tab) */}
         {/* TAB: ANALYTICS */}
+        {activeTab === 'habits' && (
+          <HabitsView habits={appData.habits || []} accentHex={accentHex} onChange={(habits) => updateAppData(prev => ({ ...prev, habits }))} />
+        )}
+
         {activeTab === 'stats' && (
           <Analytics
             appData={appData}
             accentHex={accentHex}
             onDownloadPDF={(tf, period) => generateReport(appData, tf, period, accentHex)}
+            onOpenHabits={() => setActiveTab('habits')}
             onToggleHabit={(taskId, value) => updateAppData(prev => {
               const mark = (blocks: Block[]) => blocks.map(b => ({ ...b, tasks: b.tasks.map(t => t.id === taskId ? { ...t, isHabit: value } : t) }));
               const days = { ...prev.days };

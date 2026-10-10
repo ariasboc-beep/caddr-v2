@@ -85,6 +85,7 @@ export interface AppData {
   longTermGoals?: LongTermGoal[];
   weeklyReviews?: { [weekKey: string]: WeeklyReview };
   monthlyReviews?: { [monthKey: string]: WeeklyReview }; // même forme ; weekKey contient la clé du mois « AAAA-MM »
+  habits?: StandaloneHabit[]; // habitudes indépendantes des blocs (ex. « Ne plus fumer »)
   settings?: AppSettings;
   focusSessions?: FocusSession[];
   skips?: SkipRecord[];
@@ -120,7 +121,7 @@ export interface AppSettings {
   simpleMode?: boolean;             // mode journée simplifiée (anti-surcharge)
 }
 
-export type TabType = 'routine' | 'stats' | 'schedule' | 'templates' | 'ai' | 'inbox' | 'settings';
+export type TabType = 'routine' | 'stats' | 'schedule' | 'templates' | 'ai' | 'inbox' | 'settings' | 'habits';
 export type TimeframeType = 'day' | 'week' | 'month' | 'year' | 'custom';
 
 // Session de concentration (mode Focus)
@@ -142,4 +143,21 @@ export interface SkipRecord {
   taskTitle: string;
   date: string;
   reason: string;
+}
+
+// Habitude indépendante des blocs et des tâches (inspirée d'HabitNow)
+export type HabitDayStatus = 'done' | 'fail' | 'skip';
+export interface HabitEntry { s?: HabitDayStatus; note?: string }
+export interface StandaloneHabit {
+  id: string;
+  name: string;
+  kind: 'build' | 'quit';     // build = prendre une habitude ; quit = arrêter (ex. fumer)
+  days?: number[];            // jours prévus (0 = dimanche … 6 = samedi) ; vide = tous les jours
+  startDate: string;          // AAAA-MM-JJ
+  description?: string;
+  color?: string;             // couleur d'accent de l'habitude (hex)
+  createdAt: string;
+  archived?: boolean;
+  deleted?: boolean;          // suppression conservée pour la synchro (sinon le cloud la ferait revenir)
+  entries: { [dateKey: string]: HabitEntry };
 }

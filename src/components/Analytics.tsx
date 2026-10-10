@@ -8,8 +8,9 @@ import { AppData, TimeframeType } from '../types';
 import { getKeyFromDate } from '../utils';
 import {
   getPeriod, shiftAnchor, previousPeriod, computePeriod, blockAggregates, buildBuckets,
-  habitAggregates, perfectStreak, eachDay,
+  habitAggregates, perfectStreak, eachDay, objectiveStats,
 } from '../analytics';
+import { activeHabits, habitStats as standaloneStats, stateOn as standaloneState } from '../habits';
 import YearHeatmap from './YearHeatmap';
 
 // ---------- Section pliable (état mémorisé sur l'appareil) ----------
@@ -90,12 +91,13 @@ interface Props {
   onToggleHabit: (taskId: string, value: boolean) => void;
   onDownloadPDF: (tf: TimeframeType, period: ReturnType<typeof getPeriod>) => void | Promise<void>;
   children?: React.ReactNode; // sections complémentaires (rendues en bas)
+  onOpenHabits?: () => void;
 }
 
 const TF_LABEL: Record<TimeframeType, string> = { day: 'Jour', week: 'Semaine', month: 'Mois', year: 'Année', custom: 'Période' };
 const REPORT_NAME: Record<TimeframeType, string> = { day: 'rapport du jour', week: 'rapport hebdomadaire', month: 'rapport mensuel', year: 'rapport annuel', custom: 'rapport de la période' };
 
-const Analytics: React.FC<Props> = ({ appData, accentHex, onToggleHabit, onDownloadPDF, children }) => {
+const Analytics: React.FC<Props> = ({ appData, accentHex, onToggleHabit, onDownloadPDF, children, onOpenHabits }) => {
   const todayKey = getKeyFromDate(new Date());
   const [tf, setTf] = useState<TimeframeType>(() => { try { return (localStorage.getItem('caddr_analytics_tf') as TimeframeType) || 'week'; } catch { return 'week'; } });
   const [anchor, setAnchor] = useState<Date>(new Date());
@@ -119,6 +121,23 @@ const Analytics: React.FC<Props> = ({ appData, accentHex, onToggleHabit, onDownl
   const buckets = useMemo(() => buildBuckets(stats.days, tf), [stats, tf]);
   const habits = useMemo(() => habitAggregates(appData, eachDay(period.start, period.end), todayKey), [appData, period, todayKey]);
   const streak = useMemo(() => perfectStreak(appData, todayKey), [appData, todayKey]);
+  const objective = useMemo(() => objectiveStats(appData, period.start, period.end, todayKey), [appData, period, todayKey]);
+  // Habitudes indépendantes (onglet Habitudes), présentées comme les habitudes de tâches
+  const standalone = useMemo(() => {
+    const from = getKeyFromDate(period.start), to = getKeyFromDate(period.end);
+    return activeHabits(appData.habits).map(h => {
+      const all = standaloneStats(h);
+      const per = standaloneStats(h, from, to);
+      const perDay = eachDay(period.start, period.end).map(k => {
+        const st = standaloneState(h, k, todayKey);
+        const state = st === 'done' ? 'done' : st === 'fail' ? 'missed' : st === 'open' ? (k === todayKey ? 'today' : 'missed') : st === 'future' ? 'future' : 'off';
+        return { date: k, state: state as 'done' | 'missed' | 'off' | 'future' | 'today' };
+      });
+      const due = per.done + per.fail + per.open;
+      return { id: h.id, title: h.name, block: h.kind === 'quit' ? 'Habitude à arrêter' : 'Habitude indépendante', current: all.current, best: all.best, due, done: per.done, rate: due ? Math.round((per.done / due) * 100) : null, perDay, color: h.color, since: h.kind === 'quit' ? all.sinceLastFail : undefined };
+    });
+  }, [appData.habits, period, todayKey]);
+  const allHabits: (typeof habits[number] & { color?: string; since?: number })[] = [...standalone, ...habits];
   const thisYear = new Date().getFullYear();
   const yearHistory = useMemo(() => {
     return computePeriod(appData, new Date(thisYear, 0, 1, 12), new Date(), todayKey).days.filter(d => d.rate !== null).map(d => ({ date: d.date, val: d.rate as number }));
@@ -241,6 +260,56 @@ const Analytics: React.FC<Props> = ({ appData, accentHex, onToggleHabit, onDownl
         </div>
       </Section>
 
+      {/* Objectif prioritaire */}
+      <Section id="objective" title="Objectif prioritaire" icon={<Target size={16} />} subtitle={tf === 'day' ? "L'objectif de la journée" : 'Chaque jour, ton objectif n°1 : atteint ou non'}>
+        {objective.list.length === 0 ? (
+          <p className={`text-xs font-medium py-4 ${muted}`}>Aucun objectif prioritaire sur cette période. Écris-le chaque jour en haut de l'onglet Routine, puis coche-le quand il est atteint.</p>
+        ) : (
+          <div className="space-y-4">
+            {tf !== 'day' && (
+              <div className="grid grid-cols-3 gap-3">
+                <Tile icon={<Check size={11} />} label="Atteint" value={<>{objective.done}<span className={`text-base ${faint}`}> / {objective.defined}</span></>} foot={<span className={muted}>jours avec un objectif</span>} />
+                <Tile icon={<TrendingUp size={11} />} label="Taux" value={objective.rate === null ? '—' : `${objective.rate} %`} foot={<span className={muted}>des objectifs atteints</span>} />
+                <Tile icon={<Flame size={11} />} label="Série" value={`${objective.current} j`} foot={<span className={muted}>Record : {objective.best} j</span>} />
+              </div>
+            )}
+            {(() => {
+              const rows = objective.list;
+              if (rows.length > 31) {
+                const m = new Map<string, { done: number; total: number }>();
+                rows.forEach(o => { if (o.today && !o.done) return; const k = o.date.slice(0, 7); const v = m.get(k) || { done: 0, total: 0 }; v.total++; if (o.done) v.done++; m.set(k, v); });
+                return (
+                  <div className="space-y-2">
+                    {[...m.entries()].sort(([a], [b]) => b.localeCompare(a)).map(([k, v]) => {
+                      const r = v.total ? Math.round((v.done / v.total) * 100) : 0;
+                      return (
+                        <div key={k} className="flex items-center gap-3">
+                          <span className={`w-28 shrink-0 text-[11px] font-bold ${ink}`}>{fmtDay(k + '-01', { month: 'long', year: 'numeric' })}</span>
+                          <div className="flex-1 h-2 rounded-full bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 overflow-hidden"><div className="h-full rounded-full bg-accent" style={{ width: `${r}%` }} /></div>
+                          <span className={`w-20 shrink-0 text-right text-[11px] font-black ${ink}`}>{v.done}/{v.total} · {r} %</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              }
+              return (
+                <ul className="divide-y divide-[#18181B]/5 dark:divide-[#E6E8E6]/5">
+                  {rows.map(o => (
+                    <li key={o.date} className="flex items-center gap-3 py-2.5">
+                      <span className={`w-5 h-5 rounded-md shrink-0 flex items-center justify-center ${o.done ? 'bg-accent' : o.today ? 'border-2 border-dashed border-accent' : 'border-2 border-[#DF2935]/60'}`}>{o.done && <Check size={12} strokeWidth={3} className="text-white" />}</span>
+                      <span className={`w-24 shrink-0 text-[10px] font-black uppercase tracking-wider ${muted}`}>{fmtDay(o.date)}</span>
+                      <span className={`flex-1 min-w-0 text-sm font-semibold ${ink}`}>{o.title}</span>
+                      <span className={`shrink-0 text-[9px] font-black uppercase tracking-wider ${o.done ? 'text-accent' : o.today ? muted : 'text-[#DF2935]'}`}>{o.done ? 'Atteint' : o.today ? 'En cours' : 'Non atteint'}</span>
+                    </li>
+                  ))}
+                </ul>
+              );
+            })()}
+          </div>
+        )}
+      </Section>
+
       {/* 2. Constance dans le temps */}
       {tf !== 'day' && (
         <Section id="consistency" title={`Constance par ${unit}`} icon={<CalendarDays size={16} />}
@@ -356,7 +425,7 @@ const Analytics: React.FC<Props> = ({ appData, accentHex, onToggleHabit, onDownl
 
       {/* 4. Habitudes */}
       <Section id="habits" title="Habitudes" icon={<Repeat size={16} />}
-        subtitle={habits.length ? `${habits.length} habitude${habits.length > 1 ? 's' : ''} suivie${habits.length > 1 ? 's' : ''}` : 'Choisis les tâches à suivre comme habitudes'}
+        subtitle={allHabits.length ? `${allHabits.length} habitude${allHabits.length > 1 ? 's' : ''} suivie${allHabits.length > 1 ? 's' : ''}` : 'Choisis les tâches à suivre comme habitudes'}
         action={<button onClick={() => setChooseHabits(v => !v)} className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all ${chooseHabits ? 'bg-accent text-white' : 'bg-accent/10 text-accent hover:bg-accent hover:text-white'}`}><Settings2 size={12} /> {chooseHabits ? 'Terminé' : 'Choisir'}</button>}>
         {chooseHabits && (
           <div className="mb-5 p-4 rounded-2xl border border-accent/30 bg-accent/5 space-y-3">
@@ -381,16 +450,16 @@ const Analytics: React.FC<Props> = ({ appData, accentHex, onToggleHabit, onDownl
             {appData.blocks.every(b => !b.tasks.length) && <p className={`text-[11px] ${muted}`}>Aucune tâche dans ton planning pour l'instant.</p>}
           </div>
         )}
-        {habits.length === 0 ? (
-          !chooseHabits && <p className={`text-xs font-medium py-4 ${muted}`}>Aucune habitude suivie. Clique sur « Choisir » pour sélectionner les tâches à suivre (tu peux aussi le faire dans la configuration d'une tâche).</p>
+        {allHabits.length === 0 ? (
+          !chooseHabits && <p className={`text-xs font-medium py-4 ${muted}`}>Aucune habitude suivie. Clique sur « Choisir » pour sélectionner des tâches à suivre, ou crée une habitude indépendante dans l'onglet Habitudes{onOpenHabits ? <> (<button onClick={onOpenHabits} className="text-accent font-bold">ouvrir</button>)</> : null}.</p>
         ) : (
           <div className="divide-y divide-[#18181B]/5 dark:divide-[#E6E8E6]/5">
-            {habits.map(h => (
+            {allHabits.map(h => (
               <div key={h.id} className="py-4 first:pt-0 last:pb-0 space-y-2.5">
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 sm:gap-3">
                   <div className="min-w-0">
                     <p className={`text-sm font-bold ${ink}`}>{h.title}</p>
-                    <p className={`text-[10px] font-bold uppercase tracking-wider ${faint}`}>{h.block}</p>
+                    <p className={`text-[10px] font-bold uppercase tracking-wider ${faint}`}>{h.block}{h.since !== undefined ? ` · ${h.since} j sans rechute` : ''}</p>
                   </div>
                   <div className="flex items-center gap-5 sm:gap-4 shrink-0 sm:text-right">
                     <div><p className={`text-lg font-black leading-none flex items-center gap-1 sm:justify-end ${ink}`}><Flame size={14} className={h.current ? 'text-accent' : faint} />{h.current} j</p><p className={`text-[9px] font-bold uppercase ${faint}`}>en cours</p></div>
@@ -404,7 +473,7 @@ const Analytics: React.FC<Props> = ({ appData, accentHex, onToggleHabit, onDownl
                       const lines = [h.title, fmtDay(p.date), p.state === 'done' ? 'Fait ✓' : p.state === 'missed' ? 'Pas fait' : p.state === 'today' ? "Aujourd'hui · pas encore fait" : p.state === 'future' ? 'À venir' : 'Pas prévu ce jour-là'];
                       const cls = p.state === 'done' ? '' : p.state === 'missed' ? 'border-[1.5px] border-[#DF2935]/50' : p.state === 'today' ? 'border-[1.5px] border-dashed border-accent' : p.state === 'future' ? 'border border-dashed border-[#18181B]/10 dark:border-[#E6E8E6]/10' : 'bg-[#18181B]/[0.06] dark:bg-[#E6E8E6]/[0.06]';
                       return <span key={p.date} onMouseEnter={(e) => showTip(e, lines)} onMouseMove={(e) => showTip(e, lines)} onMouseLeave={hideTip}
-                        className={`w-3.5 h-3.5 rounded-[4px] ${cls}`} style={p.state === 'done' ? { backgroundColor: accentHex } : undefined} />;
+                        className={`w-3.5 h-3.5 rounded-[4px] ${cls}`} style={p.state === 'done' ? { backgroundColor: h.color || accentHex } : undefined} />;
                     })}
                   </div>
                 )}

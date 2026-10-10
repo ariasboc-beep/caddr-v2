@@ -8,8 +8,9 @@ import { getKeyFromDate } from './utils';
 import { getWeekKey } from './streaks';
 import {
   computePeriod, previousPeriod, blockAggregates, buildBuckets, habitAggregates,
-  perfectStreak, eachDay, PeriodRange,
+  perfectStreak, eachDay, PeriodRange, objectiveStats,
 } from './analytics';
+import { activeHabits, habitStats as standaloneStats } from './habits';
 
 type RGB = [number, number, number];
 const INK: RGB = [24, 24, 27];
@@ -118,6 +119,35 @@ export async function generateReport(appData: AppData, tf: TimeframeType, period
   });
   y += 37;
 
+  // ---------- Objectif prioritaire (mis en avant) ----------
+  const obj = objectiveStats(appData, period.start, period.end, todayKey);
+  {
+    const h = 30;
+    doc.setFillColor(...WHITE); doc.setDrawColor(...ACC); doc.setLineWidth(0.8);
+    doc.roundedRect(M, y, CW, h, 3, 3, 'FD');
+    doc.setFillColor(...ACC); doc.roundedRect(M, y, 4, h, 2, 2, 'F'); doc.rect(M + 2, y, 2, h, 'F');
+    font('bold', 7.5, ACC_DARK); doc.text('OBJECTIF PRIORITAIRE', M + 9, y + 7);
+    if (tf === 'day') {
+      const o = obj.list[0];
+      font('extrabold', 14); doc.text(doc.splitTextToSize(o ? o.title : 'Aucun objectif défini ce jour-là', CW - 60)[0], M + 9, y + 16.5);
+      if (o) { font('extrabold', 12, o.done ? ACC_DARK : o.today ? INK : RED); doc.text(o.done ? 'Atteint' : o.today ? 'En cours' : 'Non atteint', W - M - 6, y + 16.5, { align: 'right' }); }
+      font('normal', 8); doc.text(`Série d'objectifs atteints : ${obj.current} j  ·  record ${obj.best} j`, M + 9, y + 24.5);
+    } else if (!obj.list.length) {
+      font('bold', 11); doc.text('Aucun objectif prioritaire défini sur cette période.', M + 9, y + 17);
+    } else {
+      font('extrabold', 22); doc.text(`${obj.done} / ${obj.defined}`, M + 9, y + 19.5);
+      const wv = doc.getTextWidth(`${obj.done} / ${obj.defined}`);
+      font('bold', 10); doc.text('jours où l’objectif a été atteint', M + 12 + wv, y + 19.5);
+      font('extrabold', 22, ACC_DARK); doc.text(obj.rate === null ? '—' : `${obj.rate} %`, W - M - 6, y + 19.5, { align: 'right' });
+      font('normal', 8); doc.text(`Série en cours : ${obj.current} j  ·  record : ${obj.best} j`, M + 9, y + 26);
+      // barre de progression
+      const bx = W - M - 62, by = y + 24, bw2 = 56;
+      doc.setFillColor(...TINT2); doc.roundedRect(bx, by, bw2, 2.4, 1.2, 1.2, 'F');
+      if (obj.rate) { doc.setFillColor(...ACC); doc.roundedRect(bx, by, Math.max(2.4, bw2 * obj.rate / 100), 2.4, 1.2, 1.2, 'F'); }
+    }
+    y += h + 10;
+  }
+
   // ---------- Graphique de constance ----------
   const withData = buckets.filter(b => b.rate !== null);
   if (tf !== 'day' && withData.length) {
@@ -209,10 +239,51 @@ export async function generateReport(appData: AppData, tf: TimeframeType, period
 
   // ---------- Habitudes ----------
   if (habits.length) {
-    sectionTitle('Habitudes', 'Tâches suivies comme habitudes');
+    sectionTitle('Habitudes de tâches', 'Tâches de tes blocs suivies comme habitudes');
     table(['Habitude', 'Bloc', 'Série en cours', 'Record', 'Régularité'],
       habits.map(h => [h.title, h.block, `${h.current} j`, `${h.best} j`, h.rate === null ? '—' : `${h.rate} %  (${h.done}/${h.due})`]),
       { columnStyles: { 0: { fontStyle: 'bold' }, 2: { halign: 'right' }, 3: { halign: 'right' }, 4: { halign: 'right' } } });
+  }
+
+  // ---------- Objectifs jour par jour (ou mois par mois) ----------
+  if (tf !== 'day' && obj.list.length) {
+    if (obj.list.length > 31) {
+      sectionTitle('Objectif prioritaire, mois par mois');
+      const m = new Map<string, { done: number; total: number }>();
+      obj.list.forEach(o => { if (o.today && !o.done) return; const k = o.date.slice(0, 7); const v = m.get(k) || { done: 0, total: 0 }; v.total++; if (o.done) v.done++; m.set(k, v); });
+      table(['Mois', 'Jours avec objectif', 'Atteints', 'Taux'],
+        [...m.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([k, v]) => [cap(fmt(k + '-01', { month: 'long', year: 'numeric' })), `${v.total}`, `${v.done}`, `${v.total ? Math.round(v.done / v.total * 100) : 0} %`]),
+        { columnStyles: { 1: { halign: 'right' }, 2: { halign: 'right' }, 3: { halign: 'right', fontStyle: 'bold' } } });
+    } else {
+      sectionTitle('Objectif prioritaire, jour par jour');
+      table(['Date', 'Objectif du jour', 'Résultat'],
+        [...obj.list].reverse().map(o => [cap(fmt(o.date, { weekday: 'short', day: 'numeric', month: 'short' })), o.title, o.done ? 'Atteint' : o.today ? 'En cours' : 'Non atteint']),
+        {
+          columnStyles: { 0: { cellWidth: 30 }, 2: { cellWidth: 26, fontStyle: 'bold' } },
+          didParseCell: (h: any) => { if (h.section === 'body' && h.column.index === 2) h.cell.styles.textColor = h.cell.raw === 'Atteint' ? ACC_DARK : h.cell.raw === 'Non atteint' ? RED : INK; },
+        });
+    }
+  }
+
+  // ---------- Habitudes indépendantes ----------
+  const sh = activeHabits(appData.habits);
+  if (sh.length) {
+    const from = getKeyFromDate(period.start), to = getKeyFromDate(period.end);
+    sectionTitle('Habitudes indépendantes', 'Suivies dans l’onglet Habitudes');
+    table(['Habitude', 'Type', 'Série en cours', 'Record', 'Réussite sur la période', 'Sans rechute'],
+      sh.map(h => { const a = standaloneStats(h); const p = standaloneStats(h, from, to); const due = p.done + p.fail + p.open;
+        return [h.name, h.kind === 'quit' ? 'À arrêter' : 'À prendre', `${a.current} j`, `${a.best} j`, due ? `${Math.round(p.done / due * 100)} %  (${p.done}/${due})` : '—', h.kind === 'quit' ? `${a.sinceLastFail} j` : '—']; }),
+      { columnStyles: { 0: { fontStyle: 'bold' }, 2: { halign: 'right' }, 3: { halign: 'right' }, 4: { halign: 'right' }, 5: { halign: 'right' } } });
+    const notes: (string)[][] = [];
+    sh.forEach(h => Object.entries(h.entries || {}).forEach(([k, e]) => {
+      if (k >= from && k <= to && e.note?.trim()) notes.push([cap(fmt(k, { weekday: 'short', day: 'numeric', month: 'short' })), h.name, e.s === 'done' ? (h.kind === 'quit' ? 'Tenu' : 'Fait') : e.s === 'fail' ? (h.kind === 'quit' ? 'Rechute' : 'Pas fait') : e.s === 'skip' ? 'Ignoré' : '—', e.note.trim(), k]);
+    }));
+    if (notes.length) {
+      sectionTitle('Notes des habitudes');
+      table(['Date', 'Habitude', 'Jour', 'Note'], notes.sort((a, b) => a[4].localeCompare(b[4])).map(n => n.slice(0, 4)),
+        { columnStyles: { 0: { cellWidth: 26 }, 1: { cellWidth: 38, fontStyle: 'bold' }, 2: { cellWidth: 18 } },
+          didParseCell: (h: any) => { if (h.section === 'body' && h.column.index === 2) h.cell.styles.textColor = ['Tenu', 'Fait'].includes(h.cell.raw) ? ACC_DARK : ['Rechute', 'Pas fait'].includes(h.cell.raw) ? RED : INK; } });
+    }
   }
 
   // ---------- Bilans écrits de la période ----------
@@ -252,14 +323,14 @@ export async function generateReport(appData: AppData, tf: TimeframeType, period
         { columnStyles: { 1: { halign: 'right', fontStyle: 'bold' }, 2: { halign: 'right' }, 3: { halign: 'right' } } });
     } else {
       sectionTitle('Journal jour par jour');
-      table(['Date', 'Taux', 'Tâches', 'Humeur', 'Objectif du jour'],
+      table(['Date', 'Taux', 'Tâches', 'Humeur', 'Objectif'],
         stats.days.filter(dd => !dd.future).map(dd => {
           const day = appData.days[dd.date];
-          return [cap(fmt(dd.date, { weekday: 'short', day: 'numeric', month: 'short' })) + (dd.date === todayKey ? ' (en cours)' : ''), dd.rate === null ? '—' : `${dd.rate} %`, dd.total ? `${dd.done} / ${dd.total}` : '—', day?.mood ? MOOD[day.mood] || day.mood : '—', day?.dailyGoalOverride ? `${day.dailyGoalOverride}${day.goalCompleted ? ' (atteint)' : ''}` : '—'];
+          return [cap(fmt(dd.date, { weekday: 'short', day: 'numeric', month: 'short' })) + (dd.date === todayKey ? ' (en cours)' : ''), dd.rate === null ? '—' : `${dd.rate} %`, dd.total ? `${dd.done} / ${dd.total}` : '—', day?.mood ? MOOD[day.mood] || day.mood : '—', (() => { const o = obj.list.find(x => x.date === dd.date); return o ? (o.done ? 'Atteint' : o.today ? 'En cours' : 'Non atteint') : '—'; })()];
         }),
         {
           columnStyles: { 0: { cellWidth: 38 }, 1: { halign: 'right', fontStyle: 'bold', cellWidth: 18 }, 2: { halign: 'right', cellWidth: 20 }, 3: { cellWidth: 24 } },
-          didParseCell: (h: any) => { if (h.section === 'body' && h.column.index === 1 && h.cell.raw === '100 %') h.cell.styles.textColor = ACC_DARK; if (h.section === 'body' && h.column.index === 1 && h.cell.raw === '0 %' && !String(h.row.raw?.[0] || '').includes('en cours')) h.cell.styles.textColor = RED; },
+          didParseCell: (h: any) => { if (h.section === 'body' && h.column.index === 1 && h.cell.raw === '100 %') h.cell.styles.textColor = ACC_DARK; if (h.section === 'body' && h.column.index === 1 && h.cell.raw === '0 %' && !String(h.row.raw?.[0] || '').includes('en cours')) h.cell.styles.textColor = RED; if (h.section === 'body' && h.column.index === 4) { h.cell.styles.fontStyle = 'bold'; h.cell.styles.textColor = h.cell.raw === 'Atteint' ? ACC_DARK : h.cell.raw === 'Non atteint' ? RED : INK; } },
         });
     }
   }

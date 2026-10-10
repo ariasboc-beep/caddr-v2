@@ -307,3 +307,45 @@ export function perfectStreak(appData: AppData, todayKey: string): { current: nu
   }
   return { current, best };
 }
+
+// ---------- Objectif prioritaire du jour ----------
+// Objectif du jour = texte saisi ce jour-là, sinon l'objectif programmé (récurrent) qui couvre ce jour.
+export function objectiveFor(appData: AppData, dateKey: string): { title: string; done: boolean } | null {
+  const day = appData.days[dateKey];
+  const date = atNoon(dateKey);
+  const title = day?.dailyGoalOverride?.trim()
+    || (appData.recurringGoals || []).find(g => isDateInRange(date, g.recurrence, g.specificDate, g.startDate, g.endDate, g.stopDate))?.title?.trim()
+    || '';
+  if (!title) return null;
+  return { title, done: !!day?.goalCompleted };
+}
+
+export interface ObjectiveStats {
+  defined: number; done: number; rate: number | null;
+  current: number; best: number;
+  list: { date: string; title: string; done: boolean; today: boolean }[];
+}
+
+export function objectiveStats(appData: AppData, start: Date, end: Date, todayKey: string): ObjectiveStats {
+  const since = trackingStart(appData);
+  const list = eachDay(start, end).filter(k => k <= todayKey).map(k => {
+    const o = objectiveFor(appData, k);
+    if (!o) return null;
+    if (k < since && !appData.days[k]) return null; // pas d'historique avant le début du suivi
+    return { date: k, title: o.title, done: o.done, today: k === todayKey };
+  }).filter(Boolean) as ObjectiveStats['list'];
+  const closed = list.filter(o => !o.today || o.done); // aujourd'hui non coché : pas encore un échec
+  const done = closed.filter(o => o.done).length;
+  // Séries sur 12 mois
+  const yearKeys = eachDay(new Date(atNoon(todayKey).getTime() - 365 * DAY), atNoon(todayKey));
+  let best = 0, run = 0;
+  const states = yearKeys.map(k => { const o = objectiveFor(appData, k); return { k, s: !o ? 'off' : o.done ? 'done' : 'missed' }; });
+  states.forEach(({ k, s }) => { if (s === 'done') { run++; best = Math.max(best, run); } else if (s === 'missed' && k !== todayKey) run = 0; });
+  let current = 0;
+  for (let i = states.length - 1; i >= 0; i--) {
+    const { k, s } = states[i];
+    if (s === 'off') continue;
+    if (s === 'done') current++; else if (k === todayKey) continue; else break;
+  }
+  return { defined: closed.length, done, rate: closed.length ? Math.round((done / closed.length) * 100) : null, current, best, list: list.reverse() };
+}

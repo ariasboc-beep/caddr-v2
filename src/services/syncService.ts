@@ -107,6 +107,17 @@ export const getCurrentUser = (): User | null => {
 
 const richness = (v: unknown): number => JSON.stringify(v ?? '').length;
 
+// Habitudes : union par id ; pour une même habitude, les jours sont fusionnés
+// (l'entrée locale l'emporte pour un même jour), les réglages locaux priment.
+const mergeHabits = (local: NonNullable<AppData['habits']>, cloud: NonNullable<AppData['habits']>) => {
+  const map = new Map(cloud.map(h => [h.id, h]));
+  local.forEach(h => {
+    const c = map.get(h.id);
+    map.set(h.id, c ? { ...c, ...h, entries: { ...(c.entries || {}), ...(h.entries || {}) } } : h);
+  });
+  return Array.from(map.values());
+};
+
 export const mergeAppData = (local: AppData, cloud: AppData): AppData => {
   // Journées : union, conflit résolu au profit de l'entrée la plus riche
   const days: AppData['days'] = { ...cloud.days };
@@ -145,5 +156,7 @@ export const mergeAppData = (local: AppData, cloud: AppData): AppData => {
     settings: local.settings || cloud.settings,
     focusSessions: mergeById(local.focusSessions || [], cloud.focusSessions || []),
     skips: mergeById(local.skips || [], cloud.skips || []),
+    monthlyReviews: { ...(cloud.monthlyReviews || {}), ...(local.monthlyReviews || {}) },
+    habits: mergeHabits(local.habits || [], cloud.habits || []),
   };
 };
