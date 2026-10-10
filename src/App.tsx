@@ -1902,14 +1902,52 @@ const App: React.FC = () => {
     };
 
     const todayKey = getKeyFromDate(new Date());
+    const isRecurrenceChange = 'recurrence' in fields || 'startDate' in fields || 'endDate' in fields || 'specificDate' in fields;
     updateAppData(prev => {
       const days = { ...prev.days };
       Object.keys(days).forEach(k => {
         const d = days[k];
         if (d?.blocks && (k >= todayKey || k === dateKey)) days[k] = { ...d, blocks: updater(d.blocks) };
       });
-      return { ...prev, blocks: updater(prev.blocks), days };
+      let blocks = updater(prev.blocks);
+
+      // Tâche ajoutée dans l'onglet Routine (elle n'existe que pour ce jour) :
+      // appliquer une récurrence la copie dans le bloc du plan, pour qu'elle
+      // apparaisse chaque jour couvert, et dans les jours déjà « figés » couverts.
+      if (type === 'task' && !parentTaskId && isRecurrenceChange) {
+        const inPlan = blocks.some(b => b.id === blockId && b.tasks.some(t => t.id === id));
+        const srcBlock = (days[dateKey]?.blocks || []).find(b => b.id === blockId);
+        const srcTask = srcBlock?.tasks.find(t => t.id === id);
+        if (!inPlan && srcBlock && srcTask) {
+          const promoted: Task = JSON.parse(JSON.stringify(srcTask));
+          if (blocks.some(b => b.id === blockId)) {
+            blocks = blocks.map(b => b.id === blockId ? { ...b, tasks: [...b.tasks, promoted] } : b);
+          } else {
+            // Bloc exceptionnel du jour : il suit la même période que la tâche
+            const { tasks: _t, ...blockRest } = JSON.parse(JSON.stringify(srcBlock));
+            blocks = [...blocks, { ...blockRest, recurrence: promoted.recurrence, specificDate: promoted.specificDate, startDate: promoted.startDate, endDate: promoted.endDate, tasks: [promoted] }];
+          }
+          Object.keys(days).forEach(k => {
+            const d = days[k];
+            if (!d?.blocks || k <= dateKey || k < todayKey) return;
+            if (!isDateInRange(new Date(k + 'T12:00:00'), promoted.recurrence, promoted.specificDate, promoted.startDate, promoted.endDate)) return;
+            const hasBlock = d.blocks.some(b => b.id === blockId);
+            const newBlocks = hasBlock
+              ? d.blocks.map(b => b.id === blockId && !b.tasks.some(t => t.id === id) ? { ...b, tasks: [...b.tasks, JSON.parse(JSON.stringify(promoted))] } : b)
+              : d.blocks;
+            days[k] = { ...d, blocks: newBlocks };
+          });
+        }
+      }
+      return { ...prev, blocks, days };
     });
+  };
+
+  // Vrai si la tâche configurée n'existe que pour le jour affiché (ajoutée dans Routine)
+  const isDayOnlyConfigItem = (): boolean => {
+    if (!configModal || configModal.type !== 'task' || configModal.parentTaskId || activeTab !== 'routine') return false;
+    if (!appData.days[dateKey]?.blocks) return false;
+    return !appData.blocks.some(b => b.id === configModal.blockId && b.tasks.some(t => t.id === configModal.id));
   };
 
   // Bornes concrètes pour « Cette semaine » (lundi → dimanche) et « Ce mois »,
@@ -1998,6 +2036,7 @@ const App: React.FC = () => {
   };
 
   const configItem = getConfigItem();
+  const dayOnly = isDayOnlyConfigItem();
   const currentLevel = appData.userProfile?.level || 1;
   const currentXp = appData.userProfile?.xp || 0;
   const xpNextLevel = getNextLevelXp(currentLevel);
@@ -3390,7 +3429,7 @@ const App: React.FC = () => {
                       <p className="text-[8px] font-black text-[#18181B]/60 dark:text-[#E6E8E6]/60 uppercase px-2 mt-4">Récurrence</p>
                       <div className="grid grid-cols-2 gap-2">
                       {[ { id: 'daily', label: 'Quotidien' }, { id: 'weekdays', label: 'Semaine (L-V)' }, { id: 'weekends', label: 'Week-end' }, { id: 'week', label: 'Cette semaine' }, { id: 'month', label: 'Ce mois' }, { id: 'period', label: 'Période perso.' }, { id: 'specific', label: 'Date précise' } ].map((opt, idx, arr) => {
-                        const isActive = (configItem?.recurrence || 'daily') === opt.id;
+                        const isActive = !dayOnly && (configItem?.recurrence || 'daily') === opt.id;
                         return (
                           <button
                             key={opt.id}
@@ -3405,7 +3444,11 @@ const App: React.FC = () => {
                       })}
                       </div>
                       {configItem && (
-                        <p className="text-[10px] font-bold text-accent px-2 leading-relaxed">{describeRecurrence(configItem)}</p>
+                        <p className="text-[10px] font-bold text-accent px-2 leading-relaxed">
+                          {dayOnly
+                            ? "Tâche prévue pour aujourd'hui seulement. Choisissez une récurrence pour la répéter les jours suivants."
+                            : describeRecurrence(configItem)}
+                        </p>
                       )}
                     </div>
 
