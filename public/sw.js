@@ -1,5 +1,5 @@
 // Service Worker Caddr. — cache des assets pour un fonctionnement hors-ligne.
-const CACHE = 'caddr-v2';
+const CACHE = 'caddr-v3';
 const OFFLINE_URL = '/index.html';
 
 self.addEventListener('install', (e) => {
@@ -20,6 +20,7 @@ self.addEventListener('fetch', (e) => {
   // Ne jamais intercepter : API IA, Firebase, requêtes non-GET
   if (e.request.method !== 'GET') return;
   if (url.pathname.startsWith('/.netlify/')) return;
+  if (url.pathname.startsWith('/__/')) return; // authentification Firebase : toujours en direct
   if (url.origin !== self.location.origin) return;
 
   // Navigation : réseau d'abord, repli hors-ligne

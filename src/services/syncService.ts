@@ -1,5 +1,7 @@
 import { 
   signInWithPopup, 
+  signInWithRedirect,
+  getRedirectResult,
   signOut as firebaseSignOut, 
   onAuthStateChanged,
   User 
@@ -15,14 +17,43 @@ import {
 import { auth, googleProvider, db } from '../firebase';
 import { AppData } from '../types';
 
+// Téléphone ou app installée sur l'écran d'accueil : la fenêtre popup ne peut pas
+// renvoyer le résultat à l'app → on utilise la connexion par redirection (pleine page).
+export const prefersRedirect = (): boolean => {
+  if (typeof window === 'undefined') return false;
+  const standalone = window.matchMedia?.('(display-mode: standalone)').matches || (navigator as any).standalone === true;
+  const mobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+  return standalone || mobile;
+};
+
 // Sign in with Google
 export const signInWithGoogle = async (): Promise<User | null> => {
+  if (prefersRedirect()) {
+    await signInWithRedirect(auth, googleProvider); // la page part chez Google puis revient
+    return null;
+  }
   try {
     const result = await signInWithPopup(auth, googleProvider);
     return result.user;
-  } catch (error) {
+  } catch (error: any) {
+    // Popup bloquée par le navigateur : repli sur la redirection
+    if (error?.code === 'auth/popup-blocked' || error?.code === 'auth/operation-not-supported-in-this-environment') {
+      await signInWithRedirect(auth, googleProvider);
+      return null;
+    }
     console.error("Error signing in with Google:", error);
-    return null;
+    throw error;
+  }
+};
+
+// Au retour de Google (connexion par redirection) : récupère le résultat ou l'erreur
+export const completeRedirectSignIn = async (): Promise<{ user: User | null; error?: string }> => {
+  try {
+    const res = await getRedirectResult(auth);
+    return { user: res?.user || null };
+  } catch (error: any) {
+    console.error('Redirect sign-in error:', error);
+    return { user: null, error: error?.code || 'auth/unknown' };
   }
 };
 

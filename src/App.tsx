@@ -22,6 +22,7 @@ import { getKeyFromDate, generateId, isDateInRange } from './utils';
 import { getRoutineAdvice, generateRoutineFromGoal, extractRoutineFromImage, getDailyReviewFeedback } from './services/geminiService';
 import { 
   signInWithGoogle, 
+  completeRedirectSignIn,
   signOut as firebaseSignOut, 
   onAuthChange, 
   saveDataToCloud, 
@@ -2150,13 +2151,25 @@ const App: React.FC = () => {
     setSyncError(null);
     try {
       await signInWithGoogle();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Sign in error:', error);
-      setSyncError('Erreur de connexion');
+      setSyncError(error?.code === 'auth/popup-closed-by-user' ? 'Connexion annulée' : 'Erreur de connexion');
     } finally {
       setIsSigningIn(false);
     }
   };
+
+  // Retour de Google après une connexion par redirection (téléphone / app installée)
+  useEffect(() => {
+    completeRedirectSignIn().then(({ error }) => {
+      if (!error) return;
+      const msg: Record<string, string> = {
+        'auth/unauthorized-domain': "Ce domaine n'est pas autorisé dans Firebase (Authentication → Paramètres → Domaines autorisés).",
+        'auth/network-request-failed': 'Pas de connexion internet. Réessaie.',
+      };
+      setSyncError(msg[error] || 'La connexion Google a échoué. Réessaie.');
+    });
+  }, []);
 
   const handleSignOut = async () => {
     try {

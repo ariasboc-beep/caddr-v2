@@ -7,6 +7,21 @@
   node_bundler = "esbuild"
   external_node_modules = ["firebase-admin"]
 
+# Connexion Google : les pages d'authentification Firebase sont servies depuis le
+# domaine de l'app (même origine), sinon la connexion par redirection échoue sur
+# mobile (stockage tiers bloqué par Safari / Chrome).
+[[redirects]]
+  from = "/__/auth/*"
+  to = "https://caddr-b0a5f.firebaseapp.com/__/auth/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/__/firebase/*"
+  to = "https://caddr-b0a5f.firebaseapp.com/__/firebase/:splat"
+  status = 200
+  force = true
+
 [[redirects]]
   from = "/*"
   to = "/index.html"
