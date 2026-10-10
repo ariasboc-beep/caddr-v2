@@ -158,6 +158,7 @@ export interface StandaloneHabit {
   color?: string;             // couleur d'accent de l'habitude (hex)
   createdAt: string;
   archived?: boolean;
+  showInRoutine?: boolean;    // afficher dans la carte « Habitudes du jour » de Routine (par défaut : oui)
   deleted?: boolean;          // suppression conservée pour la synchro (sinon le cloud la ferait revenir)
   entries: { [dateKey: string]: HabitEntry };
 }

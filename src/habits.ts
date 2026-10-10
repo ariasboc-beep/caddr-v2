@@ -1,6 +1,10 @@
 // Calculs des habitudes indépendantes (prendre / arrêter une habitude)
 import { StandaloneHabit, HabitDayStatus } from './types';
 import { getKeyFromDate } from './utils';
+import { stripHtml } from './components/RichText';
+
+// Une note est vide si elle ne contient ni texte ni image
+export const isEmptyNote = (html?: string) => !html || (!stripHtml(html).trim() && !/<img/i.test(html));
 
 export type DayState = HabitDayStatus | 'open' | 'off' | 'future' | 'before';
 // open = jour prévu passé (ou aujourd'hui) sans réponse
@@ -76,7 +80,7 @@ export function habitStats(h: StandaloneHabit, from?: string, to?: string): Habi
   const ref = lastFail || start;
   // Jours pleins écoulés depuis la dernière rechute (ou depuis le début de l'habitude)
   const sinceLastFail = Math.max(0, Math.round((noon(tk).getTime() - noon(ref).getTime()) / 86400000));
-  const notes = Object.entries(h.entries || {}).filter(([, e]) => e.note && e.note.trim()).map(([date, e]) => ({ date, note: e.note!, s: e.s })).sort((a, b) => b.date.localeCompare(a.date));
+  const notes = Object.entries(h.entries || {}).filter(([, e]) => !isEmptyNote(e.note)).map(([date, e]) => ({ date, note: e.note!, s: e.s })).sort((a, b) => b.date.localeCompare(a.date));
   return { current, best, done, fail, skip, open, rate: denom ? Math.round((done / denom) * 100) : null, sinceLastFail, lastFail, notes };
 }
 

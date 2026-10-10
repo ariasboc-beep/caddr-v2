@@ -1,12 +1,13 @@
 import React, { useMemo, useState } from 'react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell } from 'recharts';
 import {
-  Plus, ChevronLeft, ChevronRight, Check, X, Minus, Flame, Trophy, Ban, Repeat, StickyNote,
+  Plus, ChevronLeft, ChevronRight, Check, X, Minus, Flame, Trophy, Ban, Repeat, StickyNote, EyeOff,
   CalendarDays, BarChart3, Settings2, Trash2, Archive, ArrowLeft, Target,
 } from 'lucide-react';
 import { StandaloneHabit, HabitDayStatus } from '../types';
 import { generateId, getKeyFromDate } from '../utils';
-import { habitStats, monthlyRates, stateOn, isScheduled, labelsFor, nextStatus, activeHabits, DayState } from '../habits';
+import { habitStats, monthlyRates, stateOn, isScheduled, labelsFor, nextStatus, activeHabits, DayState, isEmptyNote } from '../habits';
+import RichText, { RichTextView } from './RichText';
 
 interface Props {
   habits: StandaloneHabit[];
@@ -64,6 +65,7 @@ const HabitForm: React.FC<{ initial?: StandaloneHabit; accentHex: string; onSave
   const [startDate, setStartDate] = useState(initial?.startDate || getKeyFromDate(new Date()));
   const [color, setColor] = useState(initial?.color || '');
   const [description, setDescription] = useState(initial?.description || '');
+  const [showInRoutine, setShowInRoutine] = useState(initial?.showInRoutine !== false);
   const every = days.length === 0 || days.length === 7;
   const toggleDay = (d: number) => setDays(cur => {
     const base = cur.length === 0 ? [0, 1, 2, 3, 4, 5, 6] : cur;
@@ -76,7 +78,7 @@ const HabitForm: React.FC<{ initial?: StandaloneHabit; accentHex: string; onSave
     if (!name.trim()) return;
     onSave({
       ...(initial || { id: generateId(), createdAt: new Date().toISOString(), entries: {} }),
-      name: name.trim(), kind, days: every ? [] : days, startDate, color: color || undefined, description: description.trim() || undefined,
+      name: name.trim(), kind, days: every ? [] : days, startDate, color: color || undefined, description: description.trim() || undefined, showInRoutine,
     } as StandaloneHabit);
   };
   return (
@@ -137,6 +139,16 @@ const HabitForm: React.FC<{ initial?: StandaloneHabit; accentHex: string; onSave
       <label className="block space-y-1.5"><span className={label}>Pourquoi ? (facultatif)</span>
         <textarea rows={2} className={`${input} resize-none font-medium`} placeholder="Ta motivation, à relire dans les moments difficiles…" value={description} onChange={e => setDescription(e.target.value)} />
       </label>
+      <button type="button" onClick={() => setShowInRoutine(v => !v)} aria-pressed={showInRoutine}
+        className={`w-full flex items-center justify-between gap-3 p-4 rounded-2xl border transition-all ${showInRoutine ? 'bg-accent/10 border-accent/40' : 'bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 border-transparent'}`}>
+        <span className="text-left">
+          <span className={`block text-[10px] font-black uppercase tracking-wider ${ink}`}>Afficher dans l'onglet Routine</span>
+          <span className={`block text-[10px] font-medium ${muted}`}>{showInRoutine ? 'Visible dans la carte « Habitudes du jour » pour la cocher vite' : 'Suivie uniquement dans l’onglet Habitudes'}</span>
+        </span>
+        <span className={`w-9 h-5 rounded-full p-0.5 transition-all shrink-0 ${showInRoutine ? 'bg-accent' : 'bg-[#18181B]/15 dark:bg-[#E6E8E6]/15'}`}>
+          <span className={`block w-4 h-4 rounded-full bg-white shadow transition-transform ${showInRoutine ? 'translate-x-4' : ''}`} />
+        </span>
+      </button>
       <div className="flex gap-3 pt-1">
         <button type="button" onClick={save} disabled={!name.trim()} className={`flex-1 py-4 rounded-[2rem] text-[10px] font-black uppercase tracking-widest transition-all ${name.trim() ? 'bg-accent text-white shadow-lg shadow-accent/20 active:scale-95' : `bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 ${faint} cursor-not-allowed`}`}>{initial ? 'Enregistrer' : 'Créer l’habitude'}</button>
         <button type="button" onClick={onCancel} className={`flex-1 py-4 text-[10px] font-black uppercase tracking-widest ${muted}`}>Annuler</button>
@@ -168,7 +180,7 @@ const HabitDetail: React.FC<{ habit: StandaloneHabit; accentHex: string; onUpdat
   const setEntry = (k: string, patch: { s?: HabitDayStatus | null; note?: string }) => {
     const cur = { ...(habit.entries?.[k] || {}) };
     if ('s' in patch) { if (patch.s) cur.s = patch.s; else delete cur.s; }
-    if ('note' in patch) { if (patch.note && patch.note.trim()) cur.note = patch.note; else delete cur.note; }
+    if ('note' in patch) { if (!isEmptyNote(patch.note)) cur.note = patch.note; else delete cur.note; }
     const entries = { ...(habit.entries || {}) };
     if (!cur.s && !cur.note) delete entries[k]; else entries[k] = cur;
     onUpdate({ ...habit, entries });
@@ -235,7 +247,7 @@ const HabitDetail: React.FC<{ habit: StandaloneHabit; accentHex: string; onUpdat
             {DOW.map((d, i) => <span key={i} className={`text-[10px] font-black ${faint}`}>{d}</span>)}
             {cells.map((k, i) => k === null ? <span key={`e${i}`} /> : (
               <div key={k} className={`p-0.5 rounded-full ${selected === k ? 'ring-2 ring-accent' : ''}`}>
-                <DayDot numberOnly state={stateOn(habit, k, tk)} color={color} size={36} label={String(noon(k).getDate())} hasNote={!!habit.entries?.[k]?.note} today={k === tk}
+                <DayDot numberOnly state={stateOn(habit, k, tk)} color={color} size={36} label={String(noon(k).getDate())} hasNote={!isEmptyNote(habit.entries?.[k]?.note)} today={k === tk}
                   onClick={() => { setSelected(k); setNoteDraft({ k, v: habit.entries?.[k]?.note || '' }); }} />
               </div>
             ))}
@@ -262,9 +274,14 @@ const HabitDetail: React.FC<{ habit: StandaloneHabit; accentHex: string; onUpdat
               </div>
               <div className="space-y-1.5">
                 <label className={`text-[9px] font-black uppercase tracking-widest ${muted}`}>Note du jour</label>
-                <textarea rows={3} value={note} onChange={e => setNoteDraft({ k: selected, v: e.target.value })} onBlur={() => note !== (entry.note || '') && setEntry(selected, { note })}
+                <RichText
+                  key={selected}
+                  minHeight={110}
+                  value={note}
+                  onChange={(html) => setNoteDraft({ k: selected, v: html })}
+                  onBlur={() => { if (note !== (entry.note || '')) setEntry(selected, { note }); }}
                   placeholder={habit.kind === 'quit' ? 'Envie forte ? Déclencheur ? Comment tu as tenu…' : 'Comment ça s’est passé…'}
-                  className={`w-full bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 p-3 rounded-xl text-xs font-medium border border-[#18181B]/10 dark:border-[#E6E8E6]/10 outline-none focus:border-accent resize-none ${ink}`} />
+                />
                 {note !== (entry.note || '') && <button onClick={() => setEntry(selected, { note })} className="px-4 py-2 rounded-xl bg-accent text-white text-[9px] font-black uppercase tracking-wider">Enregistrer la note</button>}
               </div>
             </div>
@@ -335,7 +352,7 @@ const HabitDetail: React.FC<{ habit: StandaloneHabit; accentHex: string; onUpdat
                   <button onClick={() => { setSelected(n.date); setMonth(new Date(noon(n.date).getFullYear(), noon(n.date).getMonth(), 1, 12)); setNoteDraft({ k: n.date, v: n.note }); setTab('calendar'); }} className={`text-[11px] font-black hover:text-accent ${ink}`}>{cap(fmt(n.date, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }))}</button>
                   {n.s && <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-full" style={n.s === 'done' ? { backgroundColor: `${color}22`, color } : n.s === 'fail' ? { backgroundColor: `${RED}1A`, color: RED } : {}}>{n.s === 'done' ? L.done : n.s === 'fail' ? L.fail : 'Ignoré'}</span>}
                 </div>
-                <p className={`text-xs font-medium whitespace-pre-wrap ${ink}`}>{n.note}</p>
+                <RichTextView html={n.note} className={`text-xs font-medium ${ink}`} />
               </div>
             ))}
           </div>
@@ -446,6 +463,7 @@ const HabitsView: React.FC<Props> = ({ habits, onChange, accentHex }) => {
                         {h.kind === 'quit' && <span>· {s.sinceLastFail} j sans rechute</span>}
                         <span>· {s.rate === null ? '—' : `${s.rate} %`}</span>
                         <span className={faint}>· {freqLabel(h)}</span>
+                        {h.showInRoutine === false && <span className={`flex items-center gap-0.5 ${faint}`} title="Masquée de l'onglet Routine">· <EyeOff size={10} /> hors Routine</span>}
                       </span>
                     </span>
                   </button>
@@ -454,7 +472,7 @@ const HabitsView: React.FC<Props> = ({ habits, onChange, accentHex }) => {
                       <div key={k} className="flex flex-col items-center gap-1">
                         <span className={`text-[9px] font-black ${k === tk ? 'text-accent' : faint}`}>{DOW[i]}</span>
                         <DayDot state={stateOn(h, k, tk)} color={color} size={32} label={stateOn(h, k, tk) === 'open' || stateOn(h, k, tk) === 'off' || stateOn(h, k, tk) === 'future' ? String(noon(k).getDate()) : undefined}
-                          hasNote={!!h.entries?.[k]?.note} today={k === tk} onClick={() => cycle(h, k)} />
+                          hasNote={!isEmptyNote(h.entries?.[k]?.note)} today={k === tk} onClick={() => cycle(h, k)} />
                       </div>
                     ))}
                   </div>

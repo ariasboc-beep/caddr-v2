@@ -2346,7 +2346,7 @@ const App: React.FC = () => {
 
             {/* Habitudes du jour (habitudes indépendantes des blocs) */}
             {(() => {
-              const todays = activeHabits(appData.habits).filter(h => habitScheduled(h, dateKey) || h.entries?.[dateKey]?.s);
+              const todays = activeHabits(appData.habits).filter(h => h.showInRoutine !== false && (habitScheduled(h, dateKey) || h.entries?.[dateKey]?.s));
               if (!todays.length || dateKey > getKeyFromDate(new Date())) return null;
               const setStatus = (id: string, st: 'done' | 'fail') => updateAppData(prev => ({
                 ...prev,

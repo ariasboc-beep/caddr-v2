@@ -276,7 +276,8 @@ export async function generateReport(appData: AppData, tf: TimeframeType, period
       { columnStyles: { 0: { fontStyle: 'bold' }, 2: { halign: 'right' }, 3: { halign: 'right' }, 4: { halign: 'right' }, 5: { halign: 'right' } } });
     const notes: (string)[][] = [];
     sh.forEach(h => Object.entries(h.entries || {}).forEach(([k, e]) => {
-      if (k >= from && k <= to && e.note?.trim()) notes.push([cap(fmt(k, { weekday: 'short', day: 'numeric', month: 'short' })), h.name, e.s === 'done' ? (h.kind === 'quit' ? 'Tenu' : 'Fait') : e.s === 'fail' ? (h.kind === 'quit' ? 'Rechute' : 'Pas fait') : e.s === 'skip' ? 'Ignoré' : '—', e.note.trim(), k]);
+      const txt = stripHtml(e.note);
+      if (k >= from && k <= to && txt) notes.push([cap(fmt(k, { weekday: 'short', day: 'numeric', month: 'short' })), h.name, e.s === 'done' ? (h.kind === 'quit' ? 'Tenu' : 'Fait') : e.s === 'fail' ? (h.kind === 'quit' ? 'Rechute' : 'Pas fait') : e.s === 'skip' ? 'Ignoré' : '—', txt, k]);
     }));
     if (notes.length) {
       sectionTitle('Notes des habitudes');
