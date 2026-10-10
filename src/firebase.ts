@@ -1,7 +1,7 @@
 // Firebase Configuration for Caddr
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+import { initializeFirestore } from 'firebase/firestore';
 
 const firebaseConfig = {
   apiKey: "AIzaSyAiwb2sYqJm2jVWWcG7ZvZy7wfAGZQXKpA",
@@ -25,6 +25,8 @@ export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
 
 // Initialize Cloud Firestore and get a reference to the service
-export const db = getFirestore(app);
+// Détection automatique du « long polling » : certains réseaux mobiles bloquent le
+// canal de streaming de Firestore, ce qui laissait l'app charger indéfiniment.
+export const db = initializeFirestore(app, { experimentalAutoDetectLongPolling: true });
 
 export default app;

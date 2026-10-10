@@ -2,6 +2,10 @@ import {
   signInWithPopup, 
   signInWithRedirect,
   getRedirectResult,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  sendPasswordResetEmail,
+  updateProfile,
   signOut as firebaseSignOut, 
   onAuthStateChanged,
   User 
@@ -17,28 +21,30 @@ import {
 import { auth, googleProvider, db } from '../firebase';
 import { AppData } from '../types';
 
-// Téléphone ou app installée sur l'écran d'accueil : la fenêtre popup ne peut pas
-// renvoyer le résultat à l'app → on utilise la connexion par redirection (pleine page).
-export const prefersRedirect = (): boolean => {
-  if (typeof window === 'undefined') return false;
-  const standalone = window.matchMedia?.('(display-mode: standalone)').matches || (navigator as any).standalone === true;
-  const mobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
-  return standalone || mobile;
+// App installée sur l'écran d'accueil : la popup ne peut pas renvoyer le résultat à
+// l'app → connexion par redirection. Dans un onglet de navigateur (ordinateur ou
+// téléphone), la popup fonctionne et évite les soucis de redirection.
+export const isStandalone = (): boolean =>
+  typeof window !== 'undefined' && (window.matchMedia?.('(display-mode: standalone)').matches || (navigator as any).standalone === true);
+export const isIOS = (): boolean =>
+  typeof navigator !== 'undefined' && (/iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1));
+export const prefersRedirect = (): boolean => isStandalone();
+
+const PENDING_KEY = 'caddr_auth_pending';
+const startRedirect = async () => {
+  try { localStorage.setItem(PENDING_KEY, String(Date.now())); } catch {}
+  await signInWithRedirect(auth, googleProvider); // la page part chez Google puis revient
 };
 
 // Sign in with Google
 export const signInWithGoogle = async (): Promise<User | null> => {
-  if (prefersRedirect()) {
-    await signInWithRedirect(auth, googleProvider); // la page part chez Google puis revient
-    return null;
-  }
+  if (prefersRedirect()) { await startRedirect(); return null; }
   try {
     const result = await signInWithPopup(auth, googleProvider);
     return result.user;
   } catch (error: any) {
-    // Popup bloquée par le navigateur : repli sur la redirection
     if (error?.code === 'auth/popup-blocked' || error?.code === 'auth/operation-not-supported-in-this-environment') {
-      await signInWithRedirect(auth, googleProvider);
+      await startRedirect();
       return null;
     }
     console.error("Error signing in with Google:", error);
@@ -46,16 +52,47 @@ export const signInWithGoogle = async (): Promise<User | null> => {
   }
 };
 
-// Au retour de Google (connexion par redirection) : récupère le résultat ou l'erreur
-export const completeRedirectSignIn = async (): Promise<{ user: User | null; error?: string }> => {
+// Au retour de Google : récupère le résultat, l'erreur, ou signale une connexion
+// lancée qui n'est jamais revenue dans l'app (cas typique : app installée sur iPhone).
+export const completeRedirectSignIn = async (): Promise<{ user: User | null; error?: string; lost?: boolean }> => {
+  let pending = false;
+  try { const t = Number(localStorage.getItem(PENDING_KEY) || 0); pending = !!t && Date.now() - t < 10 * 60 * 1000; localStorage.removeItem(PENDING_KEY); } catch {}
   try {
     const res = await getRedirectResult(auth);
-    return { user: res?.user || null };
+    const user = res?.user || auth.currentUser;
+    return { user: user || null, lost: pending && !user };
   } catch (error: any) {
     console.error('Redirect sign-in error:', error);
     return { user: null, error: error?.code || 'auth/unknown' };
   }
 };
+
+// --- Comptes e-mail / mot de passe ---
+export const signUpWithEmail = async (email: string, password: string, name?: string): Promise<User> => {
+  const cred = await createUserWithEmailAndPassword(auth, email.trim(), password);
+  if (name?.trim()) { try { await updateProfile(cred.user, { displayName: name.trim() }); } catch {} }
+  return cred.user;
+};
+export const signInWithEmail = async (email: string, password: string): Promise<User> =>
+  (await signInWithEmailAndPassword(auth, email.trim(), password)).user;
+export const resetPassword = (email: string) => sendPasswordResetEmail(auth, email.trim());
+
+// Messages d'erreur compréhensibles
+export const authErrorMessage = (code?: string): string => ({
+  'auth/invalid-credential': 'E-mail ou mot de passe incorrect.',
+  'auth/wrong-password': 'Mot de passe incorrect.',
+  'auth/user-not-found': 'Aucun compte avec cet e-mail. Crée un compte.',
+  'auth/email-already-in-use': 'Un compte existe déjà avec cet e-mail. Connecte-toi.',
+  'auth/weak-password': 'Mot de passe trop court (6 caractères minimum).',
+  'auth/invalid-email': 'Adresse e-mail invalide.',
+  'auth/missing-password': 'Saisis ton mot de passe.',
+  'auth/too-many-requests': 'Trop de tentatives. Patiente quelques minutes.',
+  'auth/network-request-failed': 'Pas de connexion internet. Réessaie.',
+  'auth/operation-not-allowed': "La connexion par e-mail n'est pas encore activée dans Firebase (Authentication → Méthode de connexion → E-mail/Mot de passe).",
+  'auth/unauthorized-domain': "Ce domaine n'est pas autorisé dans Firebase (Authentication → Paramètres → Domaines autorisés).",
+  'auth/popup-closed-by-user': 'Connexion annulée.',
+  'auth/cancelled-popup-request': 'Connexion annulée.',
+} as Record<string, string>)[code || ''] || 'La connexion a échoué. Réessaie.';
 
 // Sign out
 export const signOut = async (): Promise<void> => {
@@ -90,20 +127,15 @@ export const saveDataToCloud = async (userId: string, data: AppData): Promise<bo
 };
 
 // Load app data from Firestore
-export const loadDataFromCloud = async (userId: string): Promise<AppData | null> => {
-  try {
-    const userDocRef = doc(db, 'users', userId);
-    const docSnap = await getDoc(userDocRef);
-    
-    if (docSnap.exists()) {
-      const data = docSnap.data();
-      return data.appData as AppData;
-    }
-    return null;
-  } catch (error) {
-    console.error("Error loading data from cloud:", error);
-    return null;
-  }
+// Renvoie null si l'utilisateur n'a encore rien dans le cloud.
+// LÈVE une erreur si la lecture échoue ou dépasse le délai : l'app ne doit surtout
+// pas croire à un nouvel utilisateur (elle écraserait les vraies données du cloud).
+export const loadDataFromCloud = async (userId: string, timeoutMs = 15000): Promise<AppData | null> => {
+  const userDocRef = doc(db, 'users', userId);
+  const timeout = new Promise<never>((_, reject) => setTimeout(() => reject(new Error('cloud-timeout')), timeoutMs));
+  const docSnap = await Promise.race([getDoc(userDocRef), timeout]);
+  if (docSnap.exists()) return (docSnap.data().appData as AppData) || null;
+  return null;
 };
 
 // Listen to real-time data changes

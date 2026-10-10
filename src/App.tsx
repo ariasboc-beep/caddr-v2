@@ -23,6 +23,8 @@ import { getRoutineAdvice, generateRoutineFromGoal, extractRoutineFromImage, get
 import { 
   signInWithGoogle, 
   completeRedirectSignIn,
+  authErrorMessage,
+  isIOS,
   signOut as firebaseSignOut, 
   onAuthChange, 
   saveDataToCloud, 
@@ -37,6 +39,7 @@ import DayTimeline from './components/DayTimeline';
 import InboxView from './components/InboxView';
 import Analytics, { Section } from './components/Analytics';
 import Reviews from './components/Reviews';
+import AuthPanel from './components/AuthPanel';
 import HabitsView, { DayDot } from './components/HabitsView';
 import { activeHabits, isScheduled as habitScheduled, stateOn as habitStateOn, habitStats as computeHabitStats, labelsFor as habitLabels } from './habits';
 import { generateReport } from './report';
@@ -191,6 +194,11 @@ const App: React.FC = () => {
   } | null>(null);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // Vrai seulement après une lecture réussie du cloud : tant que c'est faux, on n'envoie
+  // rien au cloud (sinon les données de l'appareil écraseraient celles du compte).
+  const cloudReady = useRef(false);
+  const [showAuth, setShowAuth] = useState(false);
+  const [authNotice, setAuthNotice] = useState<string | null>(null);
   const backupInputRef = useRef<HTMLInputElement>(null);
   const templateInputRef = useRef<HTMLInputElement>(null);
   const dateKey = getKeyFromDate(currentDate);
@@ -245,9 +253,11 @@ const App: React.FC = () => {
             }
           }
           setLastSyncTime(new Date());
+          cloudReady.current = true;
         } catch (error) {
           console.error('Error loading cloud data:', error);
-          setSyncError('Erreur de chargement');
+          cloudReady.current = false;
+          setSyncError('Sync en attente');
           const localData = localStorage.getItem(STORAGE_KEY);
           if (localData) {
             const parsedLocal = JSON.parse(localData);
@@ -351,9 +361,29 @@ const App: React.FC = () => {
     { id: 'settings', icon: Settings2, label: 'Réglages' },
   ] as const;
 
+  // Lecture du cloud ratée (réseau) : nouvel essai automatique (retour du réseau, toutes les 30 s)
+  useEffect(() => {
+    if (!user || isLoading || cloudReady.current) return;
+    let stop = false;
+    const retry = async () => {
+      if (stop || cloudReady.current) return;
+      try {
+        const cloud = await loadDataFromCloud(user.uid);
+        if (stop) return;
+        if (cloud) setAppData(prev => mergeAppData(prev, cloud));
+        cloudReady.current = true;
+        setSyncError(null);
+        setLastSyncTime(new Date());
+      } catch { /* on réessaiera */ }
+    };
+    const id = setInterval(retry, 30000);
+    window.addEventListener('online', retry);
+    return () => { stop = true; clearInterval(id); window.removeEventListener('online', retry); };
+  }, [user, isLoading, syncError]);
+
   // Auto-save to cloud when user is signed in
   useEffect(() => {
-    if (!user || isLoading) return;
+    if (!user || isLoading || !cloudReady.current) return;
 
     const saveTimer = setTimeout(async () => {
       try {
@@ -2159,15 +2189,16 @@ const App: React.FC = () => {
     }
   };
 
+  useEffect(() => { if (user) { setShowAuth(false); setAuthNotice(null); } }, [user]);
+  useEffect(() => { if (authNotice && guestMode && !user) setShowAuth(true); }, [authNotice, guestMode, user]);
+
   // Retour de Google après une connexion par redirection (téléphone / app installée)
   useEffect(() => {
-    completeRedirectSignIn().then(({ error }) => {
-      if (!error) return;
-      const msg: Record<string, string> = {
-        'auth/unauthorized-domain': "Ce domaine n'est pas autorisé dans Firebase (Authentication → Paramètres → Domaines autorisés).",
-        'auth/network-request-failed': 'Pas de connexion internet. Réessaie.',
-      };
-      setSyncError(msg[error] || 'La connexion Google a échoué. Réessaie.');
+    completeRedirectSignIn().then(({ error, lost }) => {
+      if (error) setAuthNotice(authErrorMessage(error));
+      else if (lost) setAuthNotice(isIOS()
+        ? "La connexion Google n'est pas revenue dans l'app. Sur iPhone, l'app installée ne peut pas récupérer la connexion Google : connecte-toi avec ton e-mail et un mot de passe, ou ouvre caddr-v2.netlify.app dans Safari."
+        : "La connexion Google n'a pas abouti. Réessaie, ou connecte-toi avec ton e-mail et un mot de passe.");
     });
   }, []);
 
@@ -2186,12 +2217,26 @@ const App: React.FC = () => {
 
   // Page d'accueil : affichée tant que l'utilisateur n'est ni connecté ni en mode invité
   if (!user && !guestMode) {
-    return <LandingPage onGoogle={handleSignIn} onGuest={enterGuest} isSigningIn={isSigningIn} error={syncError} />;
+    return <LandingPage onGoogle={handleSignIn} onGuest={enterGuest} isSigningIn={isSigningIn} error={authNotice || syncError} />;
   }
 
   return (
     <div className={`min-h-screen bg-[#F4F4F5] dark:bg-[#080708] text-[#18181B] dark:text-[#E6E8E6] font-['Plus_Jakarta_Sans'] transition-all duration-300 ${navPosition === 'left' ? (navCollapsed ? 'md:pl-20' : 'md:pl-52') + ' pb-32 md:pb-8' : 'pb-32'}`}>
       
+      {/* Connexion / création de compte depuis le mode sans compte */}
+      {showAuth && !user && (
+        <div className="fixed inset-0 z-[150] bg-[#F4F4F5]/95 dark:bg-[#080708]/95 backdrop-blur-xl flex items-center justify-center p-4 animate-in fade-in" onMouseDown={(e) => { if (e.target === e.currentTarget) setShowAuth(false); }}>
+          <div className="glass relative w-full max-w-md rounded-[2.5rem] max-h-[92vh] overflow-y-auto custom-scrollbar p-6 sm:p-8 space-y-5">
+            <button onClick={() => setShowAuth(false)} aria-label="Fermer" className="absolute top-5 right-5 w-8 h-8 rounded-full flex items-center justify-center bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:bg-accent hover:text-white transition-all"><X size={15} strokeWidth={3} /></button>
+            <div className="pr-10">
+              <h2 className="text-xl font-black text-[#18181B] dark:text-[#E6E8E6]">Ton compte Caddr.</h2>
+              <p className="text-xs font-medium text-[#18181B]/60 dark:text-[#E6E8E6]/60 mt-1">Sauvegarde tes données et retrouve-les sur tous tes appareils.</p>
+            </div>
+            <AuthPanel onGoogle={handleSignIn} googleBusy={isSigningIn} notice={authNotice} guestHint onDone={() => setShowAuth(false)} />
+          </div>
+        </div>
+      )}
+
       {/* Active Notification Toast */}
       {activeNotification && (
         <div className="fixed top-24 left-1/2 -translate-x-1/2 z-[200] w-[90%] max-w-sm animate-in slide-in-from-top-4 duration-500">
@@ -2262,10 +2307,10 @@ const App: React.FC = () => {
               </div>
             ) : (
               <button
-                onClick={handleSignIn}
+                onClick={() => setShowAuth(true)}
                 disabled={isSigningIn}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 glass rounded-lg hover:bg-white/10 transition-colors disabled:opacity-50 border border-[#18181B]/5 dark:border-[#E6E8E6]/5"
-                title="Se connecter pour synchroniser"
+                className="flex items-center gap-1.5 px-2.5 py-1.5 glass rounded-lg hover:bg-white/10 transition-colors disabled:opacity-50 border border-accent/30"
+                title="Créer un compte ou se connecter pour sauvegarder et synchroniser"
               >
                 {isSigningIn ? (
                   <Loader2 className="w-3.5 h-3.5 animate-spin text-accent" />
@@ -2273,7 +2318,7 @@ const App: React.FC = () => {
                   <CloudOff className="w-3.5 h-3.5 text-[#18181B]/60 dark:text-[#E6E8E6]/60" />
                 )}
                 <span className="text-[9px] font-bold text-[#18181B]/60 dark:text-[#E6E8E6]/60">
-                  {isSigningIn ? 'Connexion...' : 'Sync'}
+                  {isSigningIn ? 'Connexion...' : 'Se connecter'}
                 </span>
               </button>
             )}
@@ -3112,7 +3157,7 @@ const App: React.FC = () => {
                   <button onClick={handleSignOut} className="shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#DF2935]/10 text-[#DF2935] text-[10px] font-black uppercase tracking-widest hover:bg-[#DF2935]/20 transition-all"><LogOut size={14} /> Déconnexion</button>
                 </div>
               ) : (
-                <button onClick={signInWithGoogle} className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-[#18181B] dark:bg-[#E6E8E6] text-white dark:text-[#080708] text-[10px] font-black uppercase tracking-widest"><User size={14} /> Se connecter avec Google</button>
+                <button onClick={() => setShowAuth(true)} className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-accent text-white text-[10px] font-black uppercase tracking-widest"><User size={14} /> Créer un compte ou se connecter</button>
               )}
             </div>
 
