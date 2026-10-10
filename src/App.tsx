@@ -110,6 +110,14 @@ const App: React.FC = () => {
   // Inbox Local State
   const [newInboxTitle, setNewInboxTitle] = useState("");
   const [transferTask, setTransferTask] = useState<Task | null>(null);
+  // Fenêtre « Déployer la tâche » : quand, dans quel bloc, ou nouveau bloc
+  type DeployWhen = 'today' | 'tomorrow' | 'date' | 'daily' | 'weekdays' | 'weekends' | 'week' | 'month' | 'period';
+  const [deployWhen, setDeployWhen] = useState<DeployWhen>('today');
+  const [deployDate, setDeployDate] = useState('');
+  const [deployStart, setDeployStart] = useState('');
+  const [deployEnd, setDeployEnd] = useState('');
+  const [deployBlockId, setDeployBlockId] = useState<string | null>(null);
+  const [deployNewBlock, setDeployNewBlock] = useState<string | null>(null); // null = pas de création en cours
 
   // Reschedule State
   const [rescheduleModal, setRescheduleModal] = useState<{ task: Task, blockId: string, parentTaskId?: string } | null>(null);
@@ -155,6 +163,7 @@ const App: React.FC = () => {
   const configSize = useResizableWidth('caddr_config_width', 384);
   const logSize = useResizableWidth('caddr_log_width', 384);
   const logEditor = useResizableHeight('caddr_log_editor_height', 200);
+  const deploySize = useResizableWidth('caddr_deploy_width', 448);
   // Fenêtre « Sauter aujourd'hui » (remplace le prompt natif du navigateur)
   const [skipModal, setSkipModal] = useState<{ taskId: string, taskTitle: string } | null>(null);
   const [skipReason, setSkipReason] = useState('');
@@ -1548,15 +1557,118 @@ const App: React.FC = () => {
     setNewInboxTitle("");
   };
 
-  const deployInboxTask = (blockId: string) => {
+  // Ouverture de la fenêtre : on pré-remplit avec la date déjà saisie dans la Boîte
+  const openDeploy = (task: Task) => {
+    const todayK = getKeyFromDate(new Date());
+    setTransferTask(task);
+    setDeployWhen(task.specificDate ? (task.specificDate === todayK ? 'today' : 'date') : 'today');
+    setDeployDate(task.specificDate || todayK);
+    setDeployStart(todayK);
+    setDeployEnd(todayK);
+    setDeployBlockId(null);
+    setDeployNewBlock(null);
+  };
+
+  const closeDeploy = () => { setTransferTask(null); setDeployNewBlock(null); setDeployBlockId(null); };
+
+  // Jour visé quand la tâche est pour un seul jour (sinon null = récurrente)
+  const deploySingleDay = (): string | null => {
+    const now = new Date();
+    if (deployWhen === 'today') return getKeyFromDate(now);
+    if (deployWhen === 'tomorrow') { const t = new Date(now); t.setDate(now.getDate() + 1); return getKeyFromDate(t); }
+    if (deployWhen === 'date') return deployDate || null;
+    return null;
+  };
+
+  // Champs de récurrence à donner à la tâche (et au nouveau bloc éventuel)
+  const deployRecurrenceFields = (): Partial<Task> => {
+    const day = deploySingleDay();
+    if (day) return { recurrence: 'specific', specificDate: day, startDate: undefined, endDate: undefined, stopDate: undefined };
+    const now = new Date();
+    if (deployWhen === 'week') {
+      const offset = (now.getDay() + 6) % 7;
+      const st = new Date(now); st.setDate(now.getDate() - offset);
+      const en = new Date(st); en.setDate(st.getDate() + 6);
+      return { recurrence: 'week', startDate: getKeyFromDate(st), endDate: getKeyFromDate(en), specificDate: undefined, stopDate: undefined };
+    }
+    if (deployWhen === 'month') {
+      return { recurrence: 'month', startDate: getKeyFromDate(new Date(now.getFullYear(), now.getMonth(), 1)), endDate: getKeyFromDate(new Date(now.getFullYear(), now.getMonth() + 1, 0)), specificDate: undefined, stopDate: undefined };
+    }
+    if (deployWhen === 'period') {
+      const a = deployStart || getKeyFromDate(now); const b = deployEnd && deployEnd >= a ? deployEnd : a;
+      return { recurrence: 'period', startDate: a, endDate: b, specificDate: undefined, stopDate: undefined };
+    }
+    return { recurrence: deployWhen as RecurrenceType, specificDate: undefined, startDate: undefined, endDate: undefined, stopDate: undefined };
+  };
+
+  // Blocs proposés : pour un jour précis, ceux qui existent ce jour-là (y compris
+  // les blocs exceptionnels de ce jour) ; pour une récurrence, les blocs du plan.
+  const deployBlockOptions = (): Block[] => {
+    const day = deploySingleDay();
+    if (!day) return appData.blocks.filter(b => !['specific', 'once'].includes(b.recurrence));
+    const d = new Date(day + 'T12:00:00');
+    const frozen = appData.days[day]?.blocks;
+    if (frozen) return frozen.filter(b => isDateInRange(d, b.recurrence, b.specificDate, b.startDate, b.endDate, b.stopDate));
+    return appData.blocks.filter(b => isDateInRange(d, b.recurrence, b.specificDate, b.startDate, b.endDate, b.stopDate));
+  };
+
+  const describeDeploy = (): string => {
+    const day = deploySingleDay();
+    if (day) return `Le ${formatDayLabel(day)} uniquement`;
+    const txt = describeRecurrence(deployRecurrenceFields()).replace(/^Visible\s*/, '');
+    return txt.charAt(0).toUpperCase() + txt.slice(1);
+  };
+
+  const deployInboxTask = () => {
     if (!transferTask) return;
-    saveToHistory(); // Save before deploy
-    updateAppData(prev => ({
-      ...prev,
-      blocks: prev.blocks.map(b => b.id === blockId ? { ...b, tasks: [...b.tasks, transferTask] } : b),
-      inboxTasks: (prev.inboxTasks || []).filter(t => t.id !== transferTask.id)
-    }));
-    setTransferTask(null);
+    const newName = deployNewBlock?.trim();
+    if (!deployBlockId && !newName) return;
+    saveToHistory();
+    const fields = deployRecurrenceFields();
+    const task: Task = JSON.parse(JSON.stringify({ ...transferTask, ...fields }));
+    const day = deploySingleDay();
+    const todayK = getKeyFromDate(new Date());
+    const targetTitle = newName || (appData.blocks.find(b => b.id === deployBlockId) || (day ? appData.days[day]?.blocks?.find(b => b.id === deployBlockId) : undefined))?.title || '';
+
+    updateAppData(prev => {
+      let blocks = prev.blocks;
+      const days = { ...prev.days };
+      const covers = (k: string) => isDateInRange(new Date(k + 'T12:00:00'), task.recurrence, task.specificDate, task.startDate, task.endDate, task.stopDate);
+
+      if (newName) {
+        // Nouveau bloc : pour un jour précis, il n'existe que ce jour-là ;
+        // pour une récurrence, il suit la même période que la tâche.
+        const nb: Block = { id: generateId(), title: newName, description: day ? 'Ajouté pour ce jour uniquement' : undefined, tasks: [task], recurrence: task.recurrence, specificDate: task.specificDate, startDate: task.startDate, endDate: task.endDate, isCollapsed: false };
+        blocks = [...blocks, nb];
+        Object.keys(days).forEach(k => {
+          const d = days[k];
+          if (d?.blocks && (k >= todayK || k === day) && covers(k)) days[k] = { ...d, blocks: [...d.blocks, JSON.parse(JSON.stringify(nb))] };
+        });
+      } else {
+        const bid = deployBlockId!;
+        const inPlan = blocks.some(b => b.id === bid);
+        const src = blocks.find(b => b.id === bid) || (day ? days[day]?.blocks?.find(b => b.id === bid) : undefined);
+        if (inPlan) blocks = blocks.map(b => b.id === bid ? { ...b, tasks: [...b.tasks, task] } : b);
+        // Jours déjà « figés » couverts : on y ajoute aussi la tâche, sinon elle
+        // resterait invisible dans l'onglet Routine (c'était le bug).
+        Object.keys(days).forEach(k => {
+          const d = days[k];
+          if (!d?.blocks || (k < todayK && k !== day) || !covers(k)) return;
+          if (d.blocks.some(b => b.id === bid)) {
+            days[k] = { ...d, blocks: d.blocks.map(b => b.id === bid && !b.tasks.some(t => t.id === task.id) ? { ...b, tasks: [...b.tasks, JSON.parse(JSON.stringify(task))] } : b) };
+          } else if (src && inPlan) {
+            const { tasks: _t, ...rest } = JSON.parse(JSON.stringify(src));
+            days[k] = { ...d, blocks: [...d.blocks, { ...rest, tasks: [JSON.parse(JSON.stringify(task))] }] };
+          }
+        });
+      }
+      return { ...prev, blocks, days, inboxTasks: (prev.inboxTasks || []).filter(t => t.id !== transferTask.id) };
+    });
+
+    const when = day ? (day === todayK ? "aujourd'hui" : `le ${formatDayLabel(day)}`) : 'selon la récurrence choisie';
+    setActiveNotification(`« ${transferTask.title} » ajoutée ${when}${targetTitle ? ` dans ${targetTitle}` : ''}.`);
+    setTimeout(() => setActiveNotification(null), 4000);
+    closeDeploy();
   };
 
   // --- ANALYTICS ---
@@ -1830,16 +1942,17 @@ const App: React.FC = () => {
 
   // Échap ferme d'abord la fenêtre « Sauter », sinon l'onglet Configuration
   useEffect(() => {
-    if (!configModal && !skipModal && !logModal) return;
+    if (!configModal && !skipModal && !logModal && !transferTask) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
+      if (transferTask) { setTransferTask(null); return; }
       if (skipModal) setSkipModal(null);
       else if (logModal) { setLogModal(null); setCurrentLogText(""); }
       else setConfigModal(null);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [configModal, skipModal, logModal]);
+  }, [configModal, skipModal, logModal, transferTask]);
 
   // Récurrence : appliquée en une seule mise à jour au plan global ET à toutes les
   // copies « figées » des jours à partir d'aujourd'hui (l'app fige un jour dès qu'on
@@ -2704,7 +2817,7 @@ const App: React.FC = () => {
             <InboxView
               items={appData.inboxTasks || []}
               onChange={(newItems) => updateAppData(prev => ({ ...prev, inboxTasks: newItems }))}
-              onTransfer={(task) => setTransferTask(task)}
+              onTransfer={(task) => openDeploy(task)}
               saveToHistory={saveToHistory}
             />
           </div>
@@ -3707,34 +3820,107 @@ const App: React.FC = () => {
         </div>
       )}
 
-      {transferTask && (
-        <div className="fixed inset-0 z-[120] bg-[#F4F4F5]/95 dark:bg-[#080708]/95 backdrop-blur-3xl flex items-center justify-center p-6 animate-in fade-in">
-           <div className="glass w-full max-sm p-10 rounded-[3.5rem] space-y-6">
+      {transferTask && (() => {
+        const options = deployBlockOptions();
+        const chip = (on: boolean) => `py-3 px-2 rounded-xl text-[9px] font-black uppercase tracking-wider border transition-all ${on ? 'bg-accent text-white border-accent shadow-lg shadow-accent/20' : 'bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 border-transparent text-[#18181B] dark:text-[#E6E8E6] hover:bg-accent/20'}`;
+        const dateCls = "w-full bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 p-3 rounded-xl text-sm font-bold border border-[#18181B]/10 dark:border-[#E6E8E6]/10 outline-none focus:border-accent transition-all text-[#18181B] dark:text-[#E6E8E6] [color-scheme:dark]";
+        const canDeploy = !!deployBlockId || !!deployNewBlock?.trim();
+        return (
+        <div className="fixed inset-0 z-[120] bg-[#F4F4F5]/95 dark:bg-[#080708]/95 backdrop-blur-3xl flex items-center justify-center p-4 sm:p-6 animate-in fade-in" onMouseDown={(e) => { if (e.target === e.currentTarget) closeDeploy(); }}>
+           <div className="glass relative w-full rounded-[3rem] max-h-[92vh] flex flex-col" style={{ maxWidth: deploySize.width }}>
+              <SideResizeHandles onStart={deploySize.startResize} onReset={deploySize.reset} />
+              <button onClick={closeDeploy} title="Fermer (Échap)" aria-label="Fermer" className="absolute z-20 top-7 right-7 w-7 h-7 rounded-full flex items-center justify-center bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:bg-accent hover:text-white transition-all"><X size={14} strokeWidth={3} /></button>
+              <div className="p-8 sm:p-10 space-y-6 overflow-y-auto custom-scrollbar">
               <div className="text-center space-y-2">
-                 <div className="w-16 h-16 bg-accent/10 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                    <Send className="text-accent" size={24} />
+                 <div className="w-14 h-14 bg-accent/10 rounded-2xl flex items-center justify-center mx-auto mb-3">
+                    <Send className="text-accent" size={22} />
                  </div>
                  <h3 className="text-xl font-black uppercase text-[#18181B] dark:text-[#E6E8E6]">Déployer la tâche</h3>
                  <p className="text-[10px] text-[#18181B]/60 dark:text-[#E6E8E6]/60 font-bold uppercase tracking-widest italic px-4">"{transferTask.title}"</p>
               </div>
-              <div className="space-y-2 max-h-60 overflow-y-auto custom-scrollbar pr-2">
-                 <p className="text-[8px] font-black text-[#18181B]/60 dark:text-[#E6E8E6]/60 uppercase px-2">Choisir un bloc de routine</p>
-                 {appData.blocks.map(block => (
-                   <button 
-                     key={block.id}
-                     onClick={() => deployInboxTask(block.id)}
-                     className="w-full flex items-center gap-3 p-4 bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 hover:bg-accent/20 rounded-2xl border border-transparent hover:border-accent/50 transition-all text-left"
-                   >
-                      <Circle size={8} className="text-accent fill-accent" />
-                      <span className="font-heading text-xs font-black uppercase tracking-wider text-[#18181B] dark:text-[#E6E8E6]">{block.title}</span>
-                   </button>
-                 ))}
-                 {appData.blocks.length === 0 && <p className="text-[10px] text-[#18181B]/60 dark:text-[#E6E8E6]/60 italic text-center py-4">Aucun bloc configuré dans le planning.</p>}
+
+              {/* 1. QUAND */}
+              <div className="space-y-2">
+                 <p className="text-[8px] font-black text-[#18181B]/60 dark:text-[#E6E8E6]/60 uppercase px-2">1. Quand ?</p>
+                 <p className="text-[8px] font-bold text-[#18181B]/40 dark:text-[#E6E8E6]/40 uppercase px-2 pt-1">Un seul jour</p>
+                 <div className="grid grid-cols-3 gap-2">
+                   {([['today', "Aujourd'hui"], ['tomorrow', 'Demain'], ['date', 'Jour précis']] as const).map(([id, label]) => (
+                     <button key={id} type="button" onClick={() => { setDeployWhen(id); setDeployBlockId(null); }} className={chip(deployWhen === id)}>{label}</button>
+                   ))}
+                 </div>
+                 {deployWhen === 'date' && (
+                   <input type="date" aria-label="Jour de la tâche" className={dateCls} value={deployDate} onChange={(e) => { setDeployDate(e.target.value); setDeployBlockId(null); }} />
+                 )}
+                 <p className="text-[8px] font-bold text-[#18181B]/40 dark:text-[#E6E8E6]/40 uppercase px-2 pt-2">Plusieurs jours</p>
+                 <div className="grid grid-cols-3 gap-2">
+                   {([['daily', 'Tous les jours'], ['weekdays', 'Lun – Ven'], ['weekends', 'Week-end'], ['week', 'Cette semaine'], ['month', 'Ce mois'], ['period', 'Période']] as const).map(([id, label]) => (
+                     <button key={id} type="button" onClick={() => { setDeployWhen(id); setDeployBlockId(null); }} className={chip(deployWhen === id)}>{label}</button>
+                   ))}
+                 </div>
+                 {deployWhen === 'period' && (
+                   <div className="grid grid-cols-2 gap-2">
+                     <div><p className="text-[8px] font-black text-[#18181B]/60 dark:text-[#E6E8E6]/60 uppercase px-2 mb-1">Début</p><input type="date" className={dateCls} value={deployStart} onChange={(e) => setDeployStart(e.target.value)} /></div>
+                     <div><p className="text-[8px] font-black text-[#18181B]/60 dark:text-[#E6E8E6]/60 uppercase px-2 mb-1">Fin</p><input type="date" min={deployStart} className={dateCls} value={deployEnd} onChange={(e) => setDeployEnd(e.target.value)} /></div>
+                   </div>
+                 )}
+                 <p className="text-[10px] font-bold text-accent px-2">{describeDeploy()}</p>
               </div>
-              <button onClick={() => setTransferTask(null)} className="w-full py-4 text-[#18181B]/60 dark:text-[#E6E8E6]/60 font-black uppercase text-[10px] tracking-widest">Annuler</button>
+
+              {/* 2. OÙ */}
+              <div className="space-y-2">
+                 <p className="text-[8px] font-black text-[#18181B]/60 dark:text-[#E6E8E6]/60 uppercase px-2">2. Dans quel bloc ?</p>
+                 {options.map(block => {
+                   const on = deployBlockId === block.id && deployNewBlock === null;
+                   return (
+                     <button
+                       key={block.id}
+                       type="button"
+                       onClick={() => { setDeployBlockId(block.id); setDeployNewBlock(null); }}
+                       className={`w-full flex items-center gap-3 p-4 rounded-2xl border transition-all text-left ${on ? 'bg-accent/15 border-accent' : 'bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 border-transparent hover:border-accent/50'}`}
+                     >
+                        {on ? <Check size={12} className="text-accent" strokeWidth={3} /> : <Circle size={8} className="text-accent fill-accent" />}
+                        <span className="font-heading text-xs font-black uppercase tracking-wider text-[#18181B] dark:text-[#E6E8E6]">{block.title}</span>
+                        {block.recurrence === 'specific' && <span className="ml-auto text-[8px] font-black uppercase text-[#FDCA40]">Ce jour</span>}
+                     </button>
+                   );
+                 })}
+                 {options.length === 0 && <p className="text-[10px] text-[#18181B]/60 dark:text-[#E6E8E6]/60 italic text-center py-2">Aucun bloc prévu {deploySingleDay() ? 'ce jour-là' : 'dans le planning'}. Créez-en un ci-dessous.</p>}
+
+                 {deployNewBlock === null ? (
+                   <button type="button" onClick={() => { setDeployNewBlock(''); setDeployBlockId(null); }} className="w-full flex items-center justify-center gap-2 p-4 rounded-2xl border border-dashed border-accent/40 text-accent text-[10px] font-black uppercase tracking-wider hover:bg-accent/10 transition-all">
+                     <Plus size={14} /> {deploySingleDay() ? 'Nouveau bloc pour ce jour' : 'Nouveau bloc'}
+                   </button>
+                 ) : (
+                   <div className="flex items-center gap-2 p-2 rounded-2xl border border-accent bg-accent/10">
+                     <input
+                       autoFocus
+                       placeholder="Nom du nouveau bloc…"
+                       className="flex-1 min-w-0 bg-transparent px-2 py-2 text-sm font-bold outline-none text-[#18181B] dark:text-[#E6E8E6] placeholder-[#18181B]/30 dark:placeholder-[#E6E8E6]/30"
+                       value={deployNewBlock}
+                       onChange={(e) => setDeployNewBlock(e.target.value)}
+                       onKeyDown={(e) => { if (e.key === 'Enter' && deployNewBlock.trim()) deployInboxTask(); if (e.key === 'Escape') { e.stopPropagation(); setDeployNewBlock(null); } }}
+                     />
+                     <button type="button" onClick={() => setDeployNewBlock(null)} aria-label="Annuler la création" className="p-2 text-[#18181B]/50 dark:text-[#E6E8E6]/50 hover:text-[#DF2935]"><X size={14} /></button>
+                   </div>
+                 )}
+              </div>
+
+              <div className="flex gap-3 pt-1">
+                <button
+                  type="button"
+                  disabled={!canDeploy}
+                  onClick={deployInboxTask}
+                  className={`flex-1 py-4 rounded-[2rem] text-[10px] font-black uppercase tracking-widest transition-all ${canDeploy ? 'bg-accent text-white shadow-lg shadow-accent/20 active:scale-95' : 'bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 text-[#18181B]/30 dark:text-[#E6E8E6]/30 cursor-not-allowed'}`}
+                >
+                  Déployer
+                </button>
+                <button type="button" onClick={closeDeploy} className="flex-1 py-4 text-[#18181B]/60 dark:text-[#E6E8E6]/60 font-black uppercase text-[10px] tracking-widest">Annuler</button>
+              </div>
+              </div>
            </div>
         </div>
-      )}
+        );
+      })()}
 
       {showReviewModal && (
         <div className="fixed inset-0 z-[100] bg-[#F4F4F5]/95 dark:bg-[#080708]/95 backdrop-blur-3xl flex items-center justify-center p-6 animate-in fade-in duration-300">
