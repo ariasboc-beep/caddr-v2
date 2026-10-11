@@ -1,4 +1,5 @@
 
+import { Logo } from './components/Logo';
 import { HiddenSectionsContext, ANALYTICS_SECTIONS } from './components/Section';
 import { brandColor } from './palette';
 import { perfColor, perfStyle } from './perfScale';
@@ -3708,7 +3709,7 @@ const App: React.FC = () => {
       {navPosition === 'left' && (
         <aside className={`hidden md:flex fixed left-0 top-0 bottom-0 z-50 flex-col bg-[#F4F4F5]/90 dark:bg-[#080708]/90 backdrop-blur-3xl border-r border-[#18181B]/5 dark:border-[#E6E8E6]/5 py-6 transition-all duration-300 ${navCollapsed ? 'w-20 px-2' : 'w-52 px-4'}`}>
           <div className={`flex items-center mb-8 ${navCollapsed ? 'justify-center' : 'justify-between px-2'}`}>
-            {!navCollapsed && <span className="font-heading font-black text-lg text-[#18181B] dark:text-[#E6E8E6]">Caddr.</span>}
+            {navCollapsed ? null : <span className="flex items-center gap-2"><Logo size={30} /><span className="font-heading font-black text-lg text-[#18181B] dark:text-[#E6E8E6]">Caddr<span className="text-[#FDCA40]">.</span></span></span>}
             <button
               onClick={() => updateAppData(prev => ({ ...prev, settings: { ...(prev.settings || {}), navCollapsed: !navCollapsed } }))}
               className="p-2 rounded-xl text-[#18181B]/50 dark:text-[#E6E8E6]/50 hover:text-accent hover:bg-[#18181B]/5 dark:hover:bg-[#E6E8E6]/5 transition-all"

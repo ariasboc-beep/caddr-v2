@@ -1,4 +1,5 @@
 import React from 'react';
+import { Logo } from './Logo';
 import { TrendingUp, Flame, CalendarCheck } from 'lucide-react';
 import AuthPanel from './AuthPanel';
 
@@ -15,10 +16,8 @@ const LandingPage: React.FC<Props> = ({ onGoogle, onGuest, isSigningIn, error })
       <div className="w-full max-w-md space-y-7 animate-in fade-in slide-in-from-bottom-4 duration-700">
         {/* Logo / titre */}
         <div className="text-center space-y-3">
-          <div className="w-16 h-16 rounded-3xl bg-accent flex items-center justify-center mx-auto shadow-2xl shadow-accent/30">
-            <span className="text-white text-2xl font-black">C.</span>
-          </div>
-          <h1 className="text-4xl font-black tracking-tight">Caddr.</h1>
+          <Logo size={72} className="mx-auto rounded-[1.4rem] shadow-2xl shadow-accent/25" />
+          <h1 className="text-4xl font-black tracking-tight">Caddr<span className="text-[#FDCA40]">.</span></h1>
           <p className="text-sm font-bold text-[#18181B]/60 dark:text-[#E6E8E6]/60">
             Votre discipline quotidienne, mesurée et tenue.
           </p>
