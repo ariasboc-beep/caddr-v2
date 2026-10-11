@@ -14,6 +14,7 @@ import { activeHabits, habitStats as standaloneStats, stateOn as standaloneState
 import YearHeatmap from './YearHeatmap';
 import DeepStats from './DeepStats';
 import { Microscope } from 'lucide-react';
+import { perfColor, perfStyle, perfLevel, PERF_LEGEND } from '../perfScale';
 
 import { Section } from './Section';
 export { Section };
@@ -36,21 +37,31 @@ const Delta: React.FC<{ now: number | null; prev: number | null; label?: string 
   );
 };
 
-const Tile: React.FC<{ label: string; value: React.ReactNode; foot?: React.ReactNode; icon: React.ReactNode }> = ({ label, value, foot, icon }) => (
+const Tile: React.FC<{ label: string; value: React.ReactNode; foot?: React.ReactNode; icon: React.ReactNode; rate?: number | null }> = ({ label, value, foot, icon, rate }) => (
   <div className="rounded-2xl bg-[#18181B]/[0.03] dark:bg-[#E6E8E6]/[0.03] border border-[#18181B]/5 dark:border-[#E6E8E6]/5 p-4 flex flex-col gap-1.5 min-w-0">
     <span className={`flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest ${muted}`}>{icon}{label}</span>
-    <span className={`text-2xl font-black leading-none ${ink}`}>{value}</span>
+    <span className={`text-2xl font-black leading-none ${ink}`} style={perfStyle(rate)}>{value}{rate !== undefined && perfLevel(rate) && <span className="ml-1.5 align-middle text-[9px] font-black uppercase tracking-wider">{perfLevel(rate)!.label}</span>}</span>
     {foot && <span className="text-[10px] font-bold min-h-[14px]">{foot}</span>}
   </div>
 );
 
-// Intensité d'une case (une seule teinte : l'accent, du clair au plein)
-const cellStyle = (rate: number | null, accent: string): React.CSSProperties => {
+// Couleur d'une case : même échelle que les chiffres (rouge → orange → vert clair → vert)
+const cellStyle = (rate: number | null, _accent?: string): React.CSSProperties => {
   if (rate === null) return {};
-  if (rate === 0) return { backgroundColor: 'transparent', boxShadow: `inset 0 0 0 1.5px ${accent}55` };
-  const a = rate >= 100 ? 1 : rate >= 75 ? 0.75 : rate >= 50 ? 0.5 : 0.28;
-  return { backgroundColor: accent, opacity: a };
+  if (rate === 0) return { backgroundColor: 'transparent', boxShadow: `inset 0 0 0 1.5px ${perfColor(0)}` };
+  return { backgroundColor: perfColor(rate) };
 };
+
+// Légende des couleurs, commune à tout l'onglet
+const PerfLegend: React.FC<{ className?: string }> = ({ className = '' }) => (
+  <div className={`flex flex-wrap items-center gap-x-3 gap-y-1 text-[9px] font-bold ${muted} ${className}`}>
+    {PERF_LEGEND.map(l => <span key={l.name} className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: l.color }} /><span style={{ color: l.color }} className="font-black">{l.name}</span> {l.label}</span>)}
+  </div>
+);
+
+// Pourcentage coloré selon l'échelle
+const Pct: React.FC<{ v: number | null | undefined; className?: string }> = ({ v, className = '' }) =>
+  <span className={`font-black ${className}`} style={perfStyle(v)}>{v === null || v === undefined ? '—' : `${v} %`}</span>;
 
 const fmtDay = (k: string, o: Intl.DateTimeFormatOptions = { weekday: 'short', day: 'numeric', month: 'short' }) =>
   new Date(k + 'T12:00:00').toLocaleDateString('fr-FR', o).replace(/\.$/, '');
@@ -160,11 +171,11 @@ const Analytics: React.FC<Props> = ({ appData, accentHex, onToggleHabit, onDownl
 
   const stripLegend = (
     <div className={`flex flex-wrap items-center gap-x-3 gap-y-1 text-[9px] font-bold ${muted}`}>
-      <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-[3px]" style={cellStyle(0, accentHex)} /> 0 %</span>
-      <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-[3px]" style={cellStyle(40, accentHex)} /> 1–49 %</span>
-      <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-[3px]" style={cellStyle(60, accentHex)} /> 50–74 %</span>
-      <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-[3px]" style={cellStyle(80, accentHex)} /> 75–99 %</span>
-      <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-[3px]" style={cellStyle(100, accentHex)} /> 100 %</span>
+      <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-[3px]" style={cellStyle(0)} /> 0 %</span>
+      <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-[3px]" style={cellStyle(20)} /> 1–39 %</span>
+      <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-[3px]" style={cellStyle(50)} /> 40–59 %</span>
+      <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-[3px]" style={cellStyle(70)} /> 60–79 %</span>
+      <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-[3px]" style={cellStyle(90)} /> 80–100 %</span>
       <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-[3px] bg-[#18181B]/[0.06] dark:bg-[#E6E8E6]/[0.06]" /> Pas prévu</span>
     </div>
   );
@@ -219,7 +230,7 @@ const Analytics: React.FC<Props> = ({ appData, accentHex, onToggleHabit, onDownl
       {/* 1. Résumé */}
       <Section id="summary" title="Résumé" icon={<Target size={16} />} subtitle={period.label}>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          <Tile icon={<TrendingUp size={11} />} label="Taux de réalisation" value={avg === null ? '—' : `${avg} %`} foot={<Delta now={avg} prev={prev.rate} label={prevLabel} />} />
+          <Tile icon={<TrendingUp size={11} />} label="Taux de réalisation" rate={avg} value={avg === null ? '—' : `${avg} %`} foot={<Delta now={avg} prev={prev.rate} label={prevLabel} />} />
           <Tile icon={<ListChecks size={11} />} label="Tâches faites" value={<>{stats.done}<span className={`text-base ${faint}`}> / {stats.total}</span></>}
             foot={<span className={muted}>{stats.total - stats.done > 0 ? `${stats.total - stats.done} non faite${stats.total - stats.done > 1 ? 's' : ''}` : stats.total ? 'Tout est fait' : 'Rien de prévu'}</span>} />
           {day ? (
@@ -231,6 +242,7 @@ const Analytics: React.FC<Props> = ({ appData, accentHex, onToggleHabit, onDownl
           )}
           <Tile icon={<Flame size={11} />} label="Série en cours" value={`${streak.current} j`} foot={<span className={muted}>Record : {streak.best} j de suite à 100 %</span>} />
         </div>
+        <PerfLegend className="mt-3" />
       </Section>
 
       {/* Objectif prioritaire */}
@@ -242,7 +254,7 @@ const Analytics: React.FC<Props> = ({ appData, accentHex, onToggleHabit, onDownl
             {tf !== 'day' && (
               <div className="grid grid-cols-3 gap-3">
                 <Tile icon={<Check size={11} />} label="Atteint" value={<>{objective.done}<span className={`text-base ${faint}`}> / {objective.defined}</span></>} foot={<span className={muted}>jours avec un objectif</span>} />
-                <Tile icon={<TrendingUp size={11} />} label="Taux" value={objective.rate === null ? '—' : `${objective.rate} %`} foot={<span className={muted}>des objectifs atteints</span>} />
+                <Tile icon={<TrendingUp size={11} />} label="Taux" rate={objective.rate} value={objective.rate === null ? '—' : `${objective.rate} %`} foot={<span className={muted}>des objectifs atteints</span>} />
                 <Tile icon={<Flame size={11} />} label="Série" value={`${objective.current} j`} foot={<span className={muted}>Record : {objective.best} j</span>} />
               </div>
             )}
@@ -258,8 +270,8 @@ const Analytics: React.FC<Props> = ({ appData, accentHex, onToggleHabit, onDownl
                       return (
                         <div key={k} className="flex items-center gap-3">
                           <span className={`w-28 shrink-0 text-[11px] font-bold ${ink}`}>{fmtDay(k + '-01', { month: 'long', year: 'numeric' })}</span>
-                          <div className="flex-1 h-2 rounded-full bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 overflow-hidden"><div className="h-full rounded-full bg-accent" style={{ width: `${r}%` }} /></div>
-                          <span className={`w-20 shrink-0 text-right text-[11px] font-black ${ink}`}>{v.done}/{v.total} · {r} %</span>
+                          <div className="flex-1 h-2 rounded-full bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 overflow-hidden"><div className="h-full rounded-full" style={{ width: `${r}%`, backgroundColor: perfColor(r) }} /></div>
+                          <span className={`w-20 shrink-0 text-right text-[11px] font-black ${ink}`}>{v.done}/{v.total} · <Pct v={r} /></span>
                         </div>
                       );
                     })}
@@ -287,7 +299,7 @@ const Analytics: React.FC<Props> = ({ appData, accentHex, onToggleHabit, onDownl
       {tf !== 'day' && (
         <Section id="consistency" title={`Constance par ${unit}`} icon={<CalendarDays size={16} />}
           subtitle="Part des tâches prévues que tu as faites"
-          action={avg !== null ? <span className={`hidden sm:flex items-center gap-2 text-[10px] font-bold ${muted}`}><span className="w-5 border-t-2 border-dashed" style={{ borderColor: accentHex }} /> Moyenne {avg} %</span> : undefined}>
+          action={avg !== null ? <span className={`hidden sm:flex items-center gap-2 text-[10px] font-bold ${muted}`}><span className="w-5 border-t-2 border-dashed" style={{ borderColor: accentHex }} /> Moyenne <Pct v={avg} /></span> : undefined}>
           {withData.length === 0 ? (
             <p className={`text-xs font-medium py-10 text-center ${muted}`}>Aucune tâche prévue sur cette période.</p>
           ) : (
@@ -312,7 +324,7 @@ const Analytics: React.FC<Props> = ({ appData, accentHex, onToggleHabit, onDownl
                             {b.future ? <p className={`text-xs font-bold ${ink}`}>À venir</p>
                               : b.rate === null ? <p className={`text-xs font-bold ${ink}`}>Aucune tâche prévue</p>
                               : <>
-                                  <p className={`text-base font-black ${ink}`}>{b.rate} %</p>
+                                  <p className="text-base font-black" style={perfStyle(b.rate)}>{b.rate} % · {perfLevel(b.rate)?.label}</p>
                                   <p className={`text-[11px] font-bold ${muted}`}>{b.done} tâche{b.done > 1 ? 's' : ''} faite{b.done > 1 ? 's' : ''} sur {b.total}</p>
                                   {b.perfect && <p className="text-[11px] font-bold text-accent">★ Journée parfaite</p>}
                                   {b.days > 1 && <p className={`text-[11px] font-bold ${muted}`}>{b.days} jours avec des tâches</p>}
@@ -322,16 +334,17 @@ const Analytics: React.FC<Props> = ({ appData, accentHex, onToggleHabit, onDownl
                       }}
                     />
                     <Bar dataKey="value" radius={[4, 4, 0, 0]} maxBarSize={34} isAnimationActive={false}>
-                      {buckets.map(b => <Cell key={b.key} fill={b.rate === 0 ? '#DF2935' : accentHex} fillOpacity={b.rate === 0 ? 0.8 : b.perfect ? 1 : 0.7} />)}
+                      {buckets.map(b => <Cell key={b.key} fill={perfColor(b.rate) || accentHex} fillOpacity={b.perfect || b.rate === 100 ? 1 : 0.85} />)}
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>
               </div>
               <div className={`mt-3 flex flex-wrap gap-x-5 gap-y-1.5 text-[10px] font-bold ${muted}`}>
-                {best && <span>Meilleur {unit} : <span className={ink}>{best.sub}</span> · {best.rate} %</span>}
-                {worst && worst.key !== best?.key && <span>Plus faible : <span className={ink}>{worst.sub}</span> · {worst.rate} %</span>}
-                <span className={faint}>Pas de barre = rien de prévu ou à venir · trait rouge = 0 % · barre la plus vive = journée à 100 %.</span>
+                {best && <span>Meilleur {unit} : <span className={ink}>{best.sub}</span> · <Pct v={best.rate} /></span>}
+                {worst && worst.key !== best?.key && <span>Plus faible : <span className={ink}>{worst.sub}</span> · <Pct v={worst.rate} /></span>}
+                <span className={faint}>Pas de barre = rien de prévu ou à venir · la couleur de chaque barre suit l'échelle ci-dessous.</span>
               </div>
+              <PerfLegend className="mt-2" />
             </>
           )}
         </Section>
@@ -349,9 +362,9 @@ const Analytics: React.FC<Props> = ({ appData, accentHex, onToggleHabit, onDownl
                   <div key={b.title} className="space-y-2">
                     <div className="flex items-baseline justify-between gap-3">
                       <span className={`text-xs font-black uppercase tracking-wider ${ink}`}>{b.title}</span>
-                      <span className={`text-sm font-black ${ink}`}>{r} % <span className={`text-[10px] font-bold ${muted}`}>· {b.done}/{b.total}</span></span>
+                      <span className="text-sm font-black"><Pct v={r} /> <span className={`text-[10px] font-bold ${muted}`}>· {b.done}/{b.total}</span></span>
                     </div>
-                    <div className="h-2 rounded-full bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 overflow-hidden"><div className="h-full rounded-full bg-accent" style={{ width: `${r}%` }} /></div>
+                    <div className="h-2 rounded-full bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 overflow-hidden"><div className="h-full rounded-full" style={{ width: `${r}%`, backgroundColor: perfColor(r) }} /></div>
                     <ul className="grid sm:grid-cols-2 gap-x-4 gap-y-1">
                       {day.tasks.filter(t => t.block === b.title).map(t => (
                         <li key={t.id} className={`flex items-center gap-2 text-[11px] font-semibold ${t.done ? ink : muted} ${t.isSub ? 'pl-4' : ''}`}>
@@ -371,8 +384,8 @@ const Analytics: React.FC<Props> = ({ appData, accentHex, onToggleHabit, onDownl
           <div className="space-y-5">
             {blocks.length > 1 && (
               <div className={`flex flex-wrap gap-x-5 gap-y-1 text-[10px] font-bold ${muted}`}>
-                <span className="flex items-center gap-1"><Trophy size={11} className="text-accent" /> Point fort : <span className={ink}>{blocks[0].title}</span> · {blocks[0].rate} %</span>
-                <span className="flex items-center gap-1"><Target size={11} /> À renforcer : <span className={ink}>{blocks[blocks.length - 1].title}</span> · {blocks[blocks.length - 1].rate} %</span>
+                <span className="flex items-center gap-1"><Trophy size={11} className="text-accent" /> Point fort : <span className={ink}>{blocks[0].title}</span> · <Pct v={blocks[0].rate} /></span>
+                <span className="flex items-center gap-1"><Target size={11} /> À renforcer : <span className={ink}>{blocks[blocks.length - 1].title}</span> · <Pct v={blocks[blocks.length - 1].rate} /></span>
               </div>
             )}
             {blocks.map(b => (
@@ -381,10 +394,10 @@ const Analytics: React.FC<Props> = ({ appData, accentHex, onToggleHabit, onDownl
                   <span className={`text-xs font-black uppercase tracking-wider truncate ${ink}`}>{b.title}</span>
                   <span className="flex items-baseline gap-2 shrink-0">
                     <Delta now={b.rate} prev={b.prevRate} />
-                    <span className={`text-sm font-black ${ink}`}>{b.rate} %</span>
+                    <Pct v={b.rate} className="text-sm" />
                   </span>
                 </div>
-                <div className="h-2 rounded-full bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 overflow-hidden"><div className="h-full rounded-full bg-accent transition-all duration-500" style={{ width: `${b.rate}%` }} /></div>
+                <div className="h-2 rounded-full bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 overflow-hidden"><div className="h-full rounded-full transition-all duration-500" style={{ width: `${b.rate}%`, backgroundColor: perfColor(b.rate) }} /></div>
                 <p className={`text-[10px] font-bold ${muted}`}>
                   {b.done} tâche{b.done > 1 ? 's' : ''} faite{b.done > 1 ? 's' : ''} sur {b.total} · bloc bouclé à 100 % <span className={ink}>{b.daysComplete} jour{b.daysComplete > 1 ? 's' : ''}</span> sur {b.daysScheduled}
                 </p>
@@ -441,7 +454,7 @@ const Analytics: React.FC<Props> = ({ appData, accentHex, onToggleHabit, onDownl
                   <div className="flex items-center gap-5 sm:gap-4 shrink-0 sm:text-right">
                     <div><p className={`text-lg font-black leading-none flex items-center gap-1 sm:justify-end ${ink}`}><Flame size={14} className={h.current ? 'text-accent' : faint} />{h.current} j</p><p className={`text-[9px] font-bold uppercase ${faint}`}>en cours</p></div>
                     <div><p className={`text-lg font-black leading-none ${ink}`}>{h.best} j</p><p className={`text-[9px] font-bold uppercase ${faint}`}>record</p></div>
-                    <div><p className={`text-lg font-black leading-none ${ink}`}>{h.rate === null ? '—' : `${h.rate} %`}</p><p className={`text-[9px] font-bold uppercase ${faint}`}>{h.done}/{h.due} {period.short}</p></div>
+                    <div><p className={`text-lg font-black leading-none ${ink}`}><Pct v={h.rate} /></p><p className={`text-[9px] font-bold uppercase ${faint}`}>{h.done}/{h.due} {period.short}</p></div>
                   </div>
                 </div>
                 {h.perDay.length <= 62 && (

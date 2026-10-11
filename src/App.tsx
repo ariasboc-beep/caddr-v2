@@ -1,4 +1,5 @@
 
+import { perfColor, perfStyle } from './perfScale';
 import React, { useState, useEffect, useMemo, useCallback, useRef, Suspense } from 'react';
 import { lazyRetry, prefetchTabs } from './lazyRetry';
 import { snapshot } from './backups';
@@ -2592,10 +2593,10 @@ const App: React.FC = () => {
                     <span className="text-[10px] font-black text-accent uppercase tracking-wider flex items-center gap-1"><Target size={12} /> Discipline · {monthDiscipline.label}</span>
                     {monthDiscipline.delta !== null && <span className={`text-[8px] font-black uppercase tracking-widest ${monthDiscipline.delta >= 0 ? 'text-[#199e70]' : 'text-[#e66767]'}`}>{monthDiscipline.delta >= 0 ? '▲' : '▼'} {Math.abs(monthDiscipline.delta)} pt{Math.abs(monthDiscipline.delta) > 1 ? 's' : ''} vs {monthDiscipline.prevLabel}</span>}
                 </div>
-                <span className="text-[8px] font-black text-[#18181B]/40 dark:text-[#E6E8E6]/40 uppercase tracking-widest whitespace-nowrap"><span className="text-[11px] text-[#18181B] dark:text-[#E6E8E6]">{monthDiscipline.total ? `${monthDiscipline.rate} %` : '—'}</span> · {monthDiscipline.done}/{monthDiscipline.total}</span>
+                <span className="text-[8px] font-black text-[#18181B]/40 dark:text-[#E6E8E6]/40 uppercase tracking-widest whitespace-nowrap"><span className="text-[11px] text-[#18181B] dark:text-[#E6E8E6]" style={monthDiscipline.total ? perfStyle(monthDiscipline.rate) : undefined}>{monthDiscipline.total ? `${monthDiscipline.rate} %` : '—'}</span> · {monthDiscipline.done}/{monthDiscipline.total}</span>
             </div>
             <div className="h-1.5 w-full bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 rounded-full overflow-hidden">
-                <div className="h-full bg-accent transition-all duration-700 ease-out" style={{ width: `${monthDiscipline.rate}%` }} />
+                <div className="h-full transition-all duration-700 ease-out" style={{ width: `${monthDiscipline.rate}%`, backgroundColor: perfColor(monthDiscipline.rate) }} />
             </div>
           </button>
         ) : (

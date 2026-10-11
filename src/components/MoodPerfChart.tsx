@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { perfColor, perfStyle } from '../perfScale';
 import { Laugh, Smile, Meh, Frown } from 'lucide-react';
 import { DayRoutine } from '../types';
 
@@ -56,7 +57,7 @@ const MoodPerfChart: React.FC<Props> = ({ days, history }) => {
                 <div className="flex justify-between text-[10px] font-black uppercase tracking-wider mb-1">
                   <span>{label}</span>
                   <span className="text-[#18181B]/50 dark:text-[#E6E8E6]/50">
-                    {avg === null ? '—' : `${avg}% · ${count}j`}
+                    {avg === null ? '—' : <><span style={perfStyle(avg)}>{avg}%</span> · {count}j</>}
                   </span>
                 </div>
                 <div className="h-2.5 rounded-full bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 overflow-hidden">

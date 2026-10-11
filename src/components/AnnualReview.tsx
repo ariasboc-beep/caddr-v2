@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { perfColor, perfStyle } from '../perfScale';
 import { Sparkles, Flame, CheckCircle2, Timer, Award } from 'lucide-react';
 import { AppData } from '../types';
 import { computeHabitStreak } from '../streaks';
@@ -36,7 +37,7 @@ const AnnualReview: React.FC<Props> = ({ appData, history }) => {
   const cards = [
     { Icon: CheckCircle2, val: data.perfectDays, label: 'Journées parfaites', color: 'text-accent', bg: 'bg-accent/10' },
     { Icon: Flame, val: `${data.bestHabit.best}j`, label: `Record : ${data.bestHabit.title}`, color: 'text-[#FDCA40]', bg: 'bg-[#FDCA40]/10' },
-    { Icon: Award, val: `${data.avg}%`, label: 'Constance moyenne', color: 'text-accent', bg: 'bg-accent/10' },
+    { Icon: Award, val: `${data.avg}%`, label: 'Constance moyenne', color: 'text-accent', bg: 'bg-accent/10', style: perfStyle(data.avg) },
     { Icon: Timer, val: `${data.focusHours}h`, label: 'Concentration', color: 'text-[#FDCA40]', bg: 'bg-[#FDCA40]/10' },
   ];
 
@@ -50,7 +51,7 @@ const AnnualReview: React.FC<Props> = ({ appData, history }) => {
         {cards.map((c, i) => (
           <div key={i} className={`p-4 rounded-2xl ${c.bg} flex flex-col gap-1`}>
             <c.Icon size={18} className={c.color} />
-            <span className="text-2xl font-black text-[#18181B] dark:text-[#E6E8E6] tabular-nums">{c.val}</span>
+            <span className="text-2xl font-black text-[#18181B] dark:text-[#E6E8E6] tabular-nums" style={(c as { style?: React.CSSProperties }).style}>{c.val}</span>
             <span className="text-[8px] font-black uppercase tracking-widest text-[#18181B]/50 dark:text-[#E6E8E6]/50 truncate">{c.label}</span>
           </div>
         ))}

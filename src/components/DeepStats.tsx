@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { perfColor, perfStyle } from '../perfScale';
 import { Scale, Clock, Timer, AlarmClock, Info } from 'lucide-react';
 import type { AppData } from '../types';
 import { weightedDiscipline, productiveHours, focusEstimates } from '../deepStats';
@@ -32,14 +33,14 @@ const DeepStats: React.FC<Props> = ({ appData, start, end, todayKey, accentHex }
       {/* Discipline pondérée */}
       <Card icon={<Scale size={12} />} title="Discipline pondérée">
         <div className="flex items-end gap-6">
-          <div><p className={`text-[10px] font-bold ${muted}`}>Taux simple</p><p className={`text-3xl font-black leading-none ${ink}`}>{w.simple ?? '—'}{w.simple !== null && <span className="text-base"> %</span>}</p></div>
-          <div><p className={`text-[10px] font-bold ${muted}`}>Pondéré</p><p className="text-3xl font-black leading-none" style={{ color: accentHex }}>{w.weighted ?? '—'}{w.weighted !== null && <span className="text-base"> %</span>}</p></div>
+          <div><p className={`text-[10px] font-bold ${muted}`}>Taux simple</p><p className={`text-3xl font-black leading-none ${ink}`} style={perfStyle(w.simple)}>{w.simple ?? '—'}{w.simple !== null && <span className="text-base"> %</span>}</p></div>
+          <div><p className={`text-[10px] font-bold ${muted}`}>Pondéré</p><p className={`text-3xl font-black leading-none ${ink}`} style={perfStyle(w.weighted)}>{w.weighted ?? '—'}{w.weighted !== null && <span className="text-base"> %</span>}</p></div>
         </div>
         {/* Deux barres pour comparer */}
         {w.simple !== null && w.weighted !== null && (
           <div className="space-y-1.5" aria-hidden="true">
             <div className="h-2 rounded-full bg-[#18181B]/[0.06] dark:bg-[#E6E8E6]/[0.06] overflow-hidden"><div className="h-full rounded-full bg-[#18181B]/40 dark:bg-[#E6E8E6]/40" style={{ width: `${w.simple}%` }} /></div>
-            <div className="h-2 rounded-full bg-[#18181B]/[0.06] dark:bg-[#E6E8E6]/[0.06] overflow-hidden"><div className="h-full rounded-full" style={{ width: `${w.weighted}%`, backgroundColor: accentHex }} /></div>
+            <div className="h-2 rounded-full bg-[#18181B]/[0.06] dark:bg-[#E6E8E6]/[0.06] overflow-hidden"><div className="h-full rounded-full" style={{ width: `${w.weighted}%`, backgroundColor: perfColor(w.weighted) }} /></div>
           </div>
         )}
         <p className={`text-[11px] font-semibold leading-relaxed ${ink}`}>
@@ -79,7 +80,7 @@ const DeepStats: React.FC<Props> = ({ appData, start, end, todayKey, accentHex }
           <p className={`text-[11px] font-semibold ${muted}`}>Donne une heure à tes tâches dans le Planning : Caddr comparera l'heure prévue et l'heure où tu les coches.</p>
         ) : (
           <>
-            <p className={`text-3xl font-black leading-none ${ink}`}>{ph.punctual} %<span className={`text-[11px] font-bold ml-2 ${muted}`}>faites dans le créneau prévu</span></p>
+            <p className={`text-3xl font-black leading-none ${ink}`}><span style={perfStyle(ph.punctual)}>{ph.punctual} %</span><span className={`text-[11px] font-bold ml-2 ${muted}`}>faites dans le créneau prévu</span></p>
             <p className={`text-[11px] font-semibold ${ink}`}>{ph.avgLate ? `Quand tu débordes, c'est en moyenne de ${fmtDur(ph.avgLate)} après la fin du créneau.` : 'Aucun débordement : bravo.'} <span className={muted}>({ph.timedCount} tâche{ph.timedCount > 1 ? 's' : ''} analysée{ph.timedCount > 1 ? 's' : ''}, 15 min de marge)</span></p>
           </>
         )}

@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { perfColor } from '../perfScale';
 import { Flame } from 'lucide-react';
 
 interface Props {
@@ -50,11 +51,8 @@ const YearHeatmap: React.FC<Props> = ({ history, streakCount, days = 365, title 
 
   const colorFor = (perf: number | null, future: boolean) => {
     if (future) return 'transparent';
-    if (perf === null || perf === 0) return 'rgba(120,120,128,0.12)';
-    if (perf < 34) return 'rgb(var(--accent-rgb) / 0.25)';
-    if (perf < 67) return 'rgb(var(--accent-rgb) / 0.55)';
-    if (perf < 100) return 'rgb(var(--accent-rgb) / 0.8)';
-    return 'var(--accent)';
+    if (perf === null) return 'rgba(120,120,128,0.12)';
+    return perfColor(perf)!;
   };
 
   return (
@@ -99,11 +97,11 @@ const YearHeatmap: React.FC<Props> = ({ history, streakCount, days = 365, title 
       </div>
 
       <div className="flex items-center justify-end gap-1 text-[9px] font-bold uppercase text-[#18181B]/40 dark:text-[#E6E8E6]/40">
-        Moins
-        {[null, 20, 50, 80, 100].map((p, i) => (
+        Faible
+        {[20, 50, 70, 90].map((p, i) => (
           <div key={i} className="w-[11px] h-[11px] rounded-[3px]" style={{ backgroundColor: colorFor(p, false) }} />
         ))}
-        Plus
+        Excellent
       </div>
     </div>
   );

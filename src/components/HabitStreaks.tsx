@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { perfColor, perfStyle } from '../perfScale';
 import { Flame, Target } from 'lucide-react';
 import { Block, Task } from '../types';
 import { computeHabitStreak } from '../streaks';
@@ -52,9 +53,9 @@ const HabitStreaks: React.FC<Props> = ({ blocks }) => {
               </div>
               <div className="mt-1 flex items-center gap-1.5">
                 <div className="w-16 h-1.5 rounded-full bg-[#18181B]/10 dark:bg-[#E6E8E6]/10 overflow-hidden">
-                  <div className="h-full rounded-full bg-accent" style={{ width: `${streak.rate30}%` }} />
+                  <div className="h-full rounded-full" style={{ width: `${streak.rate30}%`, backgroundColor: perfColor(streak.rate30) }} />
                 </div>
-                <span className="text-[9px] font-black text-accent tabular-nums w-8">{streak.rate30}%</span>
+                <span className="text-[9px] font-black tabular-nums w-8" style={perfStyle(streak.rate30)}>{streak.rate30}%</span>
               </div>
             </div>
           </div>
