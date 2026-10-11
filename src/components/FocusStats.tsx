@@ -77,7 +77,7 @@ const FocusStats: React.FC<Props> = ({ sessions }) => {
           </div>
 
           <div className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-[#18181B]/40 dark:text-[#E6E8E6]/40">
-            <Flame size={11} className="text-[#FDCA40]" /> {stats.count} session{stats.count > 1 ? 's' : ''} au total
+            <Flame size={11} className="text-accent" /> {stats.count} session{stats.count > 1 ? 's' : ''} au total
           </div>
 
           {stats.estimateRatio !== null && (

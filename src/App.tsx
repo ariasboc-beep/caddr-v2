@@ -2591,7 +2591,7 @@ const App: React.FC = () => {
             <div className="flex items-center justify-between mb-1 gap-2">
                 <div className="flex items-center gap-1.5 min-w-0">
                     <span className="text-[10px] font-black text-accent uppercase tracking-wider flex items-center gap-1"><Target size={12} /> Discipline · {monthDiscipline.label}</span>
-                    {monthDiscipline.delta !== null && <span className={`text-[8px] font-black uppercase tracking-widest ${monthDiscipline.delta >= 0 ? 'text-[#199e70]' : 'text-[#e66767]'}`}>{monthDiscipline.delta >= 0 ? '▲' : '▼'} {Math.abs(monthDiscipline.delta)} pt{Math.abs(monthDiscipline.delta) > 1 ? 's' : ''} vs {monthDiscipline.prevLabel}</span>}
+                    {monthDiscipline.delta !== null && <span className={`text-[8px] font-black uppercase tracking-widest ${monthDiscipline.delta >= 0 ? 'text-accent' : 'text-[#18181B]/45 dark:text-[#E6E8E6]/45'}`}>{monthDiscipline.delta >= 0 ? '▲' : '▼'} {Math.abs(monthDiscipline.delta)} pt{Math.abs(monthDiscipline.delta) > 1 ? 's' : ''} vs {monthDiscipline.prevLabel}</span>}
                 </div>
                 <span className="text-[8px] font-black text-[#18181B]/40 dark:text-[#E6E8E6]/40 uppercase tracking-widest whitespace-nowrap"><span className="text-[11px] text-[#18181B] dark:text-[#E6E8E6]" style={monthDiscipline.total ? perfStyle(monthDiscipline.rate) : undefined}>{monthDiscipline.total ? `${monthDiscipline.rate} %` : '—'}</span> · {monthDiscipline.done}/{monthDiscipline.total}</span>
             </div>

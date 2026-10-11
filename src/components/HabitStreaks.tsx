@@ -40,7 +40,7 @@ const HabitStreaks: React.FC<Props> = ({ blocks }) => {
         {habits.map(({ task, blockTitle, streak }) => (
           <div key={task.id} className="flex items-center gap-3 p-3 rounded-2xl bg-[#18181B]/[0.03] dark:bg-[#E6E8E6]/[0.03]">
             <div className="flex items-center gap-1.5 w-14 shrink-0">
-              <Flame size={16} className={streak.current > 0 ? 'text-[#FDCA40]' : 'text-[#18181B]/25 dark:text-[#E6E8E6]/25'} />
+              <Flame size={16} className={streak.current > 0 ? 'text-accent' : 'text-[#18181B]/25 dark:text-[#E6E8E6]/25'} />
               <span className="text-sm font-black tabular-nums text-[#18181B] dark:text-[#E6E8E6]">{streak.current}</span>
             </div>
             <div className="flex-1 min-w-0">

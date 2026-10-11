@@ -14,7 +14,7 @@ import { activeHabits, habitStats as standaloneStats, stateOn as standaloneState
 import YearHeatmap from './YearHeatmap';
 import DeepStats from './DeepStats';
 import { Microscope } from 'lucide-react';
-import { perfColor, perfStyle, perfLevel, PERF_LEGEND } from '../perfScale';
+import { perfColor, perfStyle, perfLevel, perfFill, PERF_LEGEND } from '../perfScale';
 
 import { Section } from './Section';
 export { Section };
@@ -28,7 +28,7 @@ const Delta: React.FC<{ now: number | null; prev: number | null; label?: string 
   if (now === null || prev === null) return <span className={`text-[10px] font-bold ${faint}`}>Pas de comparaison</span>;
   const d = now - prev;
   const Icon = d > 0 ? TrendingUp : d < 0 ? TrendingDown : Minus;
-  const color = d > 0 ? 'text-accent' : d < 0 ? 'text-[#DF2935]' : muted;
+  const color = d > 0 ? 'text-accent' : muted;
   return (
     <span className={`inline-flex flex-wrap items-center gap-x-1 text-[10px] font-black ${color}`} title={label}>
       <Icon size={12} /> {d > 0 ? '+' : ''}{d} pt{Math.abs(d) > 1 ? 's' : ''}
@@ -55,7 +55,7 @@ const cellStyle = (rate: number | null, _accent?: string): React.CSSProperties =
 // Légende des couleurs, commune à tout l'onglet
 const PerfLegend: React.FC<{ className?: string }> = ({ className = '' }) => (
   <div className={`flex flex-wrap items-center gap-x-3 gap-y-1 text-[9px] font-bold ${muted} ${className}`}>
-    {PERF_LEGEND.map(l => <span key={l.name} className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: l.color }} /><span style={{ color: l.color }} className="font-black">{l.name}</span> {l.label}</span>)}
+    {PERF_LEGEND.map(l => <span key={l.name} className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: l.color }} /><span className={`font-black ${ink}`}>{l.name}</span> {l.label}</span>)}
   </div>
 );
 
@@ -172,9 +172,8 @@ const Analytics: React.FC<Props> = ({ appData, accentHex, onToggleHabit, onDownl
   const stripLegend = (
     <div className={`flex flex-wrap items-center gap-x-3 gap-y-1 text-[9px] font-bold ${muted}`}>
       <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-[3px]" style={cellStyle(0)} /> 0 %</span>
-      <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-[3px]" style={cellStyle(20)} /> 1–39 %</span>
-      <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-[3px]" style={cellStyle(50)} /> 40–59 %</span>
-      <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-[3px]" style={cellStyle(70)} /> 60–79 %</span>
+      <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-[3px]" style={cellStyle(20)} /> 1–49 %</span>
+      <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-[3px]" style={cellStyle(60)} /> 50–79 %</span>
       <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-[3px]" style={cellStyle(90)} /> 80–100 %</span>
       <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-[3px] bg-[#18181B]/[0.06] dark:bg-[#E6E8E6]/[0.06]" /> Pas prévu</span>
     </div>
@@ -282,10 +281,10 @@ const Analytics: React.FC<Props> = ({ appData, accentHex, onToggleHabit, onDownl
                 <ul className="divide-y divide-[#18181B]/5 dark:divide-[#E6E8E6]/5">
                   {rows.map(o => (
                     <li key={o.date} className="flex items-center gap-3 py-2.5">
-                      <span className={`w-5 h-5 rounded-md shrink-0 flex items-center justify-center ${o.done ? 'bg-accent' : o.today ? 'border-2 border-dashed border-accent' : 'border-2 border-[#DF2935]/60'}`}>{o.done && <Check size={12} strokeWidth={3} className="text-white" />}</span>
+                      <span className={`w-5 h-5 rounded-md shrink-0 flex items-center justify-center ${o.done ? 'bg-accent' : o.today ? 'border-2 border-dashed border-accent' : 'border-2 border-[#18181B]/20 dark:border-[#E6E8E6]/20'}`}>{o.done && <Check size={12} strokeWidth={3} className="text-white" />}</span>
                       <span className={`w-24 shrink-0 text-[10px] font-black uppercase tracking-wider ${muted}`}>{fmtDay(o.date)}</span>
                       <span className={`flex-1 min-w-0 text-sm font-semibold ${ink}`}>{o.title}</span>
-                      <span className={`shrink-0 text-[9px] font-black uppercase tracking-wider ${o.done ? 'text-accent' : o.today ? muted : 'text-[#DF2935]'}`}>{o.done ? 'Atteint' : o.today ? 'En cours' : 'Non atteint'}</span>
+                      <span className={`shrink-0 text-[9px] font-black uppercase tracking-wider ${o.done ? 'text-accent' : o.today ? muted : muted}`}>{o.done ? 'Atteint' : o.today ? 'En cours' : 'Non atteint'}</span>
                     </li>
                   ))}
                 </ul>
@@ -334,7 +333,7 @@ const Analytics: React.FC<Props> = ({ appData, accentHex, onToggleHabit, onDownl
                       }}
                     />
                     <Bar dataKey="value" radius={[4, 4, 0, 0]} maxBarSize={34} isAnimationActive={false}>
-                      {buckets.map(b => <Cell key={b.key} fill={perfColor(b.rate) || accentHex} fillOpacity={b.perfect || b.rate === 100 ? 1 : 0.85} />)}
+                      {buckets.map(b => <Cell key={b.key} fill={perfFill(b.rate, accentHex) || accentHex} />)}
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>
@@ -461,9 +460,9 @@ const Analytics: React.FC<Props> = ({ appData, accentHex, onToggleHabit, onDownl
                   <div className="flex flex-wrap gap-[3px]">
                     {h.perDay.map(p => {
                       const lines = [h.title, fmtDay(p.date), p.state === 'done' ? 'Fait ✓' : p.state === 'missed' ? 'Pas fait' : p.state === 'today' ? "Aujourd'hui · pas encore fait" : p.state === 'future' ? 'À venir' : 'Pas prévu ce jour-là'];
-                      const cls = p.state === 'done' ? '' : p.state === 'missed' ? 'border-[1.5px] border-[#DF2935]/50' : p.state === 'today' ? 'border-[1.5px] border-dashed border-accent' : p.state === 'future' ? 'border border-dashed border-[#18181B]/10 dark:border-[#E6E8E6]/10' : 'bg-[#18181B]/[0.06] dark:bg-[#E6E8E6]/[0.06]';
+                      const cls = p.state === 'done' ? '' : p.state === 'missed' ? 'border-[1.5px] border-[#18181B]/20 dark:border-[#E6E8E6]/20' : p.state === 'today' ? 'border-[1.5px] border-dashed border-accent' : p.state === 'future' ? 'border border-dashed border-[#18181B]/10 dark:border-[#E6E8E6]/10' : 'bg-[#18181B]/[0.06] dark:bg-[#E6E8E6]/[0.06]';
                       return <span key={p.date} onMouseEnter={(e) => showTip(e, lines)} onMouseMove={(e) => showTip(e, lines)} onMouseLeave={hideTip}
-                        className={`w-3.5 h-3.5 rounded-[4px] ${cls}`} style={p.state === 'done' ? { backgroundColor: h.color || accentHex } : undefined} />;
+                        className={`w-3.5 h-3.5 rounded-[4px] ${cls}`} style={p.state === 'done' ? { backgroundColor: accentHex } : undefined} />;
                     })}
                   </div>
                 )}
@@ -471,7 +470,7 @@ const Analytics: React.FC<Props> = ({ appData, accentHex, onToggleHabit, onDownl
             ))}
             <div className={`pt-3 flex flex-wrap gap-x-3 gap-y-1 text-[9px] font-bold ${muted}`}>
               <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-[3px]" style={{ backgroundColor: accentHex }} /> Fait</span>
-              <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-[3px] border-[1.5px] border-[#DF2935]/50" /> Pas fait</span>
+              <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-[3px] border-[1.5px] border-[#18181B]/20 dark:border-[#E6E8E6]/20" /> Pas fait</span>
               <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-[3px] bg-[#18181B]/[0.06] dark:bg-[#E6E8E6]/[0.06]" /> Pas prévu</span>
               <span className={faint}>Série = jours prévus consécutifs réussis ; aujourd'hui ne casse pas la série.</span>
             </div>

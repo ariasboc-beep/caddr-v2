@@ -95,7 +95,7 @@ const DeepStats: React.FC<Props> = ({ appData, start, end, todayKey, accentHex }
             <div className="flex items-end gap-6">
               <div><p className={`text-[10px] font-bold ${muted}`}>Prévu</p><p className={`text-2xl font-black leading-none ${ink}`}>{fmtDur(fe.planned)}</p></div>
               <div><p className={`text-[10px] font-bold ${muted}`}>Réalisé</p><p className={`text-2xl font-black leading-none ${ink}`}>{fmtDur(fe.actual)}</p></div>
-              <div><p className={`text-[10px] font-bold ${muted}`}>Écart</p><p className={`text-2xl font-black leading-none ${fe.diff !== null && Math.abs(fe.diff) > 15 ? 'text-[#e66767]' : 'text-[#199e70]'}`}>{fe.diff !== null && fe.diff > 0 ? '+' : ''}{fe.diff} %</p></div>
+              <div><p className={`text-[10px] font-bold ${muted}`}>Écart</p><p className={`text-2xl font-black leading-none ${fe.diff !== null && Math.abs(fe.diff) > 15 ? muted : 'text-accent'}`}>{fe.diff !== null && fe.diff > 0 ? '+' : ''}{fe.diff} %</p></div>
             </div>
             <p className={`text-[11px] font-semibold ${ink}`}>
               {fe.diff === null ? '' : fe.diff > 15 ? `Tu sous-estimes tes durées d'environ ${fe.diff} %. Prévois plus large dans ton Planning.` : fe.diff < -15 ? `Tu surestimes tes durées d'environ ${-fe.diff} % : tu peux planifier plus serré.` : 'Tes estimations sont justes : ton planning est réaliste.'}
@@ -106,7 +106,7 @@ const DeepStats: React.FC<Props> = ({ appData, start, end, todayKey, accentHex }
                   <li key={t.title} className="flex items-center gap-2 text-[11px] font-semibold">
                     <span className={`flex-1 truncate ${ink}`}>{t.title}</span>
                     <span className={muted}>{fmtDur(Math.round(t.planned / t.n))} → {fmtDur(Math.round(t.actual / t.n))}</span>
-                    <span className={`w-12 text-right font-black ${Math.abs(t.diff) > 15 ? 'text-[#e66767]' : 'text-[#199e70]'}`}>{t.diff > 0 ? '+' : ''}{t.diff} %</span>
+                    <span className={`w-12 text-right font-black ${Math.abs(t.diff) > 15 ? muted : 'text-accent'}`}>{t.diff > 0 ? '+' : ''}{t.diff} %</span>
                   </li>
                 ))}
               </ul>

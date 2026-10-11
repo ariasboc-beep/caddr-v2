@@ -72,8 +72,8 @@ const WeeklyReview: React.FC<Props> = ({ weekKey, review, stats, onSave, onGener
             <p className="text-[8px] font-black text-accent uppercase tracking-widest mb-1">Analyse</p>
             <p className="text-xs font-medium text-[#18181B] dark:text-[#E6E8E6]">{ai.feedback}</p>
           </div>
-          <div className="p-4 bg-[#FDCA40]/10 rounded-2xl border border-[#FDCA40]/10">
-            <p className="text-[8px] font-black text-[#FDCA40] uppercase tracking-widest mb-1">Focus semaine prochaine</p>
+          <div className="p-4 bg-accent/10 rounded-2xl border border-accent/10">
+            <p className="text-[8px] font-black text-accent uppercase tracking-widest mb-1">Focus semaine prochaine</p>
             <p className="text-xs font-bold text-[#18181B] dark:text-[#E6E8E6]">{ai.focusNextWeek}</p>
           </div>
         </div>

@@ -9,10 +9,10 @@ interface Props {
 }
 
 const MOODS = [
-  { key: 'great', label: 'Excellent', Icon: Laugh, color: '#22C55E' },
-  { key: 'good', label: 'Bien', Icon: Smile, color: 'var(--accent)' },
-  { key: 'neutral', label: 'Neutre', Icon: Meh, color: '#FDCA40' },
-  { key: 'bad', label: 'Difficile', Icon: Frown, color: '#EF4444' },
+  { key: 'great', label: 'Excellent', Icon: Laugh, color: 'var(--accent)' },
+  { key: 'good', label: 'Bien', Icon: Smile, color: 'rgb(var(--accent-rgb) / 0.7)' },
+  { key: 'neutral', label: 'Neutre', Icon: Meh, color: 'rgb(var(--accent-rgb) / 0.42)' },
+  { key: 'bad', label: 'Difficile', Icon: Frown, color: 'rgba(128,128,136,0.6)' },
 ];
 
 // Croise l'humeur du bilan du soir avec la performance du jour.

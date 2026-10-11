@@ -59,9 +59,9 @@ const YearHeatmap: React.FC<Props> = ({ history, streakCount, days = 365, title 
     <div className="glass p-6 rounded-[2rem] space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="font-black uppercase tracking-wider text-sm">{title}</h2>
-        <div className="flex items-center gap-2 px-3 py-1.5 bg-[#FDCA40]/10 rounded-xl">
-          <Flame size={14} className="text-[#FDCA40]" />
-          <span className="text-[10px] font-black uppercase tracking-wider text-[#FDCA40]">
+        <div className="flex items-center gap-2 px-3 py-1.5 bg-accent/10 rounded-xl">
+          <Flame size={14} className="text-accent" />
+          <span className="text-[10px] font-black uppercase tracking-wider text-accent">
             {streakCount} j de série
           </span>
         </div>
