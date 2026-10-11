@@ -1,4 +1,6 @@
 
+import ShareSheet from './components/ShareSheet';
+import type { SharePeriod } from './shareCard';
 import DailyMotivation from './components/DailyMotivation';
 import { perfectStreak } from './analytics';
 import TaskActionsSheet from './components/TaskActionsSheet';
@@ -39,7 +41,7 @@ import {
   Lock, LockOpen, User, LogOut, ShieldCheck, Mail, Key, Settings2, Info,
   Download, Upload, Power, Pencil, Edit3, PieChart, FileText,
   CalendarClock, ArrowUpCircle, BookOpen, PenTool, Crown, Swords,
-  Medal, Sun, Moon, RotateCcw, CloudOff, SkipForward, Hourglass, Lightbulb, MoreHorizontal, BookHeart
+  Medal, Sun, Moon, RotateCcw, CloudOff, SkipForward, Hourglass, Lightbulb, MoreHorizontal, BookHeart, Share2
 } from 'lucide-react';
 import { AppData, Block, TabType, RecurrenceType, TimeframeType, RecurringGoal, Task, PriorityType, DayRoutine, UserProfile } from './types';
 import { getKeyFromDate, generateId, isDateInRange } from './utils';
@@ -2217,6 +2219,7 @@ const App: React.FC = () => {
   // ---------- Actions sur une tâche : reporter, annuler, affecter, sous-tâche ----------
   const [actionTask, setActionTask] = useState<{ task: Task; blockId: string; parentId?: string } | null>(null);
   const [incoming, setIncoming] = useState<Assignment[]>([]);
+  const [shareFor, setShareFor] = useState<SharePeriod | null>(null);
   const notify = (msg: string, ms = 3000) => { setActiveNotification(msg); setTimeout(() => setActiveNotification(null), ms); };
 
   const postponeFromRoutine = (taskId: string, toKey: string) => {
@@ -3198,6 +3201,7 @@ const App: React.FC = () => {
                               <p className="text-[10px] text-[#18181B]/60 dark:text-[#E6E8E6]/60 font-bold mt-1 uppercase">Faire le bilan de vos accomplissements</p>
                            </div>
                         </button>
+                        <button onClick={() => setShareFor('day')} className="mt-3 w-full flex items-center justify-center gap-2 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest text-accent bg-accent/10 hover:bg-accent hover:text-white transition-all"><Share2 size={14} /> Partager ma journée</button>
                       </div>
                     )}
                 </>
@@ -3496,6 +3500,7 @@ const App: React.FC = () => {
           <Analytics
             appData={appData}
             accentHex={accentHex}
+            onShare={(tf) => setShareFor(tf === 'day' || tf === 'week' ? tf : 'month')}
             onDownloadPDF={async (tf, period) => (await import('./report')).generateReport(appData, tf, period, accentHex)}
             onOpenHabits={() => setActiveTab('habits')}
             onToggleHabit={(taskId, value) => updateAppData(prev => {
@@ -3808,6 +3813,9 @@ const App: React.FC = () => {
             initialPrompt={assistantPrompt} onInitialConsumed={() => setAssistantPrompt(null)} />
         )}
       </Suspense>
+
+      {/* Partage des performances */}
+      {shareFor && <ShareSheet appData={appData} initialPeriod={shareFor} name={user?.displayName?.split(' ')[0] || undefined} onClose={() => setShareFor(null)} notify={(m) => notify(m, 4000)} />}
 
       {/* Feuille d'actions d'une tâche (Routine) */}
       {actionTask && (() => {

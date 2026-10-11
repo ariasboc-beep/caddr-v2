@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, ReferenceLine, Tooltip, Cell } from 'recharts';
 import {
   ChevronLeft, ChevronRight, ChevronDown, FileText, TrendingUp, TrendingDown, Minus,
-  Flame, Trophy, Target, Layers, Repeat, Check, CalendarDays, Star, ListChecks, Settings2, Loader2,
+  Flame, Trophy, Target, Layers, Repeat, Check, CalendarDays, Star, ListChecks, Settings2, Loader2, Share2,
 } from 'lucide-react';
 import { AppData, TimeframeType } from '../types';
 import { getKeyFromDate } from '../utils';
@@ -76,12 +76,13 @@ interface Props {
   onDownloadPDF: (tf: TimeframeType, period: ReturnType<typeof getPeriod>) => void | Promise<void>;
   children?: React.ReactNode; // sections complémentaires (rendues en bas)
   onOpenHabits?: () => void;
+  onShare?: (tf: TimeframeType) => void;
 }
 
 const TF_LABEL: Record<TimeframeType, string> = { day: 'Jour', week: 'Semaine', month: 'Mois', year: 'Année', custom: 'Période' };
 const REPORT_NAME: Record<TimeframeType, string> = { day: 'rapport du jour', week: 'rapport hebdomadaire', month: 'rapport mensuel', year: 'rapport annuel', custom: 'rapport de la période' };
 
-const Analytics: React.FC<Props> = ({ appData, accentHex, onToggleHabit, onDownloadPDF, children, onOpenHabits }) => {
+const Analytics: React.FC<Props> = ({ appData, accentHex, onToggleHabit, onDownloadPDF, children, onOpenHabits, onShare }) => {
   const todayKey = getKeyFromDate(new Date());
   const [tf, setTf] = useState<TimeframeType>(() => { try { return (localStorage.getItem('caddr_analytics_tf') as TimeframeType) || 'week'; } catch { return 'week'; } });
   const [anchor, setAnchor] = useState<Date>(new Date());
@@ -198,6 +199,7 @@ const Analytics: React.FC<Props> = ({ appData, accentHex, onToggleHabit, onDownl
               </button>
             ))}
           </div>
+          {onShare && <button onClick={() => onShare(tf)} title="Partager mes performances" aria-label="Partager mes performances" className={`p-3 rounded-2xl bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 ${muted} hover:text-white hover:bg-accent transition-all`}><Share2 size={18} /></button>}
           <button onClick={async () => { setPdfBusy(true); try { await onDownloadPDF(tf, period); } finally { setPdfBusy(false); } }} disabled={pdfBusy} title={`Télécharger le ${REPORT_NAME[tf]} (PDF)`} aria-label={`Télécharger le ${REPORT_NAME[tf]} en PDF`}
             className={`p-3 rounded-2xl bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 ${muted} hover:text-white hover:bg-accent transition-all`}>
             {pdfBusy ? <Loader2 size={18} className="animate-spin" /> : <FileText size={18} />}
