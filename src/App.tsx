@@ -3,6 +3,9 @@ import React, { useState, useEffect, useMemo, useCallback, useRef, Suspense } fr
 import { lazyRetry, prefetchTabs } from './lazyRetry';
 import { snapshot } from './backups';
 import BackupsPanel from './components/BackupsPanel';
+const Assistant = lazyRetry(() => import('./components/Assistant'));
+import { occurrencesBetween } from './icsImport';
+import { devAssistant } from './services/assistantService';
 import { 
   Check, ChevronLeft, ChevronRight, Target, 
   Plus, Trash2, Layout, BarChart3, 
@@ -169,6 +172,7 @@ const App: React.FC = () => {
   const [showWeekPlanner, setShowWeekPlanner] = useState(false);
   const [showCalendars, setShowCalendars] = useState(false);
   const [coachBusy, setCoachBusy] = useState(false);
+  const [showAssistant, setShowAssistant] = useState(false);
   const [daysAway, setDaysAway] = useState<number | null>(null);
   const [showFullResetModal, setShowFullResetModal] = useState(false);
   const [resetInput, setResetInput] = useState('');
@@ -242,6 +246,15 @@ const App: React.FC = () => {
     }, 20000);
     return () => clearTimeout(t);
   }, [appData, isLoading]);
+
+  // Assistant Claude : état le plus récent + raccourci Ctrl/Cmd + K
+  const appDataRef = useRef(appData);
+  appDataRef.current = appData;
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); setShowAssistant(v => !v); } };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
 
   // Onglets chargés à la demande : préchargés en arrière-plan après le démarrage
   useEffect(() => {
@@ -2479,6 +2492,7 @@ const App: React.FC = () => {
                 {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
             </button>
 
+            <button onClick={() => setShowAssistant(true)} title="Assistant Claude (Ctrl+K)" aria-label="Ouvrir l'assistant Claude" className="flex items-center gap-1.5 px-2.5 py-2 rounded-xl bg-accent text-white shadow-lg shadow-accent/25 hover:scale-105 active:scale-95 transition-all"><Sparkles size={15} /><span className="hidden sm:inline text-[10px] font-black uppercase tracking-wider">Claude</span></button>
             <button onClick={requestNotificationPermission} className={`p-2 rounded-xl transition-all ${notificationsEnabled ? 'text-accent bg-accent/10' : 'text-[#18181B]/60 dark:text-[#E6E8E6]/60 bg-[#18181B]/5 dark:bg-[#E6E8E6]/5'}`}>{notificationsEnabled ? <Bell size={16} /> : <BellOff size={16} />}</button>
             {activeTab === 'routine' && <button onClick={() => updateAppData(prev => ({ ...prev, settings: { ...(prev.settings || {}), simpleMode: !prev.settings?.simpleMode } }))} title="Mode journée simplifiée" className={`p-2 rounded-xl transition-all ${appData.settings?.simpleMode ? 'bg-accent text-white' : 'bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 text-[#18181B]/60 dark:text-[#E6E8E6]/60'}`}><Minimize2 size={16} /></button>}
             {activeTab === 'routine' && <button onClick={() => setIsReorderMode(!isReorderMode)} title={isReorderMode ? "Terminer le réordonnancement" : "Réordonner les blocs"} className={`p-2 rounded-xl transition-all ${isReorderMode ? 'bg-accent text-white' : 'bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 text-[#18181B]/60 dark:text-[#E6E8E6]/60'}`}><MoveVertical size={16} /></button>}
@@ -3223,6 +3237,14 @@ const App: React.FC = () => {
         {/* ... (Existing Caddr AI Tab) */}
         {activeTab === 'ai' && (
            <div className="space-y-6 animate-in zoom-in-95 duration-500 pb-20">
+            <button onClick={() => setShowAssistant(true)} className="w-full text-left glass p-5 sm:p-6 rounded-[2rem] border border-accent/30 flex items-center gap-4 hover:border-accent/60 transition-all">
+              <div className="w-12 h-12 rounded-2xl bg-accent flex items-center justify-center shrink-0 shadow-lg shadow-accent/30"><Sparkles size={22} className="text-white" /></div>
+              <div className="flex-1 min-w-0">
+                <p className="text-base font-black text-[#18181B] dark:text-[#E6E8E6]">Parler à Claude</p>
+                <p className="text-xs font-semibold text-[#18181B]/55 dark:text-[#E6E8E6]/55">« Programme mon sport demain à 6h », « Crée l'habitude lire 10 pages », « Allège ma soirée »… À l'écrit ou à la voix.</p>
+              </div>
+              <ChevronRight size={20} className="text-accent shrink-0" />
+            </button>
             {(() => {
               const rk = getWeekKey(weekPlan.reviewStart);
               return (
@@ -3432,6 +3454,18 @@ const App: React.FC = () => {
         )}
         </Suspense>
       </main>
+      <Suspense fallback={null}>
+          {showAssistant && (
+          <Assistant open={showAssistant} onClose={() => setShowAssistant(false)}
+            getData={() => appDataRef.current}
+            commit={(d) => { saveToHistory(); updateAppData(() => d); }}
+            undo={handleUndo}
+            navigate={(t) => setActiveTab(t)}
+            externalEvents={(from, to) => occurrencesBetween(externalCalendars, cal.eventsOf, from, to)}
+            signedIn={!!user || devAssistant()} onSignIn={() => { setShowAssistant(false); setShowAuth(true); }}
+            userName={user?.displayName?.split(' ')[0] || undefined} />
+        )}
+      </Suspense>
 
       {/* Navigation */}
       {/* Barre du bas — toujours sur mobile ; sur desktop uniquement si position = bas */}

@@ -27,7 +27,7 @@ export const isOneOff = (f: Found) => f.task.recurrence === 'specific' || f.task
 // Insère une tâche dans le jour k : bloc demandé (id ou même titre) s'il existe ce jour-là,
 // sinon (si aucun bloc n'est demandé) le premier bloc du jour ; à défaut, un bloc
 // du même nom créé pour ce jour seulement.
-function insertOnDay(data: AppData, task: Task, k: string, pref?: { id?: string; title?: string }): AppData {
+export function insertOnDay(data: AppData, task: Task, k: string, pref?: { id?: string; title?: string }): AppData {
   const days = { ...data.days };
   let blocks = data.blocks;
   const frozen = days[k]?.blocks;
