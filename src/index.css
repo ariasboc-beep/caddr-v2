@@ -7,8 +7,28 @@
 .theme-teal   { --accent-rgb: 47 176 166;  --accent: #2FB0A6; }
 
 /* === Typographie === */
-/* Une seule police pour toute l'app : Plus Jakarta Sans.
-   Pour donner une police différente aux titres, il suffit de changer --font-heading. */
+/* Une seule police pour toute l'app : Plus Jakarta Sans, servie depuis /fonts
+   (aucun appel à un service extérieur). Trois fichiers couvrent toutes les graisses
+   utilisées : 400-500 en Regular, 600-700 en Bold, 800-900 en ExtraBold — ainsi le
+   navigateur n'a jamais à « grossir » une graisse lui-même. La même police est
+   employée pour les rapports PDF et pour l'image de partage. */
+@font-face {
+  font-family: 'Plus Jakarta Sans';
+  src: url('/fonts/PlusJakartaSans-Regular.woff2') format('woff2'), url('/fonts/PlusJakartaSans-Regular.ttf') format('truetype');
+  font-weight: 400 500; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'Plus Jakarta Sans';
+  src: url('/fonts/PlusJakartaSans-Bold.woff2') format('woff2'), url('/fonts/PlusJakartaSans-Bold.ttf') format('truetype');
+  font-weight: 600 700; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'Plus Jakarta Sans';
+  src: url('/fonts/PlusJakartaSans-ExtraBold.woff2') format('woff2'), url('/fonts/PlusJakartaSans-ExtraBold.ttf') format('truetype');
+  font-weight: 800 900; font-style: normal; font-display: swap;
+}
+
+/* Pour donner une police différente aux titres, il suffit de changer --font-heading. */
 :root {
   --font-heading: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
   --font-body: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;

@@ -81,3 +81,8 @@ export const isDateInRange = (date: Date, type: RecurrenceType, specificDate?: s
     default: return false;
   }
 };
+
+/** Adresse d'un fichier de police, relative à la page : fonctionne aussi bien
+ *  sur le site déployé que dans la version de démonstration. */
+export const fontUrl = (file: string): string =>
+  (typeof document !== 'undefined' ? new URL(`fonts/${file}`, document.baseURI).href : `/fonts/${file}`);

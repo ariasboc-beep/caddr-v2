@@ -4,7 +4,7 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { AppData, TimeframeType } from './types';
-import { getKeyFromDate } from './utils';
+import { getKeyFromDate, fontUrl } from './utils';
 import { getWeekKey } from './streaks';
 import {
   computePeriod, previousPeriod, blockAggregates, buildBuckets, habitAggregates,
@@ -34,7 +34,7 @@ async function loadFonts(): Promise<Record<string, string> | null> {
     const files = { normal: 'PlusJakartaSans-Regular.ttf', bold: 'PlusJakartaSans-Bold.ttf', extrabold: 'PlusJakartaSans-ExtraBold.ttf' };
     const out: Record<string, string> = {};
     for (const [style, file] of Object.entries(files)) {
-      const buf = await (await fetch(`/fonts/${file}`)).arrayBuffer();
+      const buf = await (await fetch(fontUrl(file))).arrayBuffer();
       const bytes = new Uint8Array(buf);
       let bin = '';
       for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));

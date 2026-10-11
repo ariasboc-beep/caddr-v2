@@ -4,7 +4,7 @@ import UnlockOffer from './components/UnlockOffer';
 import SettingsGroup from './components/SettingsGroup';
 import BuddyPanel, { BuddyCard } from './components/BuddyPanel';
 import { inviteBuddy, listBuddyLinks, answerInvite, removeBuddyLink, publishStats, sendCheer, unreadCheers, markCheerRead, loadBuddies, type Buddy, type BuddyLink, type Cheer } from './services/buddyService';
-import DayRing from './components/DayRing';
+import RingMark, { DayLine } from './components/DayRing';
 import PerfectDay from './components/PerfectDay';
 import IdentityPanel from './components/IdentityPanel';
 import RewardsCollection from './components/RewardsCollection';
@@ -2938,14 +2938,26 @@ const App: React.FC = () => {
                 ))}
               </div>
             )}
-            {!isReorderMode && dateKey === todayKeyNow && featureOn(appData, 'dayRing') && (
-              <DayRing done={todayStat.done} total={todayStat.total} hard={hardToday} streak={streakNow.current}
-                onToggleHard={!featureOn(appData, 'hardDay') ? undefined : () => { updateAppData(prev => setHardDay(prev, todayKeyNow, !hardToday)); notify(hardToday ? 'Retour à une journée normale.' : "Mode jour difficile : fais la version minimale de l'essentiel. Une tâche suffit pour tenir ta série. 🌿", 4500); }} />
-            )}
-            {!isReorderMode && dateKey === todayKeyNow && !featureOn(appData, 'dayRing') && featureOn(appData, 'hardDay') && (
-              <button onClick={() => { updateAppData(prev => setHardDay(prev, todayKeyNow, !hardToday)); notify(hardToday ? 'Retour à une journée normale.' : "Mode jour difficile : fais la version minimale de l'essentiel. Une tâche suffit pour tenir ta série. 🌿", 4500); }}
-                className={`w-full glass rounded-[2rem] px-5 py-3.5 text-left text-[11px] font-black uppercase tracking-wider ${hardToday ? 'text-accent border border-accent/30' : 'text-[#18181B]/60 dark:text-[#E6E8E6]/55'}`}>{hardToday ? 'Jour difficile activé · revenir à une journée normale' : 'Journée difficile ? Passer en mode doux'}</button>
-            )}
+            {/* Objectif prioritaire : la première chose que l'on voit en arrivant.
+                L'anneau du jour y est posé discrètement, à droite. */}
+            <div className={`glass p-5 sm:p-6 rounded-[2rem] flex items-center gap-4 border-l-4 transition-all ${currentDayData.goalCompleted ? 'border-l-accent bg-accent/5' : 'border-l-accent'} ${hardToday && dateKey === todayKeyNow ? 'ring-1 ring-accent/25' : ''}`}>
+              <button onClick={toggleDailyGoal} aria-label="Objectif atteint" className={`w-12 h-12 shrink-0 rounded-2xl flex items-center justify-center transition-all ${currentDayData.goalCompleted ? 'bg-accent shadow-lg shadow-accent/20 text-white' : 'bg-accent/10 text-accent'}`}>{currentDayData.goalCompleted ? <Check size={24} /> : <Target size={24} />}</button>
+              <div className="flex-1 min-w-0 space-y-1">
+                <div className="text-[8px] font-black text-[#18181B]/60 dark:text-[#E6E8E6]/60 uppercase tracking-widest flex items-center justify-between gap-2">
+                  <span className="flex items-center gap-1 min-w-0">Objectif Prioritaire {currentGoal && <Repeat size={8} className="text-accent" />} {currentGoalReminder && <Clock size={8} className="text-accent ml-1" />} <span className="text-accent normal-case ml-1 font-black truncate">{currentGoalReminder}</span></span>
+                  <button onClick={() => { const id = generateId(); updateAppData(prev => { const existingGoal = (prev.recurringGoals || []).find(g => isDateInRange(currentDate, g.recurrence, g.specificDate, g.startDate, g.endDate, g.stopDate)); if (existingGoal) { setConfigModal({ type: 'goal', id: existingGoal.id }); return prev; } setConfigModal({ type: 'goal', id }); return { ...prev, recurringGoals: [...(prev.recurringGoals || []), { id, title: currentGoal || "Nouvel Objectif", recurrence: 'specific', specificDate: dateKey }] }; }); }} aria-label="Programmer l'objectif" className="shrink-0 text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-accent transition-colors"><Clock size={12} /></button>
+                </div>
+                <input className="bg-transparent w-full text-base sm:text-lg font-bold outline-none placeholder-[#18181B]/30 dark:placeholder-[#E6E8E6]/30 text-[#18181B] dark:text-[#E6E8E6]" placeholder="Focus du jour..." value={currentGoal} onChange={e => updateAppData(prev => ({ ...prev, days: { ...prev.days, [dateKey]: { ...currentDayData, dailyGoalOverride: e.target.value } } }))} />
+                {!isReorderMode && dateKey === todayKeyNow && (
+                  <DayLine done={todayStat.done} total={todayStat.total} hard={hardToday} streak={streakNow.current} showRingMsg={featureOn(appData, 'dayRing')}
+                    onToggleHard={!featureOn(appData, 'hardDay') ? undefined : () => { updateAppData(prev => setHardDay(prev, todayKeyNow, !hardToday)); notify(hardToday ? 'Retour à une journée normale.' : "Mode jour difficile : fais la version minimale de l'essentiel. Une tâche suffit pour tenir ta série. 🌿", 4500); }} />
+                )}
+              </div>
+              {!isReorderMode && dateKey === todayKeyNow && featureOn(appData, 'dayRing') && (
+                <RingMark done={todayStat.done} total={todayStat.total} hard={hardToday} size={64} />
+              )}
+            </div>
+
             {/* Message du jour : une phrase, toujours visible */}
             {!isReorderMode && dateKey === todayKeyNow && featureOn(appData, 'motivation') && appData.settings?.motivationHiddenOn !== todayKeyNow && (() => {
               const y = new Date(todayKeyNow + 'T12:00:00'); y.setDate(y.getDate() - 1);
@@ -3077,25 +3089,6 @@ const App: React.FC = () => {
                 onComplete={(blockId, taskId) => toggleTask(blockId, taskId)}
               />
             )}
-            {/* Disclaimer for Detached Mode */}
-            {appData.days[dateKey]?.blocks && (
-               <div className="bg-[#FDCA40]/5 border border-[#FDCA40]/10 p-3 rounded-2xl flex items-center justify-center gap-2 animate-in fade-in">
-                  <Info size={12} className="text-[#FDCA40]" />
-                  <span className="text-[8px] font-black text-[#FDCA40] uppercase tracking-widest">Routine personnalisée pour ce jour</span>
-                  <button onClick={() => updateAppData(prev => { const d = { ...prev.days }; delete d[dateKey].blocks; return { ...prev, days: d }; })} className="ml-2 text-[8px] underline text-[#FDCA40] hover:text-white">Rétablir</button>
-               </div>
-            )}
-
-            <div className={`glass p-6 rounded-3xl flex items-center gap-4 border-l-4 transition-all ${currentDayData.goalCompleted ? 'border-l-accent bg-accent/5' : 'border-l-accent'}`}>
-              <button onClick={toggleDailyGoal} className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all ${currentDayData.goalCompleted ? 'bg-accent shadow-lg shadow-accent/20 text-white' : 'bg-accent/10 text-accent'}`}>{currentDayData.goalCompleted ? <Check size={24} /> : <Target size={24} />}</button>
-              <div className="flex-1">
-                <div className="text-[8px] font-black text-[#18181B]/60 dark:text-[#E6E8E6]/60 uppercase tracking-widest mb-1 flex items-center justify-between">
-                    <span className="flex items-center gap-1">Objectif Prioritaire {currentGoal && <Repeat size={8} className="text-accent" />} {currentGoalReminder && <Clock size={8} className="text-accent ml-1" />} <span className="text-accent normal-case ml-1 font-black">{currentGoalReminder}</span></span>
-                    <button onClick={() => { const id = generateId(); updateAppData(prev => { const existingGoal = (prev.recurringGoals || []).find(g => isDateInRange(currentDate, g.recurrence, g.specificDate, g.startDate, g.endDate, g.stopDate)); if (existingGoal) { setConfigModal({ type: 'goal', id: existingGoal.id }); return prev; } setConfigModal({ type: 'goal', id }); return { ...prev, recurringGoals: [...(prev.recurringGoals || []), { id, title: currentGoal || "Nouvel Objectif", recurrence: 'specific', specificDate: dateKey }] }; }); }} className="text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-accent transition-colors"><Clock size={12} /></button>
-                </div>
-                <input className="bg-transparent w-full text-base sm:text-lg font-bold outline-none placeholder-[#18181B]/30 dark:placeholder-[#E6E8E6]/30 text-[#18181B] dark:text-[#E6E8E6]" placeholder="Focus du jour..." value={currentGoal} onChange={e => updateAppData(prev => ({ ...prev, days: { ...prev.days, [dateKey]: { ...currentDayData, dailyGoalOverride: e.target.value } } }))} />
-              </div>
-            </div>
 
             {/* Habitudes du jour (habitudes indépendantes des blocs) */}
             {(() => {
@@ -3188,6 +3181,14 @@ const App: React.FC = () => {
                 </div>
             ) : (
                 <>
+                    {/* Routine détachée du plan : une mention discrète, posée sur la routine elle-même */}
+                    {appData.days[dateKey]?.blocks && (
+                      <div className="flex items-center gap-2 px-2 -mb-1 animate-in fade-in">
+                        <Info size={11} className="text-[#B8900A] dark:text-[#FDCA40] shrink-0" />
+                        <span className="text-[9px] font-black uppercase tracking-widest text-[#B8900A] dark:text-[#FDCA40]">Routine personnalisée pour ce jour</span>
+                        <button onClick={() => updateAppData(prev => { const d = { ...prev.days }; delete d[dateKey].blocks; return { ...prev, days: d }; })} className="text-[9px] font-black uppercase tracking-widest underline text-[#18181B]/50 dark:text-[#E6E8E6]/45 hover:text-accent">Rétablir</button>
+                      </div>
+                    )}
                     <DndContext sensors={dndSensors} collisionDetection={closestCenter} onDragEnd={handleBlockDragEnd}>
                     <SortableContext items={displayedRoutineBlocks.map(b => b.id)} strategy={verticalListSortingStrategy}>
                     {displayedRoutineBlocks.map((block, bIdx) => {
