@@ -61,7 +61,7 @@ const LongTermGoals: React.FC<Props> = ({ goals, onChange, appData, onAskClaude 
     <div className="glass p-6 rounded-[2rem] space-y-4">
       <div className="flex flex-wrap items-center gap-2">
         <h2 className="flex-1 font-black uppercase tracking-wider text-sm flex items-center gap-2"><Flag size={16} className="text-accent" /> Objectifs long terme</h2>
-        {onAskClaude && <button onClick={() => onAskClaude(PROMPTS.newGoal)} className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-accent/10 text-accent text-[10px] font-black uppercase tracking-wider hover:bg-accent hover:text-white transition-all"><Sparkles size={13} /> Objectif guidé par Claude</button>}
+        {onAskClaude && <button onClick={() => onAskClaude(PROMPTS.newGoal)} className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-accent/10 text-accent text-[10px] font-black uppercase tracking-wider hover:bg-accent hover:text-white transition-all"><Sparkles size={13} /> Objectif guidé par Cady</button>}
       </div>
 
       <div className="flex gap-2">
@@ -163,7 +163,7 @@ const LongTermGoals: React.FC<Props> = ({ goals, onChange, appData, onAskClaude 
                     placeholder="Ajouter une étape (Entrée)" aria-label="Nouvelle étape" className={`flex-1 min-w-0 bg-transparent text-[12px] font-semibold outline-none ${ink}`} />
                   <input type="date" value={msDraft[g.id]?.date || ''} onChange={e => setMsDraft(p => ({ ...p, [g.id]: { title: p[g.id]?.title || '', date: e.target.value } }))} aria-label="Date de l'étape" className={`bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 px-1.5 py-1 rounded-lg text-[10px] font-bold outline-none [color-scheme:dark] ${ink}`} />
                 </div>
-                {onAskClaude && <button onClick={() => onAskClaude(PROMPTS.goalPlan(g.title, g.targetDate))} className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-accent"><Sparkles size={12} /> Plan d'action avec Claude</button>}
+                {onAskClaude && <button onClick={() => onAskClaude(PROMPTS.goalPlan(g.title, g.targetDate))} className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-accent"><Sparkles size={12} /> Plan d'action avec Cady</button>}
 
                 {linking === g.id && (
                   <div className="space-y-2 pt-1">

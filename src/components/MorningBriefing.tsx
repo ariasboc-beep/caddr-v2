@@ -23,7 +23,7 @@ const MorningBriefing: React.FC<Props> = ({ b, name, onAskClaude, onOpenPlanning
       <li className="flex items-start gap-2.5"><AlertTriangle size={15} className="text-[#c98500] shrink-0 mt-0.5" /><div className={`text-[13px] font-semibold ${ink}`}><span className={`text-[10px] font-black uppercase tracking-widest mr-1.5 ${muted}`}>Vigilance</span>{b.vigilance[0]}{b.vigilance.slice(1).map((v, i) => <p key={i} className={`text-[12px] font-medium mt-0.5 ${muted}`}>· {v}</p>)}</div></li>
     </ul>
     <div className="flex flex-wrap gap-2 pt-1">
-      <button onClick={onAskClaude} className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-accent text-white text-[10px] font-black uppercase tracking-wider shadow-lg shadow-accent/20"><Sparkles size={13} /> Ajuster avec Claude</button>
+      <button onClick={onAskClaude} className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-accent text-white text-[10px] font-black uppercase tracking-wider shadow-lg shadow-accent/20"><Sparkles size={13} /> Ajuster avec Cady</button>
       <button onClick={onOpenPlanning} className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 text-[10px] font-black uppercase tracking-wider hover:text-accent ${ink}`}><CalendarDays size={13} /> Voir le planning</button>
     </div>
   </section>

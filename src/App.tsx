@@ -259,7 +259,7 @@ const App: React.FC = () => {
     return () => clearTimeout(t);
   }, [appData, isLoading]);
 
-  // Assistant Claude : état le plus récent + raccourci Ctrl/Cmd + K
+  // Assistante Cady : état le plus récent + raccourci Ctrl/Cmd + K
   const appDataRef = useRef(appData);
   appDataRef.current = appData;
   useEffect(() => {
@@ -2576,7 +2576,7 @@ const App: React.FC = () => {
                 {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
             </button>
 
-            <button onClick={() => setShowAssistant(true)} title="Assistant Claude (Ctrl+K)" aria-label="Ouvrir l'assistant Claude" className="flex items-center gap-1.5 px-2.5 py-2 rounded-xl bg-accent text-white shadow-lg shadow-accent/25 hover:scale-105 active:scale-95 transition-all"><Sparkles size={15} /><span className="hidden sm:inline text-[10px] font-black uppercase tracking-wider">Claude</span></button>
+            <button onClick={() => setShowAssistant(true)} title="Cady, ton assistante (Ctrl+K)" aria-label="Ouvrir Cady" className="flex items-center gap-1.5 px-2.5 py-2 rounded-xl bg-accent text-white shadow-lg shadow-accent/25 hover:scale-105 active:scale-95 transition-all"><Sparkles size={15} /><span className="hidden sm:inline text-[10px] font-black uppercase tracking-wider">Cady</span></button>
             <button onClick={requestNotificationPermission} className={`p-2 rounded-xl transition-all ${notificationsEnabled ? 'text-accent bg-accent/10' : 'text-[#18181B]/60 dark:text-[#E6E8E6]/60 bg-[#18181B]/5 dark:bg-[#E6E8E6]/5'}`}>{notificationsEnabled ? <Bell size={16} /> : <BellOff size={16} />}</button>
             {activeTab === 'routine' && <button onClick={() => updateAppData(prev => ({ ...prev, settings: { ...(prev.settings || {}), simpleMode: !prev.settings?.simpleMode } }))} title="Mode journée simplifiée" className={`p-2 rounded-xl transition-all ${appData.settings?.simpleMode ? 'bg-accent text-white' : 'bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 text-[#18181B]/60 dark:text-[#E6E8E6]/60'}`}><Minimize2 size={16} /></button>}
             {activeTab === 'routine' && <button onClick={() => setIsReorderMode(!isReorderMode)} title={isReorderMode ? "Terminer le réordonnancement" : "Réordonner les blocs"} className={`p-2 rounded-xl transition-all ${isReorderMode ? 'bg-accent text-white' : 'bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 text-[#18181B]/60 dark:text-[#E6E8E6]/60'}`}><MoveVertical size={16} /></button>}
@@ -2616,7 +2616,7 @@ const App: React.FC = () => {
           </button>
         )}
         {import.meta.env.VITE_DEMO === '1' && (
-          <p className="text-[10px] font-bold text-center rounded-xl px-3 py-2 bg-[#FDCA40]/15 text-[#c98500]">Version de démonstration · données d'exemple, gardées seulement dans ce navigateur · connexion, synchronisation et assistant Claude désactivés ici</p>
+          <p className="text-[10px] font-bold text-center rounded-xl px-3 py-2 bg-[#FDCA40]/15 text-[#c98500]">Version de démonstration · données d'exemple, gardées seulement dans ce navigateur · connexion, synchronisation et assistante Cady désactivées ici</p>
         )}
       </header>
 
@@ -2667,7 +2667,7 @@ const App: React.FC = () => {
                   <p className="text-[11px] font-semibold text-[#18181B]/55 dark:text-[#E6E8E6]/55">Coche, reporte, note ton ressenti et ton journal : 3 minutes.</p>
                 </div>
                 <button onClick={() => setShowEvening(true)} className="px-4 py-2.5 rounded-xl bg-accent text-white text-[10px] font-black uppercase tracking-wider shadow-lg shadow-accent/20">Commencer</button>
-                <button onClick={() => askClaude(PROMPTS.evening)} className="flex items-center gap-1 px-3 py-2.5 rounded-xl bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 text-[10px] font-black uppercase tracking-wider text-[#18181B] dark:text-[#E6E8E6] hover:text-accent"><Sparkles size={12} /> Avec Claude</button>
+                <button onClick={() => askClaude(PROMPTS.evening)} className="flex items-center gap-1 px-3 py-2.5 rounded-xl bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 text-[10px] font-black uppercase tracking-wider text-[#18181B] dark:text-[#E6E8E6] hover:text-accent"><Sparkles size={12} /> Avec Cady</button>
               </div>
             )}
             {!isReorderMode && dateKey === todayKeyNow && showJournalPrompt && (
@@ -3263,10 +3263,10 @@ const App: React.FC = () => {
         {/* TAB: TEMPLATES */}
         {activeTab === 'templates' && (
           <div className="space-y-6 animate-in fade-in duration-500 pb-20">
-            {/* Routine sur mesure par Claude */}
+            {/* Routine sur mesure par Cady */}
             <div className="glass p-6 rounded-[2rem] space-y-3 border border-accent/25">
-              <h2 className="font-black uppercase tracking-wider text-sm flex items-center gap-2"><Sparkles size={16} className="text-accent" /> Routine sur mesure avec Claude</h2>
-              <p className="text-[11px] font-semibold text-[#18181B]/55 dark:text-[#E6E8E6]/55">Décris la routine voulue : Claude l'adapte à ton emploi du temps et à tes préférences, puis la crée après ton accord.</p>
+              <h2 className="font-black uppercase tracking-wider text-sm flex items-center gap-2"><Sparkles size={16} className="text-accent" /> Routine sur mesure avec Cady</h2>
+              <p className="text-[11px] font-semibold text-[#18181B]/55 dark:text-[#E6E8E6]/55">Décris la routine voulue : Cady l'adapte à ton emploi du temps et à tes préférences, puis la crée après ton accord.</p>
               <div className="flex gap-2">
                 <input value={routineIdea} onChange={e => setRoutineIdea(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && routineIdea.trim()) { askClaude(PROMPTS.routine(routineIdea.trim())); setRoutineIdea(''); } }} placeholder="Ex. matin productif avant le travail à 8 h" aria-label="Routine souhaitée" className="flex-1 min-w-0 bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 px-4 py-3 rounded-xl text-sm font-bold border border-[#18181B]/5 dark:border-[#E6E8E6]/5 outline-none focus:border-accent text-[#18181B] dark:text-[#E6E8E6]" />
                 <button onClick={() => { if (routineIdea.trim()) { askClaude(PROMPTS.routine(routineIdea.trim())); setRoutineIdea(''); } }} disabled={!routineIdea.trim()} className="px-4 rounded-xl bg-accent text-white text-[10px] font-black uppercase tracking-wider disabled:opacity-40">Créer</button>
@@ -3392,7 +3392,7 @@ const App: React.FC = () => {
             <button onClick={() => setShowAssistant(true)} className="w-full text-left glass p-5 sm:p-6 rounded-[2rem] border border-accent/30 flex items-center gap-4 hover:border-accent/60 transition-all">
               <div className="w-12 h-12 rounded-2xl bg-accent flex items-center justify-center shrink-0 shadow-lg shadow-accent/30"><Sparkles size={22} className="text-white" /></div>
               <div className="flex-1 min-w-0">
-                <p className="text-base font-black text-[#18181B] dark:text-[#E6E8E6]">Parler à Claude</p>
+                <p className="text-base font-black text-[#18181B] dark:text-[#E6E8E6]">Parler à Cady</p>
                 <p className="text-xs font-semibold text-[#18181B]/55 dark:text-[#E6E8E6]/55">« Programme mon sport demain à 6h », « Crée l'habitude lire 10 pages », « Allège ma soirée »… À l'écrit ou à la voix.</p>
               </div>
               <ChevronRight size={20} className="text-accent shrink-0" />

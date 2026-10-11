@@ -1,4 +1,4 @@
-# Assistant Claude dans Caddr : mise en service
+# Cady (assistante propulsée par Claude) dans Caddr : mise en service
 
 L'assistant appelle l'API Claude depuis la fonction Netlify `netlify/functions/assistant.mts`.
 La clé reste côté serveur : elle n'est jamais envoyée au navigateur.

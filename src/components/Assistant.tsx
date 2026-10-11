@@ -203,7 +203,7 @@ const Assistant: React.FC<Props> = ({ open, onClose, getData, commit, undo, navi
 
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-[160] flex justify-end" role="dialog" aria-label="Assistant Claude">
+    <div className="fixed inset-0 z-[160] flex justify-end" role="dialog" aria-label="Cady, ton assistante">
       <div className="absolute inset-0 bg-black/40 md:bg-black/20" onClick={onClose} />
       <div className="relative w-full md:w-[440px] h-full flex flex-col bg-[#F4F4F5] dark:bg-[#0c0c0d] border-l border-[#18181B]/10 dark:border-[#E6E8E6]/10 shadow-2xl animate-in slide-in-from-right-8 duration-300"
         style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
@@ -211,18 +211,18 @@ const Assistant: React.FC<Props> = ({ open, onClose, getData, commit, undo, navi
         <div className="flex items-center gap-3 px-4 py-3 border-b border-[#18181B]/5 dark:border-[#E6E8E6]/5">
           <div className="w-9 h-9 rounded-xl bg-accent/15 flex items-center justify-center"><Sparkles size={18} className="text-accent" /></div>
           <div className="flex-1 min-w-0">
-            <p className={`text-sm font-black ${ink}`}>Assistant Claude</p>
-            <p className={`text-[10px] font-semibold ${muted}`}>Dis-lui quoi programmer, déplacer ou suivre</p>
+            <p className={`text-sm font-black ${ink}`}>Cady</p>
+            <p className={`text-[10px] font-semibold ${muted}`}>Propulsée par Claude</p>
           </div>
-          <button onClick={() => setShowMemory(v => !v)} aria-label="Mémoire de l'assistant" title="Ce que Claude retient" className={`relative p-2 rounded-lg hover:text-accent ${showMemory ? 'text-accent' : muted}`}><Brain size={16} />{memory.length > 0 && <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-accent" />}</button>
+          <button onClick={() => setShowMemory(v => !v)} aria-label="Mémoire de Cady" title="Ce que Cady retient" className={`relative p-2 rounded-lg hover:text-accent ${showMemory ? 'text-accent' : muted}`}><Brain size={16} />{memory.length > 0 && <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-accent" />}</button>
           {'speechSynthesis' in window && <button onClick={() => { const v = !speak; setSpeak(v); try { localStorage.setItem('caddr_assistant_tts', v ? '1' : '0'); if (!v) window.speechSynthesis.cancel(); } catch { /* rien */ } }} aria-label={speak ? 'Ne plus lire les réponses' : 'Lire les réponses à voix haute'} title={speak ? 'Lecture à voix haute activée' : 'Lire les réponses à voix haute'} className={`p-2 rounded-lg hover:text-accent ${speak ? 'text-accent' : muted}`}>{speak ? <Volume2 size={16} /> : <VolumeX size={16} />}</button>}
           {msgs.length > 0 && <button onClick={clear} aria-label="Nouvelle discussion" title="Nouvelle discussion" className={`p-2 rounded-lg hover:text-accent ${muted}`}><Trash2 size={16} /></button>}
-          <button onClick={onClose} aria-label="Fermer l'assistant" className={`p-2 rounded-lg hover:text-accent ${muted}`}><X size={18} /></button>
+          <button onClick={onClose} aria-label="Fermer Cady" className={`p-2 rounded-lg hover:text-accent ${muted}`}><X size={18} /></button>
         </div>
 
         {showMemory && (
           <div className="px-4 py-3 border-b border-[#18181B]/5 dark:border-[#E6E8E6]/5 space-y-2 bg-accent/[0.04] max-h-[45%] overflow-y-auto custom-scrollbar">
-            <p className={`text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 text-accent`}><Brain size={12} /> Ce que Claude retient</p>
+            <p className={`text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 text-accent`}><Brain size={12} /> Ce que Cady retient</p>
             <p className={`text-[11px] font-medium ${muted}`}>Tes préférences durables, respectées dans toutes ses propositions. Dis « retiens que… » ou ajoute-les ici.</p>
             {memory.length === 0 && <p className={`text-[11px] font-semibold ${muted}`}>Rien pour l'instant.</p>}
             {memory.map(m => (
@@ -244,7 +244,7 @@ const Assistant: React.FC<Props> = ({ open, onClose, getData, commit, undo, navi
             <div className="space-y-4 pt-4">
               <div className="text-center space-y-2">
                 <div className="w-14 h-14 mx-auto rounded-2xl bg-accent/15 flex items-center justify-center"><Sparkles size={26} className="text-accent" /></div>
-                <p className={`text-base font-black ${ink}`}>Bonjour{userName ? ` ${userName}` : ''} 👋</p>
+                <p className={`text-base font-black ${ink}`}>Bonjour{userName ? ` ${userName}` : ''} 👋 Je suis Cady.</p>
                 <p className={`text-xs font-semibold ${muted} max-w-xs mx-auto`}>Écris ou parle naturellement. Je peux ajouter, déplacer, cocher ou sauter des tâches, créer des habitudes, fixer tes objectifs et analyser ta discipline.</p>
               </div>
               <div className="flex flex-wrap gap-2 justify-center">
@@ -279,11 +279,11 @@ const Assistant: React.FC<Props> = ({ open, onClose, getData, commit, undo, navi
                 onChange={e => { setInput(e.target.value); e.currentTarget.style.height = 'auto'; e.currentTarget.style.height = Math.min(140, e.currentTarget.scrollHeight) + 'px'; }}
                 onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } }}
                 placeholder={listening ? "Je t’écoute…" : "Écris ou dicte ta demande…"}
-                className={`flex-1 bg-transparent resize-none outline-none text-sm font-medium py-2 px-1 max-h-[140px] ${ink} placeholder:text-[#18181B]/35 dark:placeholder:text-[#E6E8E6]/35`} aria-label="Message pour l'assistant" />
+                className={`flex-1 bg-transparent resize-none outline-none text-sm font-medium py-2 px-1 max-h-[140px] ${ink} placeholder:text-[#18181B]/35 dark:placeholder:text-[#E6E8E6]/35`} aria-label="Message pour Cady" />
               {SpeechRec && <button onClick={toggleMic} disabled={!!busy} aria-label={listening ? 'Arrêter la dictée' : 'Parler'} title={listening ? 'Arrêter' : 'Parler'} className={`p-2.5 rounded-xl transition-all ${listening ? 'bg-[#DF2935] text-white animate-pulse' : `hover:text-accent ${muted}`}`}>{listening ? <MicOff size={18} /> : <Mic size={18} />}</button>}
               <button onClick={() => send()} disabled={!input.trim() || !!busy} aria-label="Envoyer" className="p-2.5 rounded-xl bg-accent text-white disabled:opacity-30 transition-all"><Send size={18} /></button>
             </div>
-            <p className={`text-[9px] font-medium text-center mt-1.5 ${muted}`}>Claude peut se tromper : chaque série de changements peut être annulée.</p>
+            <p className={`text-[9px] font-medium text-center mt-1.5 ${muted}`}>Cady peut se tromper : chaque série de changements peut être annulée.</p>
           </div>
         ) : (
           <div className="p-4 border-t border-[#18181B]/5 dark:border-[#E6E8E6]/5 space-y-2 text-center">
