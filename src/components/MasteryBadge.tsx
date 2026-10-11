@@ -1,19 +1,24 @@
 import React from 'react';
 import { Bean, Sprout, TreeDeciduous, Trees } from 'lucide-react';
 import { mastery, MASTERY_STEPS, type MasteryKey } from '../progress';
+import { useFeature } from '../features';
 
 const ICON: Record<MasteryKey, React.FC<{ size?: number; className?: string }>> = { seed: Bean, sprout: Sprout, tree: TreeDeciduous, forest: Trees };
 
 /** Pastille compacte : icône + palier */
 export const MasteryChip: React.FC<{ days: number }> = ({ days }) => {
+  const on = useFeature('mastery');
   const m = mastery(days); const I = ICON[m.key];
+  if (!on) return null;
   return <span title={m.next ? `${m.label} · ${days} jours tenus · ${m.label === 'Graine' ? '' : ''}${m.next.at - days} de plus pour devenir ${m.next.label}` : `${m.label} · ${days} jours tenus`}
     className={`inline-flex items-center gap-0.5 ${m.key === 'forest' ? 'text-[#B8900A] dark:text-[#FDCA40]' : 'text-accent'}`}><I size={11} />{m.label}</span>;
 };
 
 /** Carte complète : palier actuel, progression vers le suivant, les 4 étapes */
 export const MasteryCard: React.FC<{ days: number }> = ({ days }) => {
+  const on = useFeature('mastery');
   const m = mastery(days); const I = ICON[m.key];
+  if (!on) return null;
   return (
     <div className="rounded-[2rem] p-5 bg-[#18181B]/[0.03] dark:bg-[#E6E8E6]/[0.03] border border-[#18181B]/5 dark:border-[#E6E8E6]/5 space-y-3" aria-label="Palier de maîtrise">
       <div className="flex items-center gap-3">

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Feather, Shield } from 'lucide-react';
 
-interface Props { done: number; total: number; hard: boolean; streak: number; onToggleHard: () => void }
+interface Props { done: number; total: number; hard: boolean; streak: number; onToggleHard?: () => void }
 
 // Anneau du jour : se remplit à chaque tâche cochée. Mode « Jour difficile » en un geste.
 const DayRing: React.FC<Props> = ({ done, total, hard, streak, onToggleHard }) => {
@@ -30,9 +30,9 @@ const DayRing: React.FC<Props> = ({ done, total, hard, streak, onToggleHard }) =
       <div className="flex-1 min-w-0 space-y-1.5">
         <p className="text-[9px] font-black uppercase tracking-widest text-accent flex items-center gap-1.5">{hard ? <><Feather size={11} /> Jour difficile · tout en douceur</> : 'Ta journée'}{streak > 0 && <span className="text-[#B8900A] dark:text-[#FDCA40] normal-case tracking-normal font-bold">· 🔥 {streak} j</span>}</p>
         <p className="text-[13px] font-semibold leading-snug text-[#18181B] dark:text-[#E6E8E6]">{msg}</p>
-        <button onClick={onToggleHard} className={`inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider ${hard ? 'text-accent' : 'text-[#18181B]/55 dark:text-[#E6E8E6]/55 hover:text-accent'}`}>
+        {onToggleHard && <button onClick={onToggleHard} className={`inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider ${hard ? 'text-accent' : 'text-[#18181B]/55 dark:text-[#E6E8E6]/55 hover:text-accent'}`}>
           {hard ? <><Shield size={12} /> Revenir à une journée normale</> : <><Feather size={12} /> Journée difficile ?</>}
-        </button>
+        </button>}
       </div>
     </div>
   );

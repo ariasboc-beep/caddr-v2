@@ -148,6 +148,7 @@ export interface AppSettings {
   smartReminders?: 'off' | 'important' | 'all'; // rappels des tâches à heure fixe non faites
   perfectCelebratedOn?: string;     // écran « journée parfaite » déjà montré ce jour-là
   jokerOfferDismissed?: string;     // proposition de joker masquée (jour concerné)
+  features?: { [id: string]: boolean }; // fonctionnalités désactivées (false) dans les Réglages
   motivation?: boolean;             // message de motivation du jour (activé par défaut)
   motivationHiddenOn?: string;      // message du jour masqué ce jour-là
   briefingHiddenOn?: string;        // briefing du matin masqué ce jour-là

@@ -9,7 +9,7 @@ interface Props {
   appData: AppData;
   onFinish: (data: AppData, summary: string) => void;
   onClose: () => void;
-  onAskClaude: () => void;
+  onAskClaude?: () => void;
 }
 
 const ink = 'text-[#18181B] dark:text-[#E6E8E6]';
@@ -139,7 +139,7 @@ const EveningReview: React.FC<Props> = ({ appData, onFinish, onClose, onAskClaud
 
         <div className="p-4 border-t border-[#18181B]/5 dark:border-[#E6E8E6]/5 flex items-center gap-2">
           {step > 0 ? <button onClick={() => setStep(step - 1)} className={`flex items-center gap-1 px-4 py-3 rounded-2xl text-[11px] font-black uppercase tracking-wider bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 ${ink}`}><ChevronLeft size={14} /> Retour</button>
-            : <button onClick={onAskClaude} className={`flex items-center gap-1.5 px-4 py-3 rounded-2xl text-[11px] font-black uppercase tracking-wider bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 hover:text-accent ${ink}`}><Sparkles size={14} /> Avec Cady</button>}
+            : onAskClaude ? <button onClick={onAskClaude} className={`flex items-center gap-1.5 px-4 py-3 rounded-2xl text-[11px] font-black uppercase tracking-wider bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 hover:text-accent ${ink}`}><Sparkles size={14} /> Avec Cady</button> : null}
           <span className="flex-1" />
           {step < 2
             ? <button onClick={() => setStep(step + 1)} className="flex items-center gap-1 px-5 py-3 rounded-2xl bg-accent text-white text-[11px] font-black uppercase tracking-wider shadow-lg shadow-accent/20">Suivant <ChevronRight size={14} /></button>

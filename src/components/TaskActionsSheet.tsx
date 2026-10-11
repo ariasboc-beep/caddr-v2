@@ -10,6 +10,7 @@ interface Props {
   dateKey: string;
   status: SkipRecord | null;
   canAssign: boolean;           // connecté à un compte
+  allowAssign?: boolean;        // fonctionnalité activée dans les Réglages
   onPostpone: (toKey: string) => void;
   onCancel: (reason: string) => void;
   onRestore: () => void;
@@ -83,7 +84,7 @@ const TaskActionsSheet: React.FC<Props> = (p) => {
             )}
             {!p.status && !p.isSub && <Row icon={<CalendarClock size={18} />} label="Reporter" hint="À demain ou à une date précise" onClick={() => setView('postpone')} />}
             {!p.status && <Row icon={<CalendarX2 size={18} />} label="Annuler pour ce jour" hint="Elle reste visible, barrée, et ne compte pas dans ton taux" onClick={() => setView('cancel')} />}
-            {!p.status && !p.isSub && <Row icon={<UserPlus size={18} />} label="Affecter à quelqu'un" hint="À un autre utilisateur Caddr., avec son adresse e-mail" onClick={() => setView('assign')} />}
+            {!p.status && !p.isSub && p.allowAssign !== false && <Row icon={<UserPlus size={18} />} label="Affecter à quelqu'un" hint="À un autre utilisateur Caddr., avec son adresse e-mail" onClick={() => setView('assign')} />}
             {!p.isSub && <Row icon={<ListPlus size={18} />} label="Ajouter une sous-tâche" onClick={() => setView('sub')} />}
             {p.onSaveMeaning && <Row icon={<Compass size={18} />} label="Sens et version minimale" hint={p.task.minVersion ? `Version minimale : ${p.task.minVersion}` : 'Pourquoi, identité, version pour les jours difficiles'} onClick={() => setView('meaning')} />}
             <div className="h-px bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 my-1" />

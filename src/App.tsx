@@ -1,4 +1,5 @@
 
+import { featureOn, FEATURE_GROUPS, FeaturesContext, type FeatureId } from './features';
 import BuddyPanel, { BuddyCard } from './components/BuddyPanel';
 import { inviteBuddy, listBuddyLinks, answerInvite, removeBuddyLink, publishStats, sendCheer, unreadCheers, markCheerRead, loadBuddies, type Buddy, type BuddyLink, type Cheer } from './services/buddyService';
 import DayRing from './components/DayRing';
@@ -281,7 +282,7 @@ const App: React.FC = () => {
   const appDataRef = useRef(appData);
   appDataRef.current = appData;
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); setShowAssistant(v => !v); } };
+    const onKey = (e: KeyboardEvent) => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k' && appDataRef.current?.settings?.features?.cady !== false) { e.preventDefault(); setShowAssistant(v => !v); } };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, []);
@@ -462,6 +463,8 @@ const App: React.FC = () => {
     { id: 'stats', label: 'Analytics', icon: BarChart3, tabs: ['stats'] },
   ];
   const SUB_LABELS: Partial<Record<TabType, string>> = { schedule: 'Agenda', inbox: 'Boîte', templates: 'Modèles', habits: 'Habitudes', journal: 'Journal', goals: 'Objectifs de vie' };
+  if (!featureOn(appData, 'cady')) navGroups.splice(navGroups.findIndex(g => g.id === 'cady'), 1);
+  if (!featureOn(appData, 'journal')) { const g = navGroups.find(x => x.id === 'grow'); if (g) g.tabs = g.tabs.filter(t => t !== 'journal'); }
   const currentGroup = navGroups.find(g => g.tabs.includes(activeTab));
   const goGroup = (g: typeof navGroups[number]) => {
     setIsReorderMode(false);
@@ -2240,7 +2243,7 @@ const App: React.FC = () => {
   // Journée parfaite : célébration une fois par jour, avec une carte surprise éventuelle
   useEffect(() => {
     if (isLoading || (user && !cloudReady.current)) return;
-    if (todayStat.total > 0 && todayStat.done >= todayStat.total && appData.settings?.perfectCelebratedOn !== todayKeyNow) {
+    if (featureOn(appData, 'perfectDay') && todayStat.total > 0 && todayStat.done >= todayStat.total && appData.settings?.perfectCelebratedOn !== todayKeyNow) {
       const card = drawCard(todayKeyNow);
       setPerfect({ card });
       updateAppData(prev => { const next = card ? addReward(prev, card, todayKeyNow) : prev; return { ...next, settings: { ...(next.settings || {}), perfectCelebratedOn: todayKeyNow } }; });
@@ -2262,8 +2265,8 @@ const App: React.FC = () => {
     if (!prev || prev.day !== todayKeyNow) return;
     const msgs: string[] = [];
     blocksDone.forEach(t => { if (!prev.blocks.has(t) && blocksDone.size < todayStat.blocks.length) msgs.push(`Bloc « ${t} » bouclé ✓`); });
-    activeIdentities(appData).forEach(i => { const n = votes[i.id] || 0; if (n > (prev.votes[i.id] || 0)) msgs.push(`+1 vote : ${i.text} (${n})`); });
-    Object.entries(mast).forEach(([id, l]) => { if (prev.mastery[id] && prev.mastery[id] !== l && ['Pousse', 'Arbre', 'Forêt'].indexOf(l) > ['Pousse', 'Arbre', 'Forêt'].indexOf(prev.mastery[id])) { const name = activeStandaloneHabits(appData.habits).find(h => h.id === id)?.name || appData.blocks.flatMap(b => b.tasks).find(t => t.id === id)?.title; msgs.push(`🌱 « ${name} » passe au palier ${l} !`); } });
+    if (featureOn(appData, 'identities')) activeIdentities(appData).forEach(i => { const n = votes[i.id] || 0; if (n > (prev.votes[i.id] || 0)) msgs.push(`+1 vote : ${i.text} (${n})`); });
+    if (featureOn(appData, 'mastery')) Object.entries(mast).forEach(([id, l]) => { if (prev.mastery[id] && prev.mastery[id] !== l && ['Pousse', 'Arbre', 'Forêt'].indexOf(l) > ['Pousse', 'Arbre', 'Forêt'].indexOf(prev.mastery[id])) { const name = activeStandaloneHabits(appData.habits).find(h => h.id === id)?.name || appData.blocks.flatMap(b => b.tasks).find(t => t.id === id)?.title; msgs.push(`🌱 « ${name} » passe au palier ${l} !`); } });
     if (todayStat.done > prev.done) { try { navigator.vibrate?.(12); } catch { /* rien */ } }
     if (msgs.length) notify(msgs.join(' · '), 3200);
   }, [todayStat, votes, appData.habits, appData.blocks, todayKeyNow, isLoading]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -2814,7 +2817,7 @@ const App: React.FC = () => {
         </div>
 
         {/* Barre d'en-tête : discipline du mois (défaut) ou niveau XP — touche pour basculer */}
-        {headerBar === 'discipline' ? (
+        {featureOn(appData, 'headerBar') && (headerBar === 'discipline' ? (
           <button onClick={() => updateAppData(prev => ({ ...prev, settings: { ...(prev.settings || {}), headerBar: 'xp' } }))} title="Touche pour afficher le niveau XP" className="relative pt-1 w-full text-left block">
             <div className="flex items-center justify-between mb-1 gap-2">
                 <div className="flex items-center gap-1.5 min-w-0">
@@ -2843,12 +2846,13 @@ const App: React.FC = () => {
                 />
             </div>
           </button>
-        )}
+        ))}
         {import.meta.env.VITE_DEMO === '1' && (
           <p className="text-[10px] font-bold text-center rounded-xl px-3 py-2 bg-[#FDCA40]/15 text-[#B8900A] dark:text-[#FDCA40]">Version de démonstration · données d'exemple, gardées seulement dans ce navigateur · connexion, synchronisation et assistante Cady désactivées ici</p>
         )}
       </header>
 
+      <FeaturesContext.Provider value={(appData.settings?.features || {}) as Partial<Record<FeatureId, boolean>>}>
       <main className="max-w-4xl mx-auto px-4 sm:px-6 mt-4 space-y-8 pb-24 md:pb-16">
         <Suspense fallback={<div className="flex justify-center py-20"><Loader2 className="animate-spin text-accent" size={28} /></div>}>
         
@@ -2895,11 +2899,15 @@ const App: React.FC = () => {
                 ))}
               </div>
             )}
-            {!isReorderMode && dateKey === todayKeyNow && (
+            {!isReorderMode && dateKey === todayKeyNow && featureOn(appData, 'dayRing') && (
               <DayRing done={todayStat.done} total={todayStat.total} hard={hardToday} streak={streakNow.current}
-                onToggleHard={() => { updateAppData(prev => setHardDay(prev, todayKeyNow, !hardToday)); notify(hardToday ? 'Retour à une journée normale.' : "Mode jour difficile : fais la version minimale de l'essentiel. Une tâche suffit pour tenir ta série. 🌿", 4500); }} />
+                onToggleHard={!featureOn(appData, 'hardDay') ? undefined : () => { updateAppData(prev => setHardDay(prev, todayKeyNow, !hardToday)); notify(hardToday ? 'Retour à une journée normale.' : "Mode jour difficile : fais la version minimale de l'essentiel. Une tâche suffit pour tenir ta série. 🌿", 4500); }} />
             )}
-            {!isReorderMode && dateKey === todayKeyNow && offer && (
+            {!isReorderMode && dateKey === todayKeyNow && !featureOn(appData, 'dayRing') && featureOn(appData, 'hardDay') && (
+              <button onClick={() => { updateAppData(prev => setHardDay(prev, todayKeyNow, !hardToday)); notify(hardToday ? 'Retour à une journée normale.' : "Mode jour difficile : fais la version minimale de l'essentiel. Une tâche suffit pour tenir ta série. 🌿", 4500); }}
+                className={`w-full glass rounded-[2rem] px-5 py-3.5 text-left text-[11px] font-black uppercase tracking-wider ${hardToday ? 'text-accent border border-accent/30' : 'text-[#18181B]/60 dark:text-[#E6E8E6]/55'}`}>{hardToday ? 'Jour difficile activé · revenir à une journée normale' : 'Journée difficile ? Passer en mode doux'}</button>
+            )}
+            {!isReorderMode && dateKey === todayKeyNow && offer && featureOn(appData, 'jokers') && (
               <div className="glass rounded-[2rem] p-4 sm:p-5 border border-[#FDCA40]/30 space-y-2.5 animate-in slide-in-from-top-2" aria-label="Joker de série">
                 <p className="text-[10px] font-black uppercase tracking-widest text-[#B8900A] dark:text-[#FDCA40]">🃏 Protège ta série</p>
                 <p className="text-[13px] font-semibold text-[#18181B] dark:text-[#E6E8E6]">Hier n'a pas été tenu. Ta série de {offer.streak} jours peut continuer avec un joker{offer.ok ? ` (${offer.left} restant${offer.left > 1 ? 's' : ''} ce mois-ci).` : '.'}</p>
@@ -2911,35 +2919,35 @@ const App: React.FC = () => {
                 <p className="text-[10px] font-semibold text-[#18181B]/55 dark:text-[#E6E8E6]/50">2 jokers par mois, jamais deux jours de suite.</p>
               </div>
             )}
-            {!isReorderMode && dateKey === todayKeyNow && cheersIn.map(c => (
+            {!isReorderMode && dateKey === todayKeyNow && featureOn(appData, 'buddy') && cheersIn.map(c => (
               <div key={c.id} className="glass rounded-[2rem] px-5 py-4 flex items-center gap-3 border border-accent/25 animate-in slide-in-from-top-2" aria-label="Encouragement reçu">
                 <span className="text-2xl">{c.emoji}</span>
                 <p className="flex-1 text-[13px] font-semibold text-[#18181B] dark:text-[#E6E8E6]"><strong>{c.fromName}</strong> t'encourage : « {c.message} »</p>
                 <button onClick={() => { markCheerRead(c.id).catch(() => {}); setCheersIn(l => l.filter(x => x.id !== c.id)); }} aria-label="Merci" className="px-3 py-2 rounded-xl bg-accent/10 text-accent text-[10px] font-black uppercase tracking-wider">Merci</button>
               </div>
             ))}
-            {!isReorderMode && dateKey === todayKeyNow && buddies.length > 0 && (
+            {!isReorderMode && dateKey === todayKeyNow && buddies.length > 0 && featureOn(appData, 'buddy') && (
               <div className="space-y-2" aria-label="Mes binômes">
                 <p className="px-2 text-[9px] font-black uppercase tracking-widest text-[#18181B]/55 dark:text-[#E6E8E6]/55">Mon binôme aujourd'hui</p>
                 {buddies.map(b => <BuddyCard key={b.linkId} buddy={b} onCheer={cheerBuddy} compact />)}
               </div>
             )}
-            {!isReorderMode && dateKey === todayKeyNow && buddyLinks.incoming.length > 0 && (
+            {!isReorderMode && dateKey === todayKeyNow && buddyLinks.incoming.length > 0 && featureOn(appData, 'buddy') && (
               <button onClick={() => setActiveTab('goals')} className="w-full glass rounded-[2rem] px-5 py-4 text-left border border-accent/30 text-[13px] font-semibold text-[#18181B] dark:text-[#E6E8E6]">🤝 {buddyLinks.incoming[0].fromName || buddyLinks.incoming[0].fromEmail} t'invite à devenir son binôme de discipline · <span className="text-accent font-black">Voir</span></button>
             )}
-            {!isReorderMode && dateKey === todayKeyNow && appData.settings?.motivation !== false && appData.settings?.motivationHiddenOn !== todayKeyNow && (() => {
+            {!isReorderMode && dateKey === todayKeyNow && featureOn(appData, 'motivation') && appData.settings?.motivationHiddenOn !== todayKeyNow && (() => {
               const y = new Date(todayKeyNow + 'T12:00:00'); y.setDate(y.getDate() - 1);
               return <DailyMotivation dateKey={todayKeyNow} yesterdayRate={computeDay(appData, getKeyFromDate(y), todayKeyNow).rate} streak={perfectStreak(appData, todayKeyNow).current}
                 name={user?.displayName?.split(' ')[0] || undefined}
                 onHide={() => updateAppData(prev => ({ ...prev, settings: { ...(prev.settings || {}), motivationHiddenOn: todayKeyNow } }))} />;
             })()}
             {!isReorderMode && dateKey === todayKeyNow && <IncomingAssignments items={incoming} todayKey={todayKeyNow} onAccept={acceptAssignment} onDecline={declineAssignment} />}
-            {!isReorderMode && dateKey === todayKeyNow && briefing && (
+            {!isReorderMode && dateKey === todayKeyNow && briefing && featureOn(appData, 'briefing') && (
               <MorningBriefing b={briefing} name={user?.displayName?.split(' ')[0] || undefined}
-                onAskClaude={() => askClaude(PROMPTS.morning)} onOpenPlanning={() => setActiveTab('schedule')}
+                onAskClaude={featureOn(appData, 'cady') ? () => askClaude(PROMPTS.morning) : undefined} onOpenPlanning={() => setActiveTab('schedule')}
                 onHide={() => updateAppData(prev => ({ ...prev, settings: { ...(prev.settings || {}), briefingHiddenOn: todayKeyNow } }))} />
             )}
-            {!isReorderMode && dateKey === todayKeyNow && eveningDue && (
+            {!isReorderMode && dateKey === todayKeyNow && eveningDue && featureOn(appData, 'evening') && (
               <div className="glass p-4 sm:p-5 rounded-[2rem] border border-accent/25 flex flex-wrap items-center gap-3 animate-in slide-in-from-top-2">
                 <div className="w-10 h-10 rounded-xl bg-accent/15 flex items-center justify-center shrink-0"><Moon size={18} className="text-accent" /></div>
                 <div className="flex-1 min-w-[160px]">
@@ -2947,10 +2955,10 @@ const App: React.FC = () => {
                   <p className="text-[11px] font-semibold text-[#18181B]/55 dark:text-[#E6E8E6]/55">Coche, reporte, note ton ressenti et ton journal : 3 minutes.</p>
                 </div>
                 <button onClick={() => setShowEvening(true)} className="px-4 py-2.5 rounded-xl bg-accent text-white text-[10px] font-black uppercase tracking-wider shadow-lg shadow-accent/20">Commencer</button>
-                <button onClick={() => askClaude(PROMPTS.evening)} className="flex items-center gap-1 px-3 py-2.5 rounded-xl bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 text-[10px] font-black uppercase tracking-wider text-[#18181B] dark:text-[#E6E8E6] hover:text-accent"><Sparkles size={12} /> Avec Cady</button>
+                {featureOn(appData, 'cady') && <button onClick={() => askClaude(PROMPTS.evening)} className="flex items-center gap-1 px-3 py-2.5 rounded-xl bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 text-[10px] font-black uppercase tracking-wider text-[#18181B] dark:text-[#E6E8E6] hover:text-accent"><Sparkles size={12} /> Avec Cady</button>}
               </div>
             )}
-            {!isReorderMode && dateKey === todayKeyNow && showJournalPrompt && (
+            {!isReorderMode && dateKey === todayKeyNow && showJournalPrompt && featureOn(appData, 'journalPrompt') && featureOn(appData, 'journal') && (
               <button onClick={() => setActiveTab('journal')} className="w-full glass p-4 sm:p-5 rounded-[2rem] border border-[#FDCA40]/25 flex items-center gap-3 text-left animate-in slide-in-from-top-2 hover:border-[#FDCA40]/50 transition-all">
                 <div className="w-10 h-10 rounded-xl bg-[#FDCA40]/15 flex items-center justify-center shrink-0"><BookHeart size={18} className="text-[#B8900A] dark:text-[#FDCA40]" /></div>
                 <div className="flex-1 min-w-0">
@@ -2960,7 +2968,7 @@ const App: React.FC = () => {
                 <ChevronRight size={18} className="text-[#18181B]/40 dark:text-[#E6E8E6]/40 shrink-0" />
               </button>
             )}
-            {!isReorderMode && dateKey === todayKeyNow && showWeekPlanPrompt && (
+            {!isReorderMode && dateKey === todayKeyNow && showWeekPlanPrompt && featureOn(appData, 'weekPlan') && (
               <div className="glass p-4 sm:p-5 rounded-[2rem] border border-accent/25 flex items-center gap-3 animate-in slide-in-from-top-2">
                 <div className="hidden sm:flex w-10 h-10 rounded-xl bg-accent/15 items-center justify-center shrink-0"><Sparkles size={18} className="text-accent" /></div>
                 <div className="flex-1 min-w-0">
@@ -2971,14 +2979,14 @@ const App: React.FC = () => {
                 <button onClick={() => updateAppData(prev => ({ ...prev, settings: { ...(prev.settings || {}), weekPlanDismissed: weekPlan.planKey } }))} aria-label="Plus tard" title="Plus tard (reste disponible dans Planning)" className="shrink-0 p-1.5 rounded-lg text-[#18181B]/40 dark:text-[#E6E8E6]/40 hover:text-accent"><X size={16} /></button>
               </div>
             )}
-            {!isReorderMode && dateKey === todayKeyNow && pendingItems.length > 0 && (
+            {!isReorderMode && dateKey === todayKeyNow && pendingItems.length > 0 && featureOn(appData, 'carryOver') && (
               <CarryOver items={pendingItems} todayKey={todayKeyNow}
                 onMove={(id, k) => { saveToHistory(); handleRescheduleTask(id, k); }}
                 onInbox={(id) => { saveToHistory(); updateAppData(prev => sendToInbox(prev, id)); setActiveNotification('Renvoyée dans la Boîte de tâches 📥'); setTimeout(() => setActiveNotification(null), 2500); }}
                 onAbandon={(p) => { updateAppData(prev => ({ ...prev, skips: [...(prev.skips || []), { id: generateId(), taskId: p.task.id, taskTitle: p.task.title, date: p.date, reason: 'Abandonnée' }] })); setActiveNotification('Tâche abandonnée. Choisir, c\'est aussi avancer. 🌿'); setTimeout(() => setActiveNotification(null), 2500); }}
                 onHide={() => updateAppData(prev => ({ ...prev, settings: { ...(prev.settings || {}), carryHiddenOn: todayKeyNow } }))} />
             )}
-            {!isReorderMode && dateKey === getKeyFromDate(new Date()) && (nowNextData.current || nowNextData.next) && (
+            {!isReorderMode && dateKey === getKeyFromDate(new Date()) && (nowNextData.current || nowNextData.next) && featureOn(appData, 'nowNext') && (
               <NowNext
                 current={nowNextData.current}
                 next={nowNextData.next}
@@ -3014,7 +3022,7 @@ const App: React.FC = () => {
             {/* Habitudes du jour (habitudes indépendantes des blocs) */}
             {(() => {
               const todays = activeHabits(appData.habits).filter(h => h.showInRoutine !== false && (habitScheduled(h, dateKey) || h.entries?.[dateKey]?.s));
-              if (!todays.length || dateKey > getKeyFromDate(new Date())) return null;
+              if (!featureOn(appData, 'habitsToday') || !todays.length || dateKey > getKeyFromDate(new Date())) return null;
               const setStatus = (id: string, st: 'done' | 'fail') => updateAppData(prev => ({
                 ...prev,
                 habits: (prev.habits || []).map(h => {
@@ -3175,7 +3183,7 @@ const App: React.FC = () => {
                                               }}
                                             />
                                             {hasLogToday && <BookOpen size={10} className="text-accent shrink-0" />}
-                                            {unplanned && !dStatus && <span title="Ajoutée aujourd'hui alors qu'elle n'était pas prévue" className="text-[7px] font-black uppercase px-1.5 py-0.5 rounded-md border border-[#18181B]/15 dark:border-[#E6E8E6]/15 text-[#18181B]/60 dark:text-[#E6E8E6]/60 tracking-widest shrink-0">Imprévue</span>}
+                                            {unplanned && !dStatus && featureOn(appData, 'unplanned') && <span title="Ajoutée aujourd'hui alors qu'elle n'était pas prévue" className="text-[7px] font-black uppercase px-1.5 py-0.5 rounded-md border border-[#18181B]/15 dark:border-[#E6E8E6]/15 text-[#18181B]/60 dark:text-[#E6E8E6]/60 tracking-widest shrink-0">Imprévue</span>}
                                             {task.assignedBy && <span title={`Confiée par ${task.assignedBy}`} className="text-[7px] font-black uppercase px-1.5 py-0.5 rounded-md bg-accent/10 text-accent tracking-widest shrink-0 max-w-[110px] truncate">De {task.assignedBy}</span>}
                                             {!task.completedDates?.includes(dateKey) && task.priority && task.priority !== 'medium' && (
                                               <span className={`text-[7px] font-black uppercase px-1.5 py-0.5 rounded-md ${priorityInfo.bg} ${priorityInfo.color} tracking-widest shrink-0`}>
@@ -3183,7 +3191,7 @@ const App: React.FC = () => {
                                               </span>
                                             )}
                                           </div>
-                                          {isHardDay(appData, dateKey) && !dStatus && !task.completedDates?.includes(dateKey) && (task.minVersion || task.why) && <p className="text-[10px] font-bold text-accent mb-0.5">{task.minVersion ? `Version minimale : ${task.minVersion}` : ''}{task.minVersion && task.why ? ' · ' : ''}{task.why ? <span className="font-semibold italic text-[#18181B]/60 dark:text-[#E6E8E6]/55">{task.why}</span> : null}</p>}
+                                          {featureOn(appData, 'hardDay') && isHardDay(appData, dateKey) && !dStatus && !task.completedDates?.includes(dateKey) && (task.minVersion || task.why) && <p className="text-[10px] font-bold text-accent mb-0.5">{task.minVersion ? `Version minimale : ${task.minVersion}` : ''}{task.minVersion && task.why ? ' · ' : ''}{task.why ? <span className="font-semibold italic text-[#18181B]/60 dark:text-[#E6E8E6]/55">{task.why}</span> : null}</p>}
                                           {dStatus && <p className={`text-[9px] font-black uppercase tracking-widest mb-0.5 ${dStatus.kind === 'cancel' ? 'text-[#DF2935]' : 'text-[#18181B]/60 dark:text-[#E6E8E6]/60'}`}>{dStatus.kind === 'cancel' ? `Annulée${dStatus.reason && dStatus.reason !== 'Annulée' ? ` · ${dStatus.reason}` : ''}` : dStatus.reason || 'Sautée'}</p>}
                                           {task.description && !task.completedDates?.includes(dateKey) && (
                                             <p className="text-[10px] text-[#18181B]/50 dark:text-[#E6E8E6]/50 font-medium mb-1 line-clamp-2 leading-relaxed">
@@ -3337,7 +3345,7 @@ const App: React.FC = () => {
                               <p className="text-[10px] text-[#18181B]/60 dark:text-[#E6E8E6]/60 font-bold mt-1 uppercase">Faire le bilan de vos accomplissements</p>
                            </div>
                         </button>
-                        <button onClick={() => setShareFor('day')} className="mt-3 w-full flex items-center justify-center gap-2 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest text-accent bg-accent/10 hover:bg-accent hover:text-white transition-all"><Share2 size={14} /> Partager ma journée</button>
+                        {featureOn(appData, 'share') && <button onClick={() => setShareFor('day')} className="mt-3 w-full flex items-center justify-center gap-2 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest text-accent bg-accent/10 hover:bg-accent hover:text-white transition-all"><Share2 size={14} /> Partager ma journée</button>}
                       </div>
                     )}
                 </>
@@ -3618,16 +3626,16 @@ const App: React.FC = () => {
 
         {activeTab === 'goals' && (
           <div className="space-y-6 animate-in fade-in duration-500 pb-20">
-            <IdentityPanel identities={activeIdentities(appData)} votes={votes}
+            {featureOn(appData, 'identities') && <IdentityPanel identities={activeIdentities(appData)} votes={votes}
               linked={Object.fromEntries(activeIdentities(appData).map(i => [i.id, Array.from(new Set(appData.blocks.flatMap(b => b.tasks).filter(t => t.identityId === i.id).map(t => t.title)))]))}
-              onAdd={(t) => updateAppData(prev => addIdentity(prev, t))} onRemove={(id) => updateAppData(prev => removeIdentity(prev, id))} />
+              onAdd={(t) => updateAppData(prev => addIdentity(prev, t))} onRemove={(id) => updateAppData(prev => removeIdentity(prev, id))} />}
             <LongTermGoals
-              goals={appData.longTermGoals || []} appData={appData} onAskClaude={askClaude}
+              goals={appData.longTermGoals || []} appData={appData} onAskClaude={featureOn(appData, 'cady') ? askClaude : undefined}
               onChange={(goals) => updateAppData(prev => ({ ...prev, longTermGoals: goals }))}
             />
-            <BuddyPanel signedIn={!!user} buddies={buddies} incoming={buddyLinks.incoming} pendingSent={buddyLinks.mine.filter(l => l.status === 'pending' && l.fromUid === user?.uid)}
-              onInvite={inviteBuddyByEmail} onAnswer={answerBuddy} onRemove={removeBuddy} onCheer={cheerBuddy} onSignIn={() => setShowAuth(true)} />
-            <RewardsCollection rewards={appData.rewards || []} />
+            {featureOn(appData, 'buddy') && <BuddyPanel signedIn={!!user} buddies={buddies} incoming={buddyLinks.incoming} pendingSent={buddyLinks.mine.filter(l => l.status === 'pending' && l.fromUid === user?.uid)}
+              onInvite={inviteBuddyByEmail} onAnswer={answerBuddy} onRemove={removeBuddy} onCheer={cheerBuddy} onSignIn={() => setShowAuth(true)} />}
+            {featureOn(appData, 'perfectDay') && <RewardsCollection rewards={appData.rewards || []} />}
           </div>
         )}
 
@@ -3642,7 +3650,7 @@ const App: React.FC = () => {
           <Analytics
             appData={appData}
             accentHex={accentHex}
-            onShare={(tf) => setShareFor(tf === 'day' || tf === 'week' ? tf : 'month')}
+            onShare={!featureOn(appData, 'share') ? undefined : (tf) => setShareFor(tf === 'day' || tf === 'week' ? tf : 'month')}
             onDownloadPDF={async (tf, period) => (await import('./report')).generateReport(appData, tf, period, accentHex)}
             onOpenHabits={() => setActiveTab('habits')}
             onToggleHabit={(taskId, value) => updateAppData(prev => {
@@ -3670,7 +3678,7 @@ const App: React.FC = () => {
             <Section id="wheel" title="Roue de la vie" icon={<Target size={16} />} subtitle="Revue trimestrielle : équilibre de tes domaines de vie" defaultOpen={false}>
               <LifeWheel reviews={appData.lifeReviews || {}} accentHex={accentHex}
                 onSave={(r) => { updateAppData(prev => ({ ...prev, lifeReviews: { ...(prev.lifeReviews || {}), [r.quarter]: r } })); setActiveNotification('Revue du trimestre enregistrée ✓'); setTimeout(() => setActiveNotification(null), 2500); }}
-                onAskClaude={(domains) => askClaude(PROMPTS.wheelHabits(domains))} />
+                onAskClaude={featureOn(appData, 'cady') ? (domains) => askClaude(PROMPTS.wheelHabits(domains)) : undefined} />
             </Section>
             <Section id="mood" title="Humeur et performance" icon={<Smile size={16} />} subtitle="Ta constance selon ton humeur du jour" defaultOpen={false} embedded>
               <MoodPerfChart days={appData.days} history={yearStats.history} />
@@ -3754,16 +3762,6 @@ const App: React.FC = () => {
                 </div>
               </div>
               <BackupsPanel onRestore={(data) => { saveToHistory(); updateAppData(() => data); setActiveNotification('Sauvegarde restaurée ✓'); setTimeout(() => setActiveNotification(null), 3000); }} />
-              {/* Message de motivation du jour */}
-              {(() => { const on = appData.settings?.motivation !== false; return (
-                <button role="switch" aria-checked={on} onClick={() => updateAppData(prev => ({ ...prev, settings: { ...(prev.settings || {}), motivation: !on, motivationHiddenOn: undefined } }))}
-                  className="w-full flex items-center justify-between gap-3 text-left">
-                  <span><span className="block text-[10px] font-black uppercase tracking-widest text-[#18181B]/50 dark:text-[#E6E8E6]/50">Message de motivation du jour</span>
-                    <span className="block text-[11px] font-semibold text-[#18181B]/60 dark:text-[#E6E8E6]/55 mt-0.5">Une phrase courte chaque matin en haut d'Aujourd'hui, adaptée à ta journée.</span></span>
-                  <span className={`relative w-9 h-5 rounded-full shrink-0 transition-colors ${on ? 'bg-accent' : 'bg-[#18181B]/15 dark:bg-[#E6E8E6]/15'}`}><span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${on ? 'left-[18px]' : 'left-0.5'}`} /></span>
-                </button>
-              ); })()}
-
               {/* Rappels intelligents */}
               <div className="space-y-2">
                 <label className="text-[10px] font-black uppercase tracking-widest text-[#18181B]/50 dark:text-[#E6E8E6]/50">Rappels intelligents</label>
@@ -3842,6 +3840,38 @@ const App: React.FC = () => {
                   {(appData.settings?.soundEffects ?? true) ? 'Activé' : 'Désactivé'}
                 </button>
               </div>
+            </div>
+
+            {/* Fonctionnalités : activer / désactiver */}
+            <div className="glass p-6 rounded-[2rem] space-y-5" aria-label="Fonctionnalités">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h2 className="font-black uppercase tracking-wider text-sm flex items-center gap-2"><Settings2 size={16} className="text-accent" /> Fonctionnalités</h2>
+                  <p className="text-[11px] font-semibold text-[#18181B]/60 dark:text-[#E6E8E6]/55 mt-1">Garde seulement ce qui t'aide. Une fonctionnalité désactivée disparaît de l'app ; tes données restent enregistrées et reviennent si tu la réactives.</p>
+                </div>
+                {Object.values(appData.settings?.features || {}).some(v => v === false) || appData.settings?.motivation === false ? (
+                  <button onClick={() => updateAppData(prev => ({ ...prev, settings: { ...(prev.settings || {}), features: {}, motivation: undefined } }))} className="shrink-0 text-[10px] font-black uppercase tracking-wider text-accent">Tout réactiver</button>
+                ) : null}
+              </div>
+              {FEATURE_GROUPS.map(g => (
+                <div key={g.title} className="space-y-2">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-[#18181B]/50 dark:text-[#E6E8E6]/50">{g.title}</p>
+                  <div className="grid sm:grid-cols-2 gap-2">
+                    {g.items.map(f => {
+                      const on = featureOn(appData, f.id);
+                      return (
+                        <button key={f.id} role="switch" aria-checked={on} aria-label={f.label}
+                          onClick={() => updateAppData(prev => ({ ...prev, settings: { ...(prev.settings || {}), ...(f.id === 'motivation' ? { motivation: undefined } : {}), features: { ...(prev.settings?.features || {}), [f.id]: !on } } }))}
+                          className={`flex items-center justify-between gap-3 px-4 py-3 rounded-xl border text-left transition-all ${on ? 'border-accent/30 bg-accent/5' : 'border-[#18181B]/10 dark:border-[#E6E8E6]/10'}`}>
+                          <span className="min-w-0"><span className={`block text-[12px] font-bold ${on ? 'text-[#18181B] dark:text-[#E6E8E6]' : 'text-[#18181B]/50 dark:text-[#E6E8E6]/45'}`}>{f.label}</span>
+                            <span className="block text-[10px] font-semibold text-[#18181B]/55 dark:text-[#E6E8E6]/50 truncate">{f.hint}</span></span>
+                          <span className={`relative w-9 h-5 rounded-full shrink-0 transition-colors ${on ? 'bg-accent' : 'bg-[#18181B]/15 dark:bg-[#E6E8E6]/15'}`}><span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${on ? 'left-[18px]' : 'left-0.5'}`} /></span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
             </div>
 
             {/* Sections d'Analytics */}
@@ -3937,11 +3967,12 @@ const App: React.FC = () => {
         )}
         {showEvening && (
           <EveningReview appData={appData} onClose={() => setShowEvening(false)}
-            onAskClaude={() => { setShowEvening(false); askClaude(PROMPTS.evening); }}
+            onAskClaude={featureOn(appData, 'cady') ? () => { setShowEvening(false); askClaude(PROMPTS.evening); } : undefined}
             onFinish={(d, msg) => { saveToHistory(); updateAppData(() => d); setShowEvening(false); setActiveNotification(msg); setTimeout(() => setActiveNotification(null), 3500); }} />
         )}
         </Suspense>
       </main>
+      </FeaturesContext.Provider>
       <Suspense fallback={null}>
           {showAssistant && (
           <Assistant open={showAssistant} onClose={() => setShowAssistant(false)}
@@ -3978,7 +4009,7 @@ const App: React.FC = () => {
             onDuplicate={() => parentId ? handleDuplicate('subtask', t.id, parentId, blockId) : handleDuplicate('task', t.id, blockId)}
             onDelete={() => { saveToHistory(); handleRoutineStructureChange(blocks => blocks.map(b => b.id !== blockId ? b : parentId ? { ...b, tasks: b.tasks.map(x => x.id === parentId ? { ...x, subTasks: (x.subTasks || []).filter(s => s.id !== t.id) } : x) } : { ...b, tasks: b.tasks.filter(x => x.id !== t.id) })); }}
             onSignIn={() => setShowAuth(true)}
-            identities={activeIdentities(appData)} onSaveMeaning={(f) => saveMeaning(t.id, f)}
+            allowAssign={featureOn(appData, 'assign')} identities={featureOn(appData, 'identities') ? activeIdentities(appData) : []} onSaveMeaning={(f) => saveMeaning(t.id, f)}
             onClose={() => setActionTask(null)} />
         );
       })()}
@@ -3986,7 +4017,7 @@ const App: React.FC = () => {
       {/* Navigation : 5 onglets (Aujourd'hui · Planning · Cady · Croissance · Analytics) */}
       {/* Barre du bas — toujours sur mobile ; sur desktop uniquement si position = bas */}
       <nav className={`fixed bottom-0 left-0 right-0 z-50 bg-[#F4F4F5]/95 dark:bg-[#080708]/95 backdrop-blur-3xl border-t border-[#18181B]/5 dark:border-[#E6E8E6]/5 pt-2 px-2 md:pt-3 transition-colors duration-300 ${navPosition === 'left' ? 'md:hidden' : ''}`} style={{ paddingBottom: 'max(0.6rem, env(safe-area-inset-bottom))' }} aria-label="Navigation principale">
-        <div className="grid grid-cols-5 max-w-xl mx-auto items-end">
+        <div className={`grid ${navGroups.length === 5 ? 'grid-cols-5' : 'grid-cols-4'} max-w-xl mx-auto items-end`}>
           {navGroups.map(g => {
             const on = groupActive(g);
             if (g.id === 'cady') return (
