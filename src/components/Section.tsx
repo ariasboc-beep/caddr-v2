@@ -1,5 +1,25 @@
-import React, { useState } from 'react';
+import React, { useState, createContext, useContext } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
+
+// Sections d'Analytics désactivées dans les Réglages
+export const HiddenSectionsContext = createContext<Set<string>>(new Set());
+
+export const ANALYTICS_SECTIONS: { id: string; title: string }[] = [
+  { id: 'summary', title: 'Résumé' },
+  { id: 'objective', title: 'Objectif prioritaire' },
+  { id: 'consistency', title: 'Constance dans le temps' },
+  { id: 'blocks', title: 'Constance par bloc' },
+  { id: 'deep', title: 'Analyse fine' },
+  { id: 'habits', title: 'Habitudes' },
+  { id: 'year', title: "L'année en un coup d'œil" },
+  { id: 'insights', title: 'Observations' },
+  { id: 'weekly-review', title: 'Bilans de la semaine et du mois' },
+  { id: 'wheel', title: 'Roue de la vie' },
+  { id: 'mood', title: 'Humeur et performance' },
+  { id: 'focus', title: 'Concentration' },
+  { id: 'badges', title: 'Succès' },
+  { id: 'annual', title: "Bilan de l'année" },
+];
 
 // ---------- Section pliable (état mémorisé sur l'appareil) ----------
 const OPEN_KEY = 'caddr_analytics_open';
@@ -10,11 +30,13 @@ export const Section: React.FC<{
   action?: React.ReactNode; children: React.ReactNode;
   embedded?: boolean; // contenu = composant qui a déjà sa propre carte et son titre
 }> = ({ id, title, icon, subtitle, defaultOpen = true, action, children, embedded }) => {
+  const hidden = useContext(HiddenSectionsContext);
   const [open, setOpen] = useState<boolean>(() => { const m = readOpen(); return id in m ? m[id] : defaultOpen; });
   const toggle = () => {
     const next = !open; setOpen(next);
     try { localStorage.setItem(OPEN_KEY, JSON.stringify({ ...readOpen(), [id]: next })); } catch {}
   };
+  if (hidden.has(id)) return null;
   return (
     <section className="glass rounded-[2rem] overflow-hidden">
       <div className="flex items-center gap-3 px-5 sm:px-6 py-4">

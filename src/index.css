@@ -5,10 +5,6 @@
 /* === Thèmes d'accent (pilotent la couleur --accent partout) === */
 :root { --accent-rgb: 47 176 166; --accent: #2FB0A6; }        /* Teal (défaut) */
 .theme-teal   { --accent-rgb: 47 176 166;  --accent: #2FB0A6; }
-.theme-blue   { --accent-rgb: 55 114 255;  --accent: #3772FF; }
-.theme-violet { --accent-rgb: 124 92 252;  --accent: #7C5CFC; }
-.theme-amber  { --accent-rgb: 245 144 12;  --accent: #F5900C; }
-.theme-rose   { --accent-rgb: 244 63 110;  --accent: #F43F6E; }
 
 /* === Typographie === */
 /* Une seule police pour toute l'app : Plus Jakarta Sans.
@@ -81,3 +77,34 @@ body {
     justify-content: center;
   }
 }
+
+
+/* === Thème clair : lisible et doux pour les yeux ===
+   Fond blanc cassé (moins d'éblouissement), textes secondaires renforcés,
+   teal et or assombris pour les textes sur fond clair (contraste suffisant).
+   :where() garde la spécificité basse : les états hover/focus restent prioritaires. */
+:root { --accent-text: color-mix(in srgb, var(--accent) 70%, #000); --gold-text: #9A7400; }
+.dark { --accent-text: var(--accent); --gold-text: #FDCA40; }
+
+:where(html:not(.dark)) body { background-color: #F1F2EF; }
+:where(html:not(.dark)) .bg-\[\#F4F4F5\] { background-color: #F1F2EF; }
+:where(html:not(.dark)) .glass { background: rgba(252, 252, 250, 0.78); border-color: rgba(24, 24, 27, 0.07); }
+:where(html:not(.dark)) .text-\[\#18181B\] { color: #23252A; }
+:where(html:not(.dark)) .text-\[\#18181B\]\/20 { color: rgb(35 37 42 / 0.42); }
+:where(html:not(.dark)) .text-\[\#18181B\]\/25 { color: rgb(35 37 42 / 0.46); }
+:where(html:not(.dark)) .text-\[\#18181B\]\/30 { color: rgb(35 37 42 / 0.52); }
+:where(html:not(.dark)) .text-\[\#18181B\]\/35 { color: rgb(35 37 42 / 0.56); }
+:where(html:not(.dark)) .text-\[\#18181B\]\/40 { color: rgb(35 37 42 / 0.6); }
+:where(html:not(.dark)) .text-\[\#18181B\]\/50 { color: rgb(35 37 42 / 0.66); }
+:where(html:not(.dark)) .text-\[\#18181B\]\/55 { color: rgb(35 37 42 / 0.68); }
+:where(html:not(.dark)) .text-\[\#18181B\]\/60 { color: rgb(35 37 42 / 0.72); }
+:where(html:not(.dark)) .text-\[\#18181B\]\/70 { color: rgb(35 37 42 / 0.8); }
+:where(html:not(.dark)) .placeholder\:text-\[\#18181B\]\/30::placeholder,
+:where(html:not(.dark)) .placeholder\:text-\[\#18181B\]\/35::placeholder { color: rgb(35 37 42 / 0.5); }
+:where(html:not(.dark)) .text-accent,
+:where(html:not(.dark)) .hover\:text-accent:hover,
+:where(html:not(.dark)) .group:hover .group-hover\:text-accent { color: var(--accent-text); }
+:where(html:not(.dark)) .text-\[\#FDCA40\] { color: var(--gold-text); }
+:where(html:not(.dark)) .text-\[\#DF2935\] { color: #C21F2B; }
+:where(html:not(.dark)) .bg-accent .text-accent,
+:where(html:not(.dark)) .bg-\[\#FDCA40\] { color: #1b1b1b; }

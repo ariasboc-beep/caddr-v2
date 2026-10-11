@@ -137,6 +137,7 @@ export interface AppSettings {
   smartReminders?: 'off' | 'important' | 'all'; // rappels des tâches à heure fixe non faites
   briefingHiddenOn?: string;        // briefing du matin masqué ce jour-là
   eveningDoneOn?: string;           // bilan du soir fait ce jour-là
+  analyticsHidden?: string[];       // sections d'Analytics désactivées
   weeklyTarget?: number;            // objectif de discipline hebdomadaire (%) pour les bonus XP   // agendas externes affichés dans le Planning (lecture seule)
 }
 

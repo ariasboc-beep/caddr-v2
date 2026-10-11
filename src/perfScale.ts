@@ -5,8 +5,8 @@ export interface PerfLevel { min: number; label: string; color: string; text: st
 const CRIMSON = '#DF2935';
 
 export const PERF_LEVELS: PerfLevel[] = [
-  { min: 80, label: 'Excellent', color: 'var(--accent)', text: 'var(--accent)' },
-  { min: 50, label: 'Correct', color: 'rgb(var(--accent-rgb) / 0.45)', text: 'rgb(var(--accent-rgb) / 0.72)' },
+  { min: 80, label: 'Excellent', color: 'var(--accent)', text: 'var(--accent-text)' },
+  { min: 50, label: 'Correct', color: 'rgb(var(--accent-rgb) / 0.45)', text: 'color-mix(in srgb, var(--accent-text) 75%, transparent)' },
   { min: 0, label: 'À renforcer', color: 'rgb(223 41 53 / 0.8)', text: CRIMSON },
 ];
 

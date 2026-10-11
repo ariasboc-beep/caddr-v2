@@ -1,4 +1,6 @@
 
+import { HiddenSectionsContext, ANALYTICS_SECTIONS } from './components/Section';
+import { brandColor } from './palette';
 import { perfColor, perfStyle } from './perfScale';
 import React, { useState, useEffect, useMemo, useCallback, useRef, Suspense } from 'react';
 import { lazyRetry, prefetchTabs } from './lazyRetry';
@@ -94,13 +96,10 @@ const THEME_KEY = 'caddr_theme_preference';
 const ACCENT_KEY = 'caddr_accent_preference';
 
 // Thèmes d'accent — { rgb pour Tailwind/CSS, hex pour recharts/PDF }
-export type AccentTheme = 'teal' | 'blue' | 'violet' | 'amber' | 'rose';
+export type AccentTheme = 'teal';
+// Charte Caddr : teal comme seule couleur principale
 const THEMES: Record<AccentTheme, { label: string; rgb: string; hex: string }> = {
   teal:   { label: 'Teal',   rgb: '47 176 166',  hex: '#2FB0A6' },
-  blue:   { label: 'Océan',  rgb: '55 114 255',  hex: '#3772FF' },
-  violet: { label: 'Violet', rgb: '124 92 252',  hex: '#7C5CFC' },
-  amber:  { label: 'Ambre',  rgb: '245 144 12',  hex: '#F5900C' },
-  rose:   { label: 'Rose',   rgb: '244 63 110',  hex: '#F43F6E' },
 };
 
 // XP Constants
@@ -912,6 +911,12 @@ const App: React.FC = () => {
 
   // Discipline du mois en cours (jours écoulés) + écart avec le mois précédent
   const headerBar = appData.settings?.headerBar || 'discipline';
+  const hiddenSections = useMemo(() => new Set(appData.settings?.analyticsHidden || []), [appData.settings?.analyticsHidden]);
+  const toggleAnalyticsSection = (id: string) => updateAppData(prev => {
+    const cur = new Set(prev.settings?.analyticsHidden || []);
+    if (cur.has(id)) cur.delete(id); else cur.add(id);
+    return { ...prev, settings: { ...(prev.settings || {}), analyticsHidden: [...cur] } };
+  });
   const monthDiscipline = useMemo(() => {
     const now = new Date(); const tk = getKeyFromDate(now);
     const cur = getPeriod('month', now);
@@ -2755,7 +2760,7 @@ const App: React.FC = () => {
                   </div>
                   <div className="space-y-2">
                     {todays.map(h => {
-                      const color = h.color || accentHex; const st = habitStateOn(h, dateKey); const L = habitLabels(h); const stt = computeHabitStats(h);
+                      const color = brandColor(h.color, accentHex); const st = habitStateOn(h, dateKey); const L = habitLabels(h); const stt = computeHabitStats(h);
                       return (
                         <div key={h.id} className="flex items-center gap-3">
                           <DayDot state={st} color={color} size={30} />
@@ -3340,6 +3345,7 @@ const App: React.FC = () => {
         )}
 
         {activeTab === 'stats' && (
+          <HiddenSectionsContext.Provider value={hiddenSections}>
           <Analytics
             appData={appData}
             accentHex={accentHex}
@@ -3385,6 +3391,7 @@ const App: React.FC = () => {
               <AnnualReview appData={appData} history={yearStats.history} />
             </Section>
           </Analytics>
+          </HiddenSectionsContext.Provider>
         )}
 
         {/* ... (Existing Caddr AI Tab) */}
@@ -3439,26 +3446,6 @@ const App: React.FC = () => {
                 </div>
               </div>
 
-              {/* Thème d'accent */}
-              <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-widest text-[#18181B]/50 dark:text-[#E6E8E6]/50">Couleur d'accent</label>
-                <div className="flex flex-wrap gap-3">
-                  {(Object.keys(THEMES) as AccentTheme[]).map((key) => (
-                    <button
-                      key={key}
-                      onClick={() => setAccentTheme(key)}
-                      title={THEMES[key].label}
-                      className={`flex flex-col items-center gap-1.5 transition-all ${accentTheme === key ? 'scale-110' : 'opacity-70 hover:opacity-100'}`}
-                    >
-                      <span
-                        className={`w-10 h-10 rounded-2xl border-2 transition-all ${accentTheme === key ? 'border-[#18181B] dark:border-white' : 'border-transparent'}`}
-                        style={{ backgroundColor: THEMES[key].hex }}
-                      />
-                      <span className="text-[8px] font-black uppercase tracking-wider">{THEMES[key].label}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
               {/* Barre d'en-tête */}
               <div className="space-y-2">
                 <label className="text-[10px] font-black uppercase tracking-widest text-[#18181B]/50 dark:text-[#E6E8E6]/50">Barre d'en-tête</label>
@@ -3547,6 +3534,27 @@ const App: React.FC = () => {
                   {(appData.settings?.soundEffects ?? true) ? 'Activé' : 'Désactivé'}
                 </button>
               </div>
+            </div>
+
+            {/* Sections d'Analytics */}
+            <div className="glass p-6 rounded-[2rem] space-y-4">
+              <div>
+                <h2 className="font-black uppercase tracking-wider text-sm flex items-center gap-2"><BarChart3 size={16} className="text-accent" /> Sections d'Analytics</h2>
+                <p className="text-[11px] font-semibold text-[#18181B]/60 dark:text-[#E6E8E6]/55 mt-1">Choisis les sections affichées dans l'onglet Analytics. Les données restent enregistrées, même masquées.</p>
+              </div>
+              <div className="grid sm:grid-cols-2 gap-2">
+                {ANALYTICS_SECTIONS.map(sec => {
+                  const on = !hiddenSections.has(sec.id);
+                  return (
+                    <button key={sec.id} role="switch" aria-checked={on} onClick={() => toggleAnalyticsSection(sec.id)}
+                      className={`flex items-center justify-between gap-3 px-4 py-3 rounded-xl border text-left transition-all ${on ? 'border-accent/30 bg-accent/5' : 'border-[#18181B]/10 dark:border-[#E6E8E6]/10'}`}>
+                      <span className={`text-[12px] font-bold ${on ? 'text-[#18181B] dark:text-[#E6E8E6]' : 'text-[#18181B]/50 dark:text-[#E6E8E6]/45'}`}>{sec.title}</span>
+                      <span className={`relative w-9 h-5 rounded-full shrink-0 transition-colors ${on ? 'bg-accent' : 'bg-[#18181B]/15 dark:bg-[#E6E8E6]/15'}`}><span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${on ? 'left-[18px]' : 'left-0.5'}`} /></span>
+                    </button>
+                  );
+                })}
+              </div>
+              {hiddenSections.size > 0 && <button onClick={() => updateAppData(prev => ({ ...prev, settings: { ...(prev.settings || {}), analyticsHidden: [] } }))} className="text-[10px] font-black uppercase tracking-wider text-accent">Tout réafficher</button>}
             </div>
 
             {/* Notifications */}
@@ -3794,7 +3802,7 @@ const App: React.FC = () => {
 
       {showLevelUpModal && (
         <div className="fixed inset-0 z-[200] bg-[#080708]/90 backdrop-blur-2xl flex items-center justify-center p-6 animate-in zoom-in-50 duration-500">
-           <div className="glass w-full max-w-sm p-6 sm:p-10 rounded-[3.5rem] shadow-[0_0_50px_rgba(47, 176, 166,0.3)] border border-accent/30 relative overflow-hidden group text-center space-y-6">
+           <div className="bg-[#111213] w-full max-w-sm p-6 sm:p-10 rounded-[3.5rem] shadow-[0_0_50px_rgba(47,176,166,0.3)] border border-accent/30 relative overflow-hidden group text-center space-y-6">
               {/* Confetti / Rays effect bg */}
               <div className="absolute inset-0 bg-gradient-to-tr from-accent/20 via-transparent to-[#FDCA40]/20 animate-pulse" />
               
@@ -3803,7 +3811,7 @@ const App: React.FC = () => {
                     <Crown size={48} className="text-white drop-shadow-md" />
                  </div>
                  <h2 className="text-3xl font-black italic uppercase text-white tracking-tighter mb-1">Niveau Supérieur !</h2>
-                 <p className="text-xs font-bold text-[#FDCA40] uppercase tracking-widest">Vous êtes passé niveau {showLevelUpModal}</p>
+                 <p className="text-xs font-bold uppercase tracking-widest" style={{ color: '#FDCA40' }}>Tu passes au niveau {showLevelUpModal}</p>
                  
                  <div className="my-8 py-4 border-y border-[#E6E8E6]/10 space-y-2">
                     <p className="text-[10px] text-[#E6E8E6]/60 font-bold uppercase tracking-widest">Nouveau Rang</p>
