@@ -1,4 +1,6 @@
 
+import DailyMotivation from './components/DailyMotivation';
+import { perfectStreak } from './analytics';
 import TaskActionsSheet from './components/TaskActionsSheet';
 import IncomingAssignments from './components/IncomingAssignments';
 import DurationInput from './components/DurationInput';
@@ -2787,6 +2789,12 @@ const App: React.FC = () => {
                 ))}
               </div>
             )}
+            {!isReorderMode && dateKey === todayKeyNow && appData.settings?.motivation !== false && appData.settings?.motivationHiddenOn !== todayKeyNow && (() => {
+              const y = new Date(todayKeyNow + 'T12:00:00'); y.setDate(y.getDate() - 1);
+              return <DailyMotivation dateKey={todayKeyNow} yesterdayRate={computeDay(appData, getKeyFromDate(y), todayKeyNow).rate} streak={perfectStreak(appData, todayKeyNow).current}
+                name={user?.displayName?.split(' ')[0] || undefined}
+                onHide={() => updateAppData(prev => ({ ...prev, settings: { ...(prev.settings || {}), motivationHiddenOn: todayKeyNow } }))} />;
+            })()}
             {!isReorderMode && dateKey === todayKeyNow && <IncomingAssignments items={incoming} todayKey={todayKeyNow} onAccept={acceptAssignment} onDecline={declineAssignment} />}
             {!isReorderMode && dateKey === todayKeyNow && briefing && (
               <MorningBriefing b={briefing} name={user?.displayName?.split(' ')[0] || undefined}
@@ -3599,6 +3607,16 @@ const App: React.FC = () => {
                 </div>
               </div>
               <BackupsPanel onRestore={(data) => { saveToHistory(); updateAppData(() => data); setActiveNotification('Sauvegarde restaurée ✓'); setTimeout(() => setActiveNotification(null), 3000); }} />
+              {/* Message de motivation du jour */}
+              {(() => { const on = appData.settings?.motivation !== false; return (
+                <button role="switch" aria-checked={on} onClick={() => updateAppData(prev => ({ ...prev, settings: { ...(prev.settings || {}), motivation: !on, motivationHiddenOn: undefined } }))}
+                  className="w-full flex items-center justify-between gap-3 text-left">
+                  <span><span className="block text-[10px] font-black uppercase tracking-widest text-[#18181B]/50 dark:text-[#E6E8E6]/50">Message de motivation du jour</span>
+                    <span className="block text-[11px] font-semibold text-[#18181B]/60 dark:text-[#E6E8E6]/55 mt-0.5">Une phrase courte chaque matin en haut d'Aujourd'hui, adaptée à ta journée.</span></span>
+                  <span className={`relative w-9 h-5 rounded-full shrink-0 transition-colors ${on ? 'bg-accent' : 'bg-[#18181B]/15 dark:bg-[#E6E8E6]/15'}`}><span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${on ? 'left-[18px]' : 'left-0.5'}`} /></span>
+                </button>
+              ); })()}
+
               {/* Rappels intelligents */}
               <div className="space-y-2">
                 <label className="text-[10px] font-black uppercase tracking-widest text-[#18181B]/50 dark:text-[#E6E8E6]/50">Rappels intelligents</label>

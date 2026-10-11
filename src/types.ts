@@ -139,6 +139,8 @@ export interface AppSettings {
   weekPlanDismissed?: string;       // rappel du rituel masqué pour cette semaine
   calendars?: ExternalCalendar[];
   smartReminders?: 'off' | 'important' | 'all'; // rappels des tâches à heure fixe non faites
+  motivation?: boolean;             // message de motivation du jour (activé par défaut)
+  motivationHiddenOn?: string;      // message du jour masqué ce jour-là
   briefingHiddenOn?: string;        // briefing du matin masqué ce jour-là
   eveningDoneOn?: string;           // bilan du soir fait ce jour-là
   analyticsHidden?: string[];       // sections d'Analytics désactivées
