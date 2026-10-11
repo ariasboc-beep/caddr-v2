@@ -623,15 +623,6 @@ const App: React.FC = () => {
   };
 
   // --- LOGIC: UTILS ---
-  const handleManualSave = () => {
-    try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(appData));
-        setActiveNotification("Données enregistrées avec succès !");
-    } catch (e) {
-        setActiveNotification("Erreur lors de la sauvegarde.");
-    }
-    setTimeout(() => setActiveNotification(null), 3000);
-  };
 
   const handleExportData = () => {
     const dataStr = JSON.stringify(appData, null, 2);
@@ -2772,8 +2763,9 @@ const App: React.FC = () => {
 
       {/* Header */}
       <header style={{ paddingTop: 'max(1rem, env(safe-area-inset-top))' }} className="px-4 sm:px-6 py-4 border-b border-[#18181B]/5 dark:border-[#E6E8E6]/5 bg-[#F4F4F5]/80 dark:bg-[#080708]/80 backdrop-blur-xl sticky top-0 z-40 flex flex-col gap-4 max-w-4xl mx-auto w-full transition-colors duration-300">
-        <div className="flex items-center justify-between gap-2 flex-wrap">
-            <div className="flex items-center gap-2">
+        {/* Un seul bandeau : la date et le jour à gauche, les outils à droite */}
+        <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-0.5 sm:gap-1 min-w-0">
             <button onClick={() => { const d = new Date(currentDate); d.setDate(d.getDate()-1); setCurrentDate(d); }} className="p-2 text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-[#18181B] dark:hover:text-[#E6E8E6] transition-colors"><ChevronLeft size={20}/></button>
             <div className="text-center min-w-[80px]">
                 <span className="block text-[8px] font-black text-accent uppercase tracking-widest">{currentDate.toLocaleDateString('fr-FR', { weekday: 'short' })}</span>
@@ -2784,43 +2776,32 @@ const App: React.FC = () => {
                 Premier appui : il demande confirmation ; second appui : la routine du plan revient. */}
             {activeTab === 'routine' && appData.days[dateKey]?.blocks && (
               <button onClick={() => {
-                  if (!restoreAsk) { setRestoreAsk(true); setTimeout(() => setRestoreAsk(false), 4000); return; }
+                  if (!restoreAsk) { setRestoreAsk(true); setTimeout(() => setRestoreAsk(false), 4000); notify('Touche encore pour revenir à la routine du plan.', 4000); return; }
                   setRestoreAsk(false); saveToHistory();
                   updateAppData(prev => { const d = { ...prev.days }; if (d[dateKey]) { const c = { ...d[dateKey] }; delete c.blocks; d[dateKey] = c; } return { ...prev, days: d }; });
                   notify('Routine du plan rétablie pour ce jour.');
                 }}
                 title={restoreAsk ? 'Confirmer : revenir à la routine du plan' : "La routine de ce jour a été personnalisée. Toucher pour revenir à celle du plan."}
                 aria-label={restoreAsk ? 'Confirmer le rétablissement de la routine' : 'Routine personnalisée pour ce jour'}
-                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-[9px] font-black uppercase tracking-widest transition-all ${restoreAsk
+                className={`flex items-center gap-1.5 min-w-0 px-2 sm:px-2.5 py-1.5 rounded-xl border text-[9px] font-black uppercase tracking-widest transition-all ${restoreAsk
                   ? 'border-[#FDCA40] bg-[#FDCA40]/15 text-[#B8900A] dark:text-[#FDCA40]'
                   : 'border-[#FDCA40]/25 text-[#B8900A]/80 dark:text-[#FDCA40]/80 hover:border-[#FDCA40]/60'}`}>
                 <Wand2 size={11} className="shrink-0" />
-                <span className="hidden sm:inline">{restoreAsk ? 'Rétablir la routine ?' : 'Jour personnalisé'}</span>
-                <span className="sm:hidden">{restoreAsk ? 'Rétablir ?' : 'Perso'}</span>
+                <span className="hidden sm:inline whitespace-nowrap">{restoreAsk ? 'Rétablir la routine ?' : 'Jour personnalisé'}</span>
               </button>
             )}
             </div>
-            <div className="flex items-center gap-2 flex-wrap justify-end">
-            {/* Backup Actions */}
-            <div className="hidden sm:flex items-center gap-1 border-r border-[#18181B]/10 dark:border-[#E6E8E6]/10 pr-2 mr-1">
-                <button onClick={handleUndo} disabled={history.length === 0} title="Annuler (Undo)" className={`p-2 rounded-xl transition-all ${history.length === 0 ? 'text-[#18181B]/20 dark:text-[#E6E8E6]/20 cursor-not-allowed bg-[#18181B]/5 dark:bg-[#E6E8E6]/5' : 'bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-white hover:bg-accent'}`}>
-                    <RotateCcw size={16} />
-                </button>
-                <button onClick={handleManualSave} title="Enregistrer tout (Persistance)" className="p-2 rounded-xl bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-white hover:bg-accent transition-all">
-                <Save size={16} />
-                </button>
-                <button onClick={handleExportData} title="Sauvegarder JSON" className="p-2 rounded-xl bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-white hover:bg-accent transition-all">
-                <Download size={16} />
-                </button>
-                <input type="file" ref={backupInputRef} onChange={handleImportData} className="hidden" accept=".json" />
-                <button onClick={() => backupInputRef.current?.click()} title="Restaurer JSON" className="p-2 rounded-xl bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-white hover:bg-accent transition-all">
-                <Upload size={16} />
-                </button>
-            </div>
-            
+            <div className="flex items-center gap-1 sm:gap-1.5 min-w-0 justify-end">
+            {/* Sauvegarde et restauration JSON : dans Réglages › Données. L'app enregistre
+                d'elle-même à chaque changement — pas de bouton « enregistrer » ici. */}
+            <input type="file" ref={backupInputRef} onChange={handleImportData} className="hidden" accept=".json" />
+            <button onClick={handleUndo} disabled={history.length === 0} title="Annuler la dernière action" aria-label="Annuler la dernière action" className={`hidden sm:block shrink-0 p-2 rounded-xl transition-all ${history.length === 0 ? 'text-[#18181B]/20 dark:text-[#E6E8E6]/20 cursor-not-allowed bg-[#18181B]/5 dark:bg-[#E6E8E6]/5' : 'bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-white hover:bg-accent'}`}>
+                <RotateCcw size={16} />
+            </button>
+
             {/* Firebase Sync Status */}
             {user ? (
-              <div className="flex items-center gap-2 px-2 py-1 glass rounded-lg border-l-2 border-accent">
+              <div className="flex items-center gap-2 px-2 py-1 glass rounded-lg border-l-2 border-accent min-w-0">
                 {(() => {
                   // État de la synchronisation, en clair
                   const st = !isOnline ? 'offline' : syncError ? 'error' : isSaving ? 'saving' : lastSyncTime ? 'saved' : 'saving';
@@ -2831,8 +2812,8 @@ const App: React.FC = () => {
                     <>
                       <Icon className={`w-3.5 h-3.5 shrink-0 ${st === 'saving' ? 'animate-spin text-accent' : st === 'saved' ? 'text-accent' : st === 'offline' ? 'text-[#B8900A] dark:text-[#FDCA40]' : 'text-[#DF2935]'}`} />
                       <div className="flex flex-col min-w-0" title={lastSyncTime ? `Dernière synchronisation : ${lastSyncTime.toLocaleString('fr-FR')}` : undefined}>
-                        <span className="text-[9px] font-bold truncate max-w-[110px]">{user.displayName?.split(' ')[0] || user.email?.split('@')[0]}</span>
-                        <span className={`text-[8px] truncate max-w-[130px] ${st === 'error' ? 'text-[#DF2935]' : st === 'offline' ? 'text-[#B8900A] dark:text-[#FDCA40]' : 'opacity-60'}`} aria-live="polite">{label}</span>
+                        <span className="text-[9px] font-bold truncate max-w-[110px] hidden sm:block">{user.displayName?.split(' ')[0] || user.email?.split('@')[0]}</span>
+                        <span className={`text-[8px] truncate max-w-[130px] hidden sm:block ${st === 'error' ? 'text-[#DF2935]' : st === 'offline' ? 'text-[#B8900A] dark:text-[#FDCA40]' : 'opacity-60'}`} aria-live="polite">{label}</span>
                       </div>
                     </>
                   );
@@ -2849,7 +2830,8 @@ const App: React.FC = () => {
               <button
                 onClick={() => setShowAuth(true)}
                 disabled={isSigningIn}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 glass rounded-lg hover:bg-white/10 transition-colors disabled:opacity-50 border border-accent/30"
+                aria-label="Créer un compte ou se connecter"
+                className="shrink-0 flex items-center gap-1.5 px-2 sm:px-2.5 py-1.5 glass rounded-lg hover:bg-white/10 transition-colors disabled:opacity-50 border border-accent/30"
                 title="Créer un compte ou se connecter pour sauvegarder et synchroniser"
               >
                 {isSigningIn ? (
@@ -2857,21 +2839,20 @@ const App: React.FC = () => {
                 ) : (
                   <CloudOff className="w-3.5 h-3.5 text-[#18181B]/60 dark:text-[#E6E8E6]/60" />
                 )}
-                <span className="text-[9px] font-bold text-[#18181B]/60 dark:text-[#E6E8E6]/60">
+                <span className="hidden sm:inline text-[9px] font-bold text-[#18181B]/60 dark:text-[#E6E8E6]/60">
                   {isSigningIn ? 'Connexion...' : 'Se connecter'}
                 </span>
               </button>
             )}
             
-            <button onClick={toggleTheme} className="p-2 rounded-xl text-[#18181B]/60 dark:text-[#E6E8E6]/60 bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 transition-all hover:text-accent">
+            <button onClick={toggleTheme} title={theme === 'dark' ? 'Passer en thème clair' : 'Passer en thème sombre'} aria-label="Changer de thème" className="shrink-0 p-2 rounded-xl text-[#18181B]/60 dark:text-[#E6E8E6]/60 bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 transition-all hover:text-accent">
                 {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
             </button>
-
-            <button onClick={() => { setActiveTab('settings'); setIsReorderMode(false); }} title="Réglages" aria-label="Réglages" aria-current={activeTab === 'settings' ? 'page' : undefined} className={`p-2 rounded-xl transition-all hover:text-accent ${activeTab === 'settings' ? 'text-accent bg-accent/10' : 'text-[#18181B]/60 dark:text-[#E6E8E6]/60 bg-[#18181B]/5 dark:bg-[#E6E8E6]/5'}`}><Settings2 size={16} /></button>
-            <button onClick={requestNotificationPermission} className={`p-2 rounded-xl transition-all ${notificationsEnabled ? 'text-accent bg-accent/10' : 'text-[#18181B]/60 dark:text-[#E6E8E6]/60 bg-[#18181B]/5 dark:bg-[#E6E8E6]/5'}`}>{notificationsEnabled ? <Bell size={16} /> : <BellOff size={16} />}</button>
-            {activeTab === 'routine' && <button onClick={() => updateAppData(prev => ({ ...prev, settings: { ...(prev.settings || {}), simpleMode: !prev.settings?.simpleMode } }))} title="Mode journée simplifiée" className={`p-2 rounded-xl transition-all ${appData.settings?.simpleMode ? 'bg-accent text-white' : 'bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 text-[#18181B]/60 dark:text-[#E6E8E6]/60'}`}><Minimize2 size={16} /></button>}
-            {activeTab === 'routine' && <button onClick={() => setIsReorderMode(!isReorderMode)} title={isReorderMode ? "Terminer le réordonnancement" : "Réordonner les blocs"} className={`p-2 rounded-xl transition-all ${isReorderMode ? 'bg-accent text-white' : 'bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 text-[#18181B]/60 dark:text-[#E6E8E6]/60'}`}><MoveVertical size={16} /></button>}
-            <div className="bg-accent/10 px-3 py-1 rounded-full text-[10px] font-black text-accent border border-accent/20">{perfToday}%</div>
+            <button onClick={requestNotificationPermission} title={notificationsEnabled ? 'Notifications autorisées' : 'Autoriser les notifications'} aria-label="Notifications" className={`hidden sm:block shrink-0 p-2 rounded-xl transition-all ${notificationsEnabled ? 'text-accent bg-accent/10' : 'text-[#18181B]/60 dark:text-[#E6E8E6]/60 bg-[#18181B]/5 dark:bg-[#E6E8E6]/5'}`}>{notificationsEnabled ? <Bell size={16} /> : <BellOff size={16} />}</button>
+            {activeTab === 'routine' && <button onClick={() => updateAppData(prev => ({ ...prev, settings: { ...(prev.settings || {}), simpleMode: !prev.settings?.simpleMode } }))} title="Mode journée simplifiée" aria-label="Mode journée simplifiée" className={`shrink-0 p-2 rounded-xl transition-all ${appData.settings?.simpleMode ? 'bg-accent text-white' : 'bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 text-[#18181B]/60 dark:text-[#E6E8E6]/60'}`}><Minimize2 size={16} /></button>}
+            {activeTab === 'routine' && <button onClick={() => setIsReorderMode(!isReorderMode)} title={isReorderMode ? "Terminer le réordonnancement" : "Réordonner les blocs"} aria-label="Réordonner les blocs" className={`shrink-0 p-2 rounded-xl transition-all ${isReorderMode ? 'bg-accent text-white' : 'bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 text-[#18181B]/60 dark:text-[#E6E8E6]/60'}`}><MoveVertical size={16} /></button>}
+            <button onClick={() => { setActiveTab('settings'); setIsReorderMode(false); }} title="Réglages" aria-label="Réglages" aria-current={activeTab === 'settings' ? 'page' : undefined} className={`shrink-0 p-2 rounded-xl transition-all hover:text-accent ${activeTab === 'settings' ? 'text-accent bg-accent/10' : 'text-[#18181B]/60 dark:text-[#E6E8E6]/60 bg-[#18181B]/5 dark:bg-[#E6E8E6]/5'}`}><Settings2 size={16} /></button>
+            <div title="Discipline du jour" className="hidden sm:block shrink-0 bg-accent/10 px-3 py-1 rounded-full text-[10px] font-black text-accent border border-accent/20">{perfToday}%</div>
             </div>
         </div>
 
@@ -4044,6 +4025,7 @@ const App: React.FC = () => {
 
             {/* Données */}
             <SettingsGroup title="Données" icon={<Archive size={16} />} hint="Export, import, agenda, réinitialisation">
+              <p className="text-[11px] font-semibold text-[#18181B]/60 dark:text-[#E6E8E6]/55">Tes données sont enregistrées toutes seules, à chaque changement — sur cet appareil, et dans ton compte si tu es connectée. Les sauvegardes ci-dessous servent à les emporter ailleurs.</p>
               <div className="grid grid-cols-2 gap-3">
                 <button onClick={handleExportData} className="flex items-center justify-center gap-2 py-3 rounded-xl bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 text-[#18181B] dark:text-[#E6E8E6] text-[10px] font-black uppercase tracking-widest hover:bg-accent hover:text-white transition-all"><Download size={14} /> Exporter</button>
                 <button onClick={() => backupInputRef.current?.click()} className="flex items-center justify-center gap-2 py-3 rounded-xl bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 text-[#18181B] dark:text-[#E6E8E6] text-[10px] font-black uppercase tracking-widest hover:bg-accent hover:text-white transition-all"><Upload size={14} /> Importer</button>
