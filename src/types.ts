@@ -23,6 +23,7 @@ export interface Task {
   labels?: string[];    // Étiquettes (ex. « appel », « courses »)
   doneAt?: string;      // Boîte de tâches : idée réglée sans passer par la Routine
   isHabit?: boolean;    // Suivie comme habitude dans Analytics
+  completedAt?: { [dateKey: string]: string }; // heure de validation « HH:mm » (analyse des heures productives)
 }
 
 export interface Block {
@@ -67,6 +68,7 @@ export interface DayRoutine {
 export interface UserProfile {
   xp: number;
   level: number;
+  bonuses?: { [key: string]: { xp: number; label: string; at: string } }; // bonus de discipline déjà attribués
 }
 
 export interface AppData {
@@ -89,6 +91,7 @@ export interface AppData {
   settings?: AppSettings;
   focusSessions?: FocusSession[];
   skips?: SkipRecord[];
+  journal?: { [dateKey: string]: JournalEntry }; // journal de gratitude et de fierté
 }
 
 // Objectif long terme relié aux habitudes quotidiennes
@@ -98,6 +101,9 @@ export interface LongTermGoal {
   description?: string;
   targetDate?: string; // YYYY-MM-DD
   progress: number;    // 0-100 (saisi manuellement)
+  autoProgress?: boolean;   // progression calculée à partir des tâches reliées
+  linkedBlocks?: string[];  // titres des blocs reliés
+  linkedTasks?: string[];   // identifiants des tâches reliées
   createdAt: string;
   color?: string;
 }
@@ -109,6 +115,7 @@ export interface WeeklyReview {
   improve?: string;
   reflection?: string;
   aiFeedback?: { feedback: string; focusNextWeek: string };
+  coach?: { summary: string; wins: string[]; watch: string[]; actions: string[]; focusNextWeek: string; at: string }; // résumé du coach IA
   createdAt: string;
 }
 
@@ -123,10 +130,11 @@ export interface AppSettings {
   carryHiddenOn?: string;           // carte « Pas terminé » masquée ce jour-là (AAAA-MM-JJ)
   weekPlanDone?: string;            // dernière semaine planifiée avec le rituel (clé AAAA-Www)
   weekPlanDismissed?: string;       // rappel du rituel masqué pour cette semaine
-  calendars?: ExternalCalendar[];   // agendas externes affichés dans le Planning (lecture seule)
+  calendars?: ExternalCalendar[];
+  weeklyTarget?: number;            // objectif de discipline hebdomadaire (%) pour les bonus XP   // agendas externes affichés dans le Planning (lecture seule)
 }
 
-export type TabType = 'routine' | 'stats' | 'schedule' | 'templates' | 'ai' | 'inbox' | 'settings' | 'habits';
+export type TabType = 'routine' | 'stats' | 'schedule' | 'templates' | 'ai' | 'inbox' | 'settings' | 'habits' | 'journal';
 export type TimeframeType = 'day' | 'week' | 'month' | 'year' | 'custom';
 
 // Session de concentration (mode Focus)
@@ -187,4 +195,12 @@ export interface ExtEventRaw {
   location?: string;
   rrule?: string;
   exdates?: string[];     // occurrences exclues (même format que start)
+}
+
+// Journal de gratitude et de fierté (3 + 3 par jour)
+export interface JournalEntry {
+  gratitude: string[];   // 3 choses pour lesquelles je ressens de la gratitude
+  pride: string[];       // 3 choses dont je suis fier·e
+  note?: string;         // phrase libre pour retenir la journée
+  updatedAt: string;     // ISO, sert à la fusion entre appareils
 }

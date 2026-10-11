@@ -115,7 +115,72 @@ async function extractFromImage(ai: GoogleGenAI, payload: any) {
   return JSON.parse(response.text || "[]");
 }
 
+
+// --- Coach de la semaine ---
+const weeklyCoachSchema = {
+  type: Type.OBJECT,
+  properties: {
+    summary: { type: Type.STRING },
+    wins: { type: Type.ARRAY, items: { type: Type.STRING } },
+    watch: { type: Type.ARRAY, items: { type: Type.STRING } },
+    actions: { type: Type.ARRAY, items: { type: Type.STRING } },
+    focusNextWeek: { type: Type.STRING },
+  },
+  required: ["summary", "wins", "watch", "actions", "focusNextWeek"],
+};
+
+const clip = (v: unknown, n = 4000) => JSON.stringify(v ?? null).slice(0, n);
+
+async function weeklyCoach(ai: GoogleGenAI, payload: any) {
+  const prompt = `Tu es le coach bienveillant et exigeant de l'application de discipline Caddr.
+Voici les données de ma semaine (JSON) : ${clip(payload, 6000)}
+
+Rédige en français, en tutoyant, sans jargon :
+- summary : 2 à 3 phrases qui résument honnêtement ma semaine (chiffres à l'appui) ;
+- wins : 2 ou 3 réussites concrètes ;
+- watch : 1 ou 2 points de vigilance (blocs ou jours faibles, tâches reportées) ;
+- actions : exactement 3 actions précises et réalistes pour la semaine prochaine ;
+- focusNextWeek : une phrase courte qui donne le cap.
+Ne culpabilise jamais. Ne cite que des éléments présents dans les données.`;
+  const response = await ai.models.generateContent({
+    model: "gemini-3-flash-preview",
+    contents: prompt,
+    config: { responseMimeType: "application/json", responseSchema: weeklyCoachSchema },
+  });
+  return JSON.parse(response.text || "{}");
+}
+
+// --- Journée surchargée : proposition d'une version allégée ---
+const lightenSchema = {
+  type: Type.OBJECT,
+  properties: {
+    summary: { type: Type.STRING },
+    postpone: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { id: { type: Type.STRING }, reason: { type: Type.STRING } }, required: ["id", "reason"] } },
+    reschedule: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { id: { type: Type.STRING }, startTime: { type: Type.STRING } }, required: ["id", "startTime"] } },
+  },
+  required: ["summary", "postpone", "reschedule"],
+};
+
+async function lightenDay(ai: GoogleGenAI, payload: any) {
+  const prompt = `Tu aides à alléger une journée trop chargée dans l'application Caddr.
+Données (JSON) : ${clip(payload, 7000)}
+"freeMinutes" est le temps disponible restant, "plannedMinutes" le temps des tâches restantes, "meetings" les rendez-vous fixes (intouchables).
+Propose :
+- postpone : les tâches à reporter (id + raison courte), en priorité les tâches de basse priorité, non habituelles et ponctuelles ; garde les habitudes et les priorités hautes ;
+- reschedule : de nouvelles heures (HH:mm) pour supprimer les chevauchements, sans jamais toucher aux rendez-vous ;
+- summary : une phrase en français, en tutoyant, qui explique la logique.
+N'utilise que des id présents dans les données. Reporte le minimum nécessaire pour que la journée tienne dans le temps disponible.`;
+  const response = await ai.models.generateContent({
+    model: "gemini-3-flash-preview",
+    contents: prompt,
+    config: { responseMimeType: "application/json", responseSchema: lightenSchema },
+  });
+  return JSON.parse(response.text || "{}");
+}
+
 const HANDLERS: Record<string, (ai: GoogleGenAI, payload: any) => Promise<unknown>> = {
+  weeklyCoach,
+  lightenDay,
   routineAdvice,
   dailyReview,
   generateFromGoal,

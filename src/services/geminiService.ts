@@ -37,16 +37,25 @@ async function callGemini<T>(action: string, payload: unknown): Promise<T | null
 }
 
 export const getRoutineAdvice = (blocks: Block[], performance: number) =>
-  callGemini("routineAdvice", { blocks, performance });
+  callGemini<{ advice: string; powerTask: string; motivation: string }>("routineAdvice", { blocks, performance });
 
 export const getDailyReviewFeedback = (
   tasks: string[],
   performance: number,
   reflection: string
-) => callGemini("dailyReview", { tasks, performance, reflection });
+) => callGemini<{ feedback: string; focusTomorrow: string }>("dailyReview", { tasks, performance, reflection });
 
 export const generateRoutineFromGoal = (goal: string) =>
-  callGemini("generateFromGoal", { goal });
+  callGemini<{ title: string; tasks: string[] }[]>("generateFromGoal", { goal });
 
 export const extractRoutineFromImage = (base64Image: string) =>
-  callGemini("extractFromImage", { base64Image });
+  callGemini<{ title: string; tasks: string[] }[]>("extractFromImage", { base64Image });
+
+export interface WeeklyCoach { summary: string; wins: string[]; watch: string[]; actions: string[]; focusNextWeek: string }
+export const getWeeklyCoach = (data: unknown) => callGemini<WeeklyCoach>("weeklyCoach", data);
+
+export interface LightenPlan { summary: string; postpone: { id: string; reason: string }[]; reschedule: { id: string; startTime: string }[] }
+export const getLightenPlan = (data: unknown) => callGemini<LightenPlan>("lightenDay", data);
+
+/** Connecté ? (l'IA est réservée aux comptes) */
+export const aiAvailable = () => !!auth.currentUser;

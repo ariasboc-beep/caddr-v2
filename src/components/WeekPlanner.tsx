@@ -1,10 +1,12 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { X, ChevronLeft, ChevronRight, Check, Inbox, Target, Sparkles, Trophy, TrendingUp, TrendingDown, CalendarRange } from 'lucide-react';
 import type { AppData, Block, RecurringGoal, WeeklyReview } from '../types';
 import { computePeriod, computeDay, trackingStart } from '../analytics';
 import { pendingOneOffs, relocateTask, sendToInbox, addOneOff } from '../reschedule';
 import { getKeyFromDate, generateId, isDateInRange } from '../utils';
 import { getWeekKey } from '../streaks';
+import CoachCard from './CoachCard';
+import { weekCoachPayload } from '../coach';
 
 interface Props {
   appData: AppData;
@@ -12,6 +14,7 @@ interface Props {
   onClose: () => void;
   notify: (msg: string) => void;
   saveToHistory: () => void;
+  aiCoach?: (payload: unknown) => Promise<{ summary: string; wins: string[]; watch: string[]; actions: string[]; focusNextWeek: string } | null>;
 }
 
 const ink = 'text-[#18181B] dark:text-[#E6E8E6]';
@@ -22,20 +25,10 @@ const soft = `bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 ${ink} hover:text-accent`;
 const DAYS = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
 const fmtDur = (m: number) => m >= 60 ? `${Math.floor(m / 60)} h${m % 60 ? ` ${m % 60}` : ''}` : `${m} min`;
 
-const addDays = (d: Date, n: number) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
-const mondayOf = (d: Date) => { const m = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 12); m.setDate(m.getDate() - ((m.getDay() + 6) % 7)); return m; };
+import { plannerWeeks, addDays } from '../plannerWeeks';
+export { plannerWeeks };
 
-// Semaine relue / semaine planifiée : le lundi, on relit la semaine passée et on
-// planifie celle qui commence ; les autres jours, on relit la semaine en cours et
-// on planifie la suivante.
-export function plannerWeeks(now = new Date()) {
-  const mon = mondayOf(now);
-  const reviewStart = now.getDay() === 1 ? addDays(mon, -7) : mon;
-  const planStart = addDays(reviewStart, 7);
-  return { reviewStart, reviewEnd: addDays(reviewStart, 6), planStart, planEnd: addDays(planStart, 6), planKey: getWeekKey(planStart) };
-}
-
-const WeekPlanner: React.FC<Props> = ({ appData, update, onClose, notify, saveToHistory }) => {
+const WeekPlanner: React.FC<Props> = ({ appData, update, onClose, notify, saveToHistory, aiCoach }) => {
   const [step, setStep] = useState(0);
   const now = new Date();
   const todayKey = getKeyFromDate(now);
@@ -55,6 +48,19 @@ const WeekPlanner: React.FC<Props> = ({ appData, update, onClose, notify, saveTo
   const existing: Partial<WeeklyReview> = appData.weeklyReviews?.[reviewKey] || {};
   const [wins, setWins] = useState(existing.wins || '');
   const [improve, setImprove] = useState(existing.improve || '');
+  // Coach IA : résumé automatique de la semaine relue (une fois, puis à la demande)
+  const [coachBusy, setCoachBusy] = useState(false);
+  const coach = appData.weeklyReviews?.[reviewKey]?.coach;
+  const runCoach = async () => {
+    if (!aiCoach) return;
+    setCoachBusy(true);
+    const res = await aiCoach(weekCoachPayload(appData, W.reviewStart, W.reviewEnd, todayKey));
+    setCoachBusy(false);
+    if (!res?.summary) return;
+    update(prev => ({ ...prev, weeklyReviews: { ...(prev.weeklyReviews || {}), [reviewKey]: { ...(prev.weeklyReviews?.[reviewKey] || { createdAt: new Date().toISOString() }), weekKey: reviewKey, coach: { ...res, at: new Date().toISOString() }, aiFeedback: { feedback: res.summary, focusNextWeek: res.focusNextWeek } } as WeeklyReview } }));
+  };
+  useEffect(() => { if (aiCoach && !coach && stats.total > 0) runCoach(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const saveReview = () => {
     if (!wins.trim() && !improve.trim()) return;
     update(prev => ({ ...prev, weeklyReviews: { ...(prev.weeklyReviews || {}), [reviewKey]: { ...(prev.weeklyReviews?.[reviewKey] || { createdAt: new Date().toISOString() }), weekKey: reviewKey, wins: wins.trim(), improve: improve.trim() } as WeeklyReview } }));
@@ -168,6 +174,7 @@ const WeekPlanner: React.FC<Props> = ({ appData, update, onClose, notify, saveTo
               <label className="block space-y-1.5"><span className={`text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 ${muted}`}><TrendingUp size={12} className="text-accent" /> À améliorer</span>
                 <textarea value={improve} onChange={e => setImprove(e.target.value)} rows={2} placeholder="Une seule chose à ajuster la semaine prochaine" className={`w-full bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 px-3.5 py-2.5 rounded-xl text-sm font-medium border border-[#18181B]/10 dark:border-[#E6E8E6]/10 outline-none focus:border-accent resize-none ${ink}`} /></label>
               <p className={`text-[10px] font-medium ${faint}`}>Enregistré dans tes bilans de la semaine (Analytics → Bilans).</p>
+              <CoachCard coach={coach} busy={coachBusy} onGenerate={aiCoach ? runCoach : undefined} />
             </>
           )}
 

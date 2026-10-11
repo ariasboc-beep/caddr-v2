@@ -1,5 +1,6 @@
 import webpush from "web-push";
-import admin from "firebase-admin";
+import { initializeApp, getApps, cert } from "firebase-admin/app";
+import { getFirestore } from "firebase-admin/firestore";
 
 // Fonction programmée : s'exécute chaque minute et envoie une notification push
 // pour chaque tâche horodatée dont l'heure de début correspond à l'instant présent.
@@ -40,8 +41,8 @@ function initAdmin(): boolean {
   const raw = process.env.FIREBASE_SERVICE_ACCOUNT;
   if (!raw) return false;
   try {
-    if (!admin.apps.length) {
-      admin.initializeApp({ credential: admin.credential.cert(JSON.parse(raw)) });
+    if (!getApps().length) {
+      initializeApp({ credential: cert(JSON.parse(raw)) });
     }
     initialized = true;
     return true;
@@ -66,7 +67,7 @@ export default async () => {
     process.env.VAPID_PRIVATE_KEY!
   );
 
-  const db = admin.firestore();
+  const db = getFirestore();
   const now = new Date();
   const hhmm = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
   const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;

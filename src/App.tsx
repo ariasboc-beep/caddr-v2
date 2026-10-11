@@ -1,5 +1,8 @@
 
-import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef, Suspense } from 'react';
+import { lazyRetry, prefetchTabs } from './lazyRetry';
+import { snapshot } from './backups';
+import BackupsPanel from './components/BackupsPanel';
 import { 
   Check, ChevronLeft, ChevronRight, Target, 
   Plus, Trash2, Layout, BarChart3, 
@@ -15,11 +18,11 @@ import {
   Lock, LockOpen, User, LogOut, ShieldCheck, Mail, Key, Settings2, Info,
   Download, Upload, Power, Pencil, Edit3, PieChart, FileText,
   CalendarClock, ArrowUpCircle, BookOpen, PenTool, Crown, Swords,
-  Medal, Sun, Moon, RotateCcw, CloudOff, SkipForward, Hourglass, Lightbulb, MoreHorizontal
+  Medal, Sun, Moon, RotateCcw, CloudOff, SkipForward, Hourglass, Lightbulb, MoreHorizontal, BookHeart
 } from 'lucide-react';
 import { AppData, Block, TabType, RecurrenceType, TimeframeType, RecurringGoal, Task, PriorityType, DayRoutine, UserProfile } from './types';
 import { getKeyFromDate, generateId, isDateInRange } from './utils';
-import { getRoutineAdvice, generateRoutineFromGoal, extractRoutineFromImage, getDailyReviewFeedback } from './services/geminiService';
+import { getRoutineAdvice, generateRoutineFromGoal, extractRoutineFromImage, getDailyReviewFeedback, getLightenPlan, getWeeklyCoach } from './services/geminiService';
 import { 
   signInWithGoogle, 
   completeRedirectSignIn,
@@ -31,29 +34,34 @@ import {
   loadDataFromCloud,
   mergeAppData
 } from './services/syncService';
-import YearHeatmap from './components/YearHeatmap';
-import MoodPerfChart from './components/MoodPerfChart';
-import Badges from './components/Badges';
+const MoodPerfChart = lazyRetry(() => import('./components/MoodPerfChart'));
+const Badges = lazyRetry(() => import('./components/Badges'));
 import FocusMode from './components/FocusMode';
 import InboxView from './components/InboxView';
-import Analytics, { Section } from './components/Analytics';
-import Reviews from './components/Reviews';
+const Analytics = lazyRetry(() => import('./components/Analytics'));
+import { Section } from './components/Section';
+const Reviews = lazyRetry(() => import('./components/Reviews'));
 import AuthPanel from './components/AuthPanel';
-import HabitsView, { DayDot } from './components/HabitsView';
+const HabitsView = lazyRetry(() => import('./components/HabitsView'));
+import { DayDot } from './components/DayDot';
 import { activeHabits, isScheduled as habitScheduled, stateOn as habitStateOn, habitStats as computeHabitStats, labelsFor as habitLabels } from './habits';
-import { generateReport } from './report';
 import LongTermGoals from './components/LongTermGoals';
-import WeeklyReview from './components/WeeklyReview';
-import FocusStats from './components/FocusStats';
-import Insights from './components/Insights';
+const FocusStats = lazyRetry(() => import('./components/FocusStats'));
+const Insights = lazyRetry(() => import('./components/Insights'));
 import Agenda from './components/Agenda';
-import { computePeriod, getPeriod, trackingStart } from './analytics';
+import { computePeriod, getPeriod, trackingStart, computeDay } from './analytics';
+const JournalView = lazyRetry(() => import('./components/JournalView'));
+import { isWritten as journalWritten } from './journal';
 import CarryOver from './components/CarryOver';
-import WeekPlanner, { plannerWeeks } from './components/WeekPlanner';
-import CalendarsPanel from './components/CalendarsPanel';
+const WeekPlanner = lazyRetry(() => import('./components/WeekPlanner'));
+import { plannerWeeks } from './plannerWeeks';
+const CalendarsPanel = lazyRetry(() => import('./components/CalendarsPanel'));
 import { useCalendars } from './useCalendars';
+import CoachCard from './components/CoachCard';
+import { weekCoachPayload } from './coach';
+import { dueBonuses, XP_RULES, WEEK_TARGET } from './xpBonus';
 import { relocateTask, addOneOff, sendToInbox, pendingOneOffs } from './reschedule';
-import AnnualReview from './components/AnnualReview';
+const AnnualReview = lazyRetry(() => import('./components/AnnualReview'));
 import LandingPage from './components/LandingPage';
 import RichText, { RichTextView, sanitizeHtml, stripHtml } from './components/RichText';
 import NowNext from './components/NowNext';
@@ -68,12 +76,6 @@ import { SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-ki
 import { Sortable } from './components/Sortable';
 import { useResizableWidth, useResizableHeight, SideResizeHandles, BottomResizeHandle } from './components/ResizeHandles';
 import type { User as FirebaseUser } from 'firebase/auth';
-import { 
-  CartesianGrid, Tooltip, ResponsiveContainer, 
-  AreaChart, Area, XAxis, YAxis, BarChart, Bar, Legend, Cell
-} from 'recharts';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
 
 const STORAGE_KEY = 'caddr_routine_v6_timing';
 const APP_VERSION = '2026.07.18 — éditeur enrichi (listes, checklist, liens, images)';
@@ -91,6 +93,17 @@ const THEMES: Record<AccentTheme, { label: string; rgb: string; hex: string }> =
 };
 
 // XP Constants
+// Coche / décoche une tâche pour un jour ; l'heure de validation est notée (jour même
+// uniquement) pour l'analyse « heures productives ».
+function flipCompletion(t: Task, k: string): Task {
+  const completed = t.completedDates || [];
+  const was = completed.includes(k);
+  const at = { ...(t.completedAt || {}) };
+  if (was) delete at[k];
+  else if (k === getKeyFromDate(new Date())) { const n = new Date(); at[k] = `${String(n.getHours()).padStart(2, '0')}:${String(n.getMinutes()).padStart(2, '0')}`; }
+  return { ...t, completedDates: was ? completed.filter(d => d !== k) : [...completed, k], completedAt: Object.keys(at).length ? at : undefined };
+}
+
 const XP_TASK = 15;
 const XP_SUBTASK = 5;
 const XP_GOAL = 50;
@@ -119,6 +132,13 @@ const App: React.FC = () => {
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
   const [syncError, setSyncError] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isOnline, setIsOnline] = useState(() => typeof navigator === 'undefined' ? true : navigator.onLine);
+  useEffect(() => {
+    const on = () => setIsOnline(true), off = () => setIsOnline(false);
+    window.addEventListener('online', on); window.addEventListener('offline', off);
+    return () => { window.removeEventListener('online', on); window.removeEventListener('offline', off); };
+  }, []);
   const [isSigningIn, setIsSigningIn] = useState(false);
 
   // Inbox Local State
@@ -148,6 +168,7 @@ const App: React.FC = () => {
   const [planningView, setPlanningView] = useState<'day' | 'week'>('day');
   const [showWeekPlanner, setShowWeekPlanner] = useState(false);
   const [showCalendars, setShowCalendars] = useState(false);
+  const [coachBusy, setCoachBusy] = useState(false);
   const [daysAway, setDaysAway] = useState<number | null>(null);
   const [showFullResetModal, setShowFullResetModal] = useState(false);
   const [resetInput, setResetInput] = useState('');
@@ -209,6 +230,24 @@ const App: React.FC = () => {
   const backupInputRef = useRef<HTMLInputElement>(null);
   const templateInputRef = useRef<HTMLInputElement>(null);
   const dateKey = getKeyFromDate(currentDate);
+
+  // Sauvegarde automatique locale : au plus toutes les 5 minutes, 20 s après une modification
+  const lastSnap = useRef(0);
+  useEffect(() => {
+    if (isLoading) return;
+    const t = setTimeout(() => {
+      if (Date.now() - lastSnap.current < 5 * 60 * 1000) return;
+      lastSnap.current = Date.now();
+      snapshot(appData).catch(() => { /* stockage indisponible */ });
+    }, 20000);
+    return () => clearTimeout(t);
+  }, [appData, isLoading]);
+
+  // Onglets chargés à la demande : préchargés en arrière-plan après le démarrage
+  useEffect(() => {
+    prefetchTabs([() => import('./components/Analytics'), () => import('./components/HabitsView'), () => import('./components/JournalView'),
+      () => import('./components/WeekPlanner'), () => import('./components/Reviews'), () => import('./components/CalendarsPanel')]);
+  }, []);
 
   // Erreurs de l'IA (non connecté, quota atteint, réseau…) → notification lisible
   useEffect(() => {
@@ -342,7 +381,7 @@ const App: React.FC = () => {
   // Raccourcis d'écran d'accueil (PWA) : ouvre l'onglet demandé via ?tab=
   useEffect(() => {
     const tab = new URLSearchParams(window.location.search).get('tab');
-    const valid: TabType[] = ['routine', 'stats', 'schedule', 'templates', 'ai', 'inbox', 'settings', 'habits'];
+    const valid: TabType[] = ['routine', 'stats', 'schedule', 'templates', 'ai', 'inbox', 'settings', 'habits', 'journal'];
     if (tab && valid.includes(tab as TabType)) setActiveTab(tab as TabType);
   }, []);
 
@@ -369,6 +408,7 @@ const App: React.FC = () => {
     { id: 'habits', icon: Repeat, label: 'Habitudes' },
     { id: 'schedule', icon: CalendarDays, label: 'Planning' },
     { id: 'inbox', icon: Archive, label: 'Boîte' },
+    { id: 'journal', icon: BookHeart, label: 'Journal' },
     { id: 'ai', icon: BrainCircuit, label: 'Caddr. IA' },
     { id: 'templates', icon: Copy, label: 'Modèles' },
     { id: 'stats', icon: BarChart3, label: 'Analytics' },
@@ -399,6 +439,8 @@ const App: React.FC = () => {
   useEffect(() => {
     if (!user || isLoading || !cloudReady.current) return;
 
+    if (!isOnline) return; // hors ligne : les données restent sur l'appareil, envoi au retour du réseau
+    setIsSaving(true);
     const saveTimer = setTimeout(async () => {
       try {
         await saveDataToCloud(user.uid, appData);
@@ -407,11 +449,13 @@ const App: React.FC = () => {
       } catch (error) {
         console.error('Error auto-saving to cloud:', error);
         setSyncError('Erreur de sync');
+      } finally {
+        setIsSaving(false);
       }
     }, 2000);
 
-    return () => clearTimeout(saveTimer);
-  }, [appData, user, isLoading]);
+    return () => { clearTimeout(saveTimer); setIsSaving(false); };
+  }, [appData, user, isLoading, isOnline]);
 
   // Sync current time
   useEffect(() => {
@@ -511,7 +555,7 @@ const App: React.FC = () => {
       const newLevel = calculateLevel(newXp);
       
       return {
-          profile: { xp: newXp, level: newLevel },
+          profile: { ...(prevProfile || {}), xp: newXp, level: newLevel },
           leveledUp: newLevel > currentLevel
       };
   };
@@ -562,8 +606,10 @@ const App: React.FC = () => {
     reader.readAsText(file);
   };
 
-  const handleDownloadPDF = () => {
-    // ... (Existing PDF logic kept the same)
+  const handleDownloadPDF = async () => {
+    // jsPDF n'est chargé qu'au moment de l'export (allège le démarrage de l'app)
+    const { default: jsPDF } = await import('jspdf');
+    const { default: autoTable } = await import('jspdf-autotable');
     const doc = new jsPDF();
     const now = new Date();
     const monthLabel = now.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
@@ -757,6 +803,38 @@ const App: React.FC = () => {
   const showWeekPlanPrompt = (currentTime.getDay() === 0 || currentTime.getDay() === 1)
     && appData.settings?.weekPlanDone !== weekPlan.planKey && appData.settings?.weekPlanDismissed !== weekPlan.planKey;
 
+  // Journal : ce qui a été accompli un jour donné (suggestions de fiertés)
+  const journalDoneOn = useCallback((k: string) => {
+    const titles = computeDay(appData, k, getKeyFromDate(new Date())).tasks.filter(t => t.done && !t.isSub).map(t => t.title);
+    (appData.habits || []).filter(h => !h.deleted && h.entries?.[k]?.s === 'done').forEach(h => titles.push(h.name));
+    return [...new Set(titles)];
+  }, [appData]);
+  const showJournalPrompt = currentTime.getHours() >= 18 && !journalWritten(appData.journal?.[todayKeyNow]);
+
+  // Bonus de discipline (XP) : attribués une seule fois chacun, dès qu'ils sont mérités
+  useEffect(() => {
+    if (isLoading || (user && !cloudReady.current)) return;
+    const t = setTimeout(() => {
+      const due = dueBonuses(appData, todayKeyNow);
+      if (!due.length) return;
+      const total = due.reduce((n, b) => n + b.xp, 0);
+      updateAppData(prev => {
+        const bonuses = { ...(prev.userProfile?.bonuses || {}) };
+        const fresh = due.filter(b => !bonuses[b.key]);
+        if (!fresh.length) return prev;
+        const at = new Date().toISOString();
+        fresh.forEach(b => { bonuses[b.key] = { xp: b.xp, label: b.label, at }; });
+        const { profile, leveledUp } = handleXpGain({ ...(prev.userProfile || { xp: 0, level: 1 }), bonuses }, fresh.reduce((n, b) => n + b.xp, 0));
+        if (leveledUp) setShowLevelUpModal(profile.level);
+        return { ...prev, userProfile: profile };
+      });
+      setActiveNotification(due.length === 1 ? `Bonus discipline : ${due[0].label} · +${total} XP` : `${due.length} bonus de discipline · +${total} XP`);
+      setTimeout(() => setActiveNotification(null), 4500);
+    }, 1500);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [appData.days, appData.blocks, appData.journal, appData.settings?.weekPlanDone, todayKeyNow, isLoading, user]);
+
   // Discipline du mois en cours (jours écoulés) + écart avec le mois précédent
   const headerBar = appData.settings?.headerBar || 'discipline';
   const monthDiscipline = useMemo(() => {
@@ -870,11 +948,7 @@ const App: React.FC = () => {
 
           const newBlocks = prev.days[dateKey].blocks!.map(b => {
               if (b.id !== blockId) return b;
-              const updateTask = (t: Task) => {
-                if (t.id !== taskId) return t;
-                const completed = t.completedDates || [];
-                return { ...t, completedDates: completed.includes(dateKey) ? completed.filter(d => d !== dateKey) : [...completed, dateKey] };
-              };
+              const updateTask = (t: Task) => t.id !== taskId ? t : flipCompletion(t, dateKey);
               if (parentTaskId) { return { ...b, tasks: b.tasks.map(t => t.id === parentTaskId ? { ...t, subTasks: (t.subTasks || []).map(updateTask) } : t) }; }
               return { ...b, tasks: b.tasks.map(updateTask) };
             });
@@ -901,11 +975,7 @@ const App: React.FC = () => {
           userProfile: profile,
           blocks: prev.blocks.map(b => {
             if (b.id !== blockId) return b;
-            const updateTask = (t: Task) => {
-              if (t.id !== taskId) return t;
-              const completed = t.completedDates || [];
-              return { ...t, completedDates: completed.includes(dateKey) ? completed.filter(d => d !== dateKey) : [...completed, dateKey] };
-            };
+            const updateTask = (t: Task) => t.id !== taskId ? t : flipCompletion(t, dateKey);
             if (parentTaskId) { return { ...b, tasks: b.tasks.map(t => t.id === parentTaskId ? { ...t, subTasks: (t.subTasks || []).map(updateTask) } : t) }; }
             return { ...b, tasks: b.tasks.map(updateTask) };
           })
@@ -1981,6 +2051,29 @@ const App: React.FC = () => {
     if (patch.startTime) { setActiveNotification(`Programmé à ${patch.startTime} ⏱`); setTimeout(() => setActiveNotification(null), 2500); }
   };
 
+  // Agenda : appliquer une version allégée (reports, tâches sautées, nouveaux horaires)
+  const applyLighten = (plan: { postpone: { id: string; blockId: string; oneOff: boolean }[]; reschedule: { id: string; blockId: string; startTime: string }[] }, k: string) => {
+    saveToHistory();
+    const tomorrow = new Date(k + 'T12:00:00'); tomorrow.setDate(tomorrow.getDate() + 1);
+    const tk = getKeyFromDate(new Date());
+    updateAppData(prev => {
+      let next = prev;
+      plan.postpone.filter(p => p.oneOff).forEach(p => { next = relocateTask(next, p.id, getKeyFromDate(tomorrow), undefined, tk); });
+      const skipped = plan.postpone.filter(p => !p.oneOff).map(p => {
+        let title = ''; [...next.blocks, ...(next.days[k]?.blocks || [])].forEach(b => b.tasks.forEach(t => { if (t.id === p.id) title = t.title; }));
+        return { id: generateId(), taskId: p.id, taskTitle: title, date: k, reason: 'Journée allégée' };
+      });
+      const times = new Map(plan.reschedule.map(r => [r.id, r.startTime]));
+      const upd = (bs: Block[]) => bs.map(b => b.tasks.some(t => times.has(t.id)) ? { ...b, tasks: b.tasks.map(t => times.has(t.id) ? { ...t, startTime: times.get(t.id) } : t) } : b);
+      const days = { ...next.days };
+      Object.keys(days).forEach(key => { const d = days[key]; if (d?.blocks && (key >= tk || key === k)) days[key] = { ...d, blocks: upd(d.blocks) }; });
+      return { ...next, blocks: upd(next.blocks), days, skips: [...(next.skips || []), ...skipped] };
+    });
+    const n = plan.postpone.length + plan.reschedule.length;
+    setActiveNotification(`Journée allégée : ${n} changement${n > 1 ? 's' : ''} appliqué${n > 1 ? 's' : ''} 🪶`);
+    setTimeout(() => setActiveNotification(null), 3500);
+  };
+
   // Agenda : ajout rapide d'une tâche ponctuelle sur un créneau
   const quickAddTask = (blockId: string, title: string, startTime: string, duration: number, k: string) => {
     updateAppData(prev => addOneOff(prev, { id: generateId(), title, completedDates: [], startTime, duration, subTasks: [] }, k, blockId));
@@ -2340,20 +2433,22 @@ const App: React.FC = () => {
             {/* Firebase Sync Status */}
             {user ? (
               <div className="flex items-center gap-2 px-2 py-1 glass rounded-lg border-l-2 border-accent">
-                <Cloud className={`w-3.5 h-3.5 ${syncError ? 'text-red-500' : 'text-green-500'}`} />
-                <div className="flex flex-col">
-                  <span className="text-[9px] font-bold truncate max-w-[100px]">
-                    {user.displayName?.split(' ')[0] || user.email?.split('@')[0]}
-                  </span>
-                  {lastSyncTime && !syncError && (
-                    <span className="text-[8px] opacity-60">
-                      {lastSyncTime.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
-                    </span>
-                  )}
-                  {syncError && (
-                    <span className="text-[7px] text-red-500">{syncError}</span>
-                  )}
-                </div>
+                {(() => {
+                  // État de la synchronisation, en clair
+                  const st = !isOnline ? 'offline' : syncError ? 'error' : isSaving ? 'saving' : lastSyncTime ? 'saved' : 'saving';
+                  const ago = lastSyncTime ? Math.max(0, Math.round((currentTime.getTime() - lastSyncTime.getTime()) / 60000)) : 0;
+                  const label = st === 'offline' ? 'Hors ligne · gardé sur l’appareil' : st === 'error' ? 'Synchro en échec · nouvel essai' : st === 'saving' ? 'Enregistrement…' : ago < 1 ? 'Synchronisé à l’instant' : `Synchronisé il y a ${ago < 60 ? ago + ' min' : Math.round(ago / 60) + ' h'}`;
+                  const Icon = st === 'offline' ? CloudOff : st === 'saving' ? Loader2 : Cloud;
+                  return (
+                    <>
+                      <Icon className={`w-3.5 h-3.5 shrink-0 ${st === 'saving' ? 'animate-spin text-accent' : st === 'saved' ? 'text-green-500' : st === 'offline' ? 'text-[#c98500]' : 'text-red-500'}`} />
+                      <div className="flex flex-col min-w-0" title={lastSyncTime ? `Dernière synchronisation : ${lastSyncTime.toLocaleString('fr-FR')}` : undefined}>
+                        <span className="text-[9px] font-bold truncate max-w-[110px]">{user.displayName?.split(' ')[0] || user.email?.split('@')[0]}</span>
+                        <span className={`text-[8px] truncate max-w-[130px] ${st === 'error' ? 'text-red-500' : st === 'offline' ? 'text-[#c98500]' : 'opacity-60'}`} aria-live="polite">{label}</span>
+                      </div>
+                    </>
+                  );
+                })()}
                 <button
                   onClick={handleSignOut}
                   className="p-1 hover:bg-white/10 rounded transition-colors"
@@ -2425,6 +2520,7 @@ const App: React.FC = () => {
       </header>
 
       <main className="max-w-4xl mx-auto px-4 sm:px-6 mt-4 space-y-8 pb-24 md:pb-16">
+        <Suspense fallback={<div className="flex justify-center py-20"><Loader2 className="animate-spin text-accent" size={28} /></div>}>
         
         {/* TAB: ROUTINE */}
         {activeTab === 'routine' && (
@@ -2440,6 +2536,16 @@ const App: React.FC = () => {
                 </div>
                 <button onClick={() => setDaysAway(null)} className="shrink-0 p-1.5 rounded-lg text-[#18181B]/40 dark:text-[#E6E8E6]/40 hover:text-accent"><X size={16} /></button>
               </div>
+            )}
+            {!isReorderMode && dateKey === todayKeyNow && showJournalPrompt && (
+              <button onClick={() => setActiveTab('journal')} className="w-full glass p-4 sm:p-5 rounded-[2rem] border border-[#c98500]/25 flex items-center gap-3 text-left animate-in slide-in-from-top-2 hover:border-[#c98500]/50 transition-all">
+                <div className="w-10 h-10 rounded-xl bg-[#c98500]/15 flex items-center justify-center shrink-0"><BookHeart size={18} className="text-[#c98500]" /></div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-black text-[#18181B] dark:text-[#E6E8E6]">Mon journal du soir</p>
+                  <p className="text-[11px] font-semibold text-[#18181B]/55 dark:text-[#E6E8E6]/55">3 gratitudes et 3 fiertés avant de clore la journée.</p>
+                </div>
+                <ChevronRight size={18} className="text-[#18181B]/40 dark:text-[#E6E8E6]/40 shrink-0" />
+              </button>
             )}
             {!isReorderMode && dateKey === todayKeyNow && showWeekPlanPrompt && (
               <div className="glass p-4 sm:p-5 rounded-[2rem] border border-accent/25 flex items-center gap-3 animate-in slide-in-from-top-2">
@@ -2825,11 +2931,12 @@ const App: React.FC = () => {
                 onDateChange={setCurrentDate} onToggle={(b, t) => toggleTask(b, t)} onOpenTask={(b, t) => setConfigModal({ type: 'task', id: t, blockId: b })}
                 onSetTime={setTaskTime} onMoveTask={handleRescheduleTask} onQuickAdd={quickAddTask}
                 calendars={externalCalendars} eventsOf={cal.eventsOf} calVersion={cal.version}
-                onOpenCalendars={() => setShowCalendars(true)} onPlanWeek={() => setShowWeekPlanner(true)} />
+                onOpenCalendars={() => setShowCalendars(true)} onPlanWeek={() => setShowWeekPlanner(true)}
+                aiLighten={user ? getLightenPlan : undefined} onApplyLighten={applyLighten} />
             )}
             {!templateEditState && (
               <LongTermGoals
-                goals={appData.longTermGoals || []}
+                goals={appData.longTermGoals || []} appData={appData}
                 onChange={(goals) => updateAppData(prev => ({ ...prev, longTermGoals: goals }))}
               />
             )}
@@ -3064,11 +3171,17 @@ const App: React.FC = () => {
           <HabitsView habits={appData.habits || []} accentHex={accentHex} onChange={(habits) => updateAppData(prev => ({ ...prev, habits }))} />
         )}
 
+        {activeTab === 'journal' && (
+          <JournalView journal={appData.journal || {}} accentHex={accentHex}
+            onSave={(k, entry) => updateAppData(prev => ({ ...prev, journal: { ...(prev.journal || {}), [k]: entry } }))}
+            doneOn={journalDoneOn} />
+        )}
+
         {activeTab === 'stats' && (
           <Analytics
             appData={appData}
             accentHex={accentHex}
-            onDownloadPDF={(tf, period) => generateReport(appData, tf, period, accentHex)}
+            onDownloadPDF={async (tf, period) => (await import('./report')).generateReport(appData, tf, period, accentHex)}
             onOpenHabits={() => setActiveTab('habits')}
             onToggleHabit={(taskId, value) => updateAppData(prev => {
               const mark = (blocks: Block[]) => blocks.map(b => ({ ...b, tasks: b.tasks.map(t => t.id === taskId ? { ...t, isHabit: value } : t) }));
@@ -3110,6 +3223,21 @@ const App: React.FC = () => {
         {/* ... (Existing Caddr AI Tab) */}
         {activeTab === 'ai' && (
            <div className="space-y-6 animate-in zoom-in-95 duration-500 pb-20">
+            {(() => {
+              const rk = getWeekKey(weekPlan.reviewStart);
+              return (
+                <div className="glass p-5 sm:p-6 rounded-[2rem] space-y-3">
+                  <p className="text-sm font-black text-[#18181B] dark:text-[#E6E8E6]">Coach de la semaine <span className="text-[11px] font-semibold text-[#18181B]/50 dark:text-[#E6E8E6]/50">· {weekPlan.reviewStart.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })} – {weekPlan.reviewEnd.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}</span></p>
+                  <CoachCard coach={appData.weeklyReviews?.[rk]?.coach} busy={coachBusy} title="Résumé et 3 actions"
+                    onGenerate={user ? async () => {
+                      setCoachBusy(true);
+                      const res = await getWeeklyCoach(weekCoachPayload(appData, weekPlan.reviewStart, weekPlan.reviewEnd, todayKeyNow));
+                      setCoachBusy(false);
+                      if (res?.summary) updateAppData(prev => ({ ...prev, weeklyReviews: { ...(prev.weeklyReviews || {}), [rk]: { ...(prev.weeklyReviews?.[rk] || { createdAt: new Date().toISOString() }), weekKey: rk, coach: { ...res, at: new Date().toISOString() }, aiFeedback: { feedback: res.summary, focusNextWeek: res.focusNextWeek } } } }));
+                    } : undefined} />
+                </div>
+              );
+            })()}
             {/* Same AI view */}
             <div className="glass p-8 rounded-[3.5rem] text-center space-y-6"><div className="w-20 h-20 bg-gradient-to-br from-[#FDCA40] to-accent rounded-3xl flex items-center justify-center mx-auto shadow-2xl"><BrainCircuit size={40} className="text-white" /></div><h2 className="text-2xl font-black text-[#18181B] dark:text-[#E6E8E6]">Caddr. IA</h2>{!aiAdvice && !isAiLoading && <button onClick={async () => { setIsAiLoading(true); setAiAdvice(await getRoutineAdvice(routineBlocks, perfToday)); setIsAiLoading(false); }} className="bg-[#18181B] dark:bg-[#E6E8E6] text-white dark:text-[#080708] px-8 py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest">Lancer l'Analyse</button>}{isAiLoading && <Loader2 className="animate-spin text-[#FDCA40] mx-auto" size={32} />}{aiAdvice && (<div className="text-left space-y-4 animate-in fade-in slide-in-from-top-4"><div className="p-5 bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 rounded-2xl border border-[#18181B]/5 dark:border-[#E6E8E6]/5"><p className="text-[8px] font-black text-[#FDCA40] uppercase tracking-widest mb-1">Conseil IA</p><p className="text-sm text-[#18181B] dark:text-[#E6E8E6] font-medium">{aiAdvice.advice}</p></div><div className="p-5 bg-accent/10 rounded-2xl border border-accent/10"><p className="text-[8px] font-black text-accent uppercase tracking-widest mb-1">Action Recommandée</p><p className="text-sm font-bold flex items-center gap-2 text-[#18181B] dark:text-[#E6E8E6]"><ArrowRight size={14} /> {aiAdvice.powerTask}</p></div></div>)}</div>
           </div>
@@ -3164,6 +3292,28 @@ const App: React.FC = () => {
                   <button onClick={() => updateAppData(prev => ({ ...prev, settings: { ...(prev.settings || {}), headerBar: 'discipline' } }))} className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${headerBar === 'discipline' ? 'bg-accent text-white shadow-lg' : 'text-[#18181B]/60 dark:text-[#E6E8E6]/60'}`}>Discipline du mois</button>
                   <button onClick={() => updateAppData(prev => ({ ...prev, settings: { ...(prev.settings || {}), headerBar: 'xp' } }))} className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${headerBar === 'xp' ? 'bg-accent text-white shadow-lg' : 'text-[#18181B]/60 dark:text-[#E6E8E6]/60'}`}>Niveau XP</button>
                 </div>
+              </div>
+              <BackupsPanel onRestore={(data) => { saveToHistory(); updateAppData(() => data); setActiveNotification('Sauvegarde restaurée ✓'); setTimeout(() => setActiveNotification(null), 3000); }} />
+              {/* XP et discipline */}
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-[#18181B]/50 dark:text-[#E6E8E6]/50">XP et discipline</label>
+                <p className="text-[10px] font-medium text-[#18181B]/50 dark:text-[#E6E8E6]/50">L'XP récompense surtout ta régularité. Objectif hebdomadaire pour les bonus :</p>
+                <div className="flex p-1 bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 rounded-2xl border border-[#18181B]/5 dark:border-[#E6E8E6]/5">
+                  {[70, 80, 90].map(v => (
+                    <button key={v} onClick={() => updateAppData(prev => ({ ...prev, settings: { ...(prev.settings || {}), weeklyTarget: v } }))} className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${(appData.settings?.weeklyTarget ?? WEEK_TARGET) === v ? 'bg-accent text-white shadow-lg' : 'text-[#18181B]/60 dark:text-[#E6E8E6]/60'}`}>{v} %</button>
+                  ))}
+                </div>
+                <ul className="rounded-2xl bg-[#18181B]/[0.03] dark:bg-[#E6E8E6]/[0.03] p-3 space-y-1.5">
+                  {XP_RULES.map(r => <li key={r.label} className="flex items-center justify-between gap-3 text-[11px] font-semibold text-[#18181B] dark:text-[#E6E8E6]"><span>{r.label}</span><span className="shrink-0 font-black text-[#c98500]">{r.xp}</span></li>)}
+                </ul>
+                {Object.keys(appData.userProfile?.bonuses || {}).length > 0 && (
+                  <div className="space-y-1">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-[#18181B]/40 dark:text-[#E6E8E6]/40">Derniers bonus</p>
+                    {Object.values(appData.userProfile?.bonuses || {}).sort((a, b) => b.at.localeCompare(a.at)).slice(0, 5).map((b, i) => (
+                      <p key={i} className="flex justify-between gap-3 text-[11px] font-semibold text-[#18181B]/70 dark:text-[#E6E8E6]/70"><span className="truncate">{b.label}</span><span className="font-black text-[#c98500] shrink-0">+{b.xp}</span></p>
+                    ))}
+                  </div>
+                )}
               </div>
               {/* Position de la barre d'onglets */}
               <div className="space-y-2">
@@ -3273,13 +3423,14 @@ const App: React.FC = () => {
           </div>
         )}
         {showWeekPlanner && (
-          <WeekPlanner appData={appData} update={(fn) => updateAppData(fn)} onClose={() => setShowWeekPlanner(false)} saveToHistory={saveToHistory}
+          <WeekPlanner appData={appData} update={(fn) => updateAppData(fn)} onClose={() => setShowWeekPlanner(false)} saveToHistory={saveToHistory} aiCoach={user ? getWeeklyCoach : undefined}
             notify={(m) => { setActiveNotification(m); setTimeout(() => setActiveNotification(null), 3500); }} />
         )}
         {showCalendars && (
           <CalendarsPanel calendars={externalCalendars} onChange={setCalendars} onClose={() => setShowCalendars(false)}
             errors={cal.errors} loading={cal.loading} lastSync={cal.lastSync} eventCount={(c) => cal.eventsOf(c).length} onRefresh={cal.refresh} />
         )}
+        </Suspense>
       </main>
 
       {/* Navigation */}

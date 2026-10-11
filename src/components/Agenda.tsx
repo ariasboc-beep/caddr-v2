@@ -4,6 +4,8 @@ import { AppData, Task, ExternalCalendar, ExtEventRaw } from '../types';
 import { getKeyFromDate, isDateInRange } from '../utils';
 import { resolveDay } from '../analytics';
 import { occurrencesBetween, Occurrence } from '../icsImport';
+import { loadOf, localProposal, liteFromTask, LightenProposal, DayTaskLite, Meeting } from '../lighten';
+import { Feather, Loader2, Wand2 } from 'lucide-react';
 
 // Palette catégorielle validée (ordre fixe, couleur = bloc, jamais le rang)
 const BLOCK_COLORS = ['#3987e5', '#d95926', '#199e70', '#c98500', '#d55181', '#008300', '#9085e9', '#e66767'];
@@ -25,6 +27,8 @@ interface Props {
   calVersion?: number;
   onOpenCalendars?: () => void;
   onPlanWeek?: () => void;
+  aiLighten?: (payload: unknown) => Promise<{ summary: string; postpone: { id: string; reason: string }[]; reschedule: { id: string; startTime: string }[] } | null>;
+  onApplyLighten?: (plan: { postpone: { id: string; blockId: string; oneOff: boolean }[]; reschedule: { id: string; blockId: string; startTime: string }[] }, dateKey: string) => void;
 }
 
 interface Item { key: string; task?: Task; ext?: Occurrence; blockId: string; blockTitle: string; color: string; start: number; dur: number; done: boolean; lane: number; lanes: number; conflict: boolean }
@@ -107,7 +111,7 @@ function beginPress(e: React.PointerEvent, h: PressHandlers) {
 }
 
 const Agenda: React.FC<Props> = (props) => {
-  const { appData, date, now, view, onViewChange, onDateChange, onToggle, onOpenTask, onSetTime, onMoveTask, onQuickAdd, calendars = [], eventsOf, calVersion = 0, onOpenCalendars, onPlanWeek } = props;
+  const { appData, date, now, view, onViewChange, onDateChange, onToggle, onOpenTask, onSetTime, onMoveTask, onQuickAdd, calendars = [], eventsOf, calVersion = 0, onOpenCalendars, onPlanWeek, aiLighten, onApplyLighten } = props;
   const todayKey = getKeyFromDate(now);
   const dateKey = getKeyFromDate(date);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -345,6 +349,48 @@ const Agenda: React.FC<Props> = (props) => {
     ? date.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })
     : `${week[0].date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })} – ${week[6].date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })}`;
   const todo = day.untimed.filter(u => !u.done);
+
+  // ---------- Journée surchargée ----------
+  const planIds = useMemo(() => { const st = new Set<string>(); appData.blocks.forEach(b => b.tasks.forEach(t => st.add(t.id))); return st; }, [appData.blocks]);
+  const lite: DayTaskLite[] = useMemo(() => {
+    const oneOff = (t: Task) => t.recurrence === 'specific' || t.recurrence === 'once' || !planIds.has(t.id);
+    const skipped = new Set((appData.skips || []).filter(x => x.date === dateKey).map(x => x.taskId));
+    return [
+      ...day.timed.filter(i => i.task).map(i => liteFromTask(i.task!, i.blockId, i.blockTitle, i.start, i.done, oneOff(i.task!))),
+      ...day.untimed.map(u => liteFromTask(u.task, u.blockId, u.blockTitle, null, u.done, oneOff(u.task))),
+    ].filter(t => !skipped.has(t.id));
+  }, [day, planIds, appData.skips, dateKey]);
+  const meetingsLite: Meeting[] = useMemo(() => day.timed.filter(i => i.ext).map(i => ({ title: i.ext!.title, start: i.start, end: i.start + i.dur })), [day]);
+  const isPast = dateKey < todayKey;
+  const load = useMemo(() => loadOf(lite, meetingsLite, dateKey === todayKey ? nowMin : null), [lite, meetingsLite, dateKey, todayKey, nowMin]);
+  const [lighten, setLighten] = useState<{ plan: LightenProposal; selected: Set<string>; busy: boolean } | null>(null);
+  const openLighten = async () => {
+    const nm = dateKey === todayKey ? nowMin : null;
+    const local = localProposal(lite, meetingsLite, nm);
+    const sel = (p: LightenProposal) => new Set([...p.postpone.map(x => 'p:' + x.id), ...p.reschedule.map(x => 'r:' + x.id)]);
+    setLighten({ plan: local, selected: sel(local), busy: !!aiLighten });
+    if (!aiLighten) return;
+    const L = loadOf(lite, meetingsLite, nm);
+    const res = await aiLighten({
+      date: dateKey, now: nm !== null ? toHHMM(nm) : null, freeMinutes: L.free, plannedMinutes: L.planned,
+      tasks: L.remaining.map(t => ({ id: t.id, title: t.title, block: t.block, start: t.start !== null ? toHHMM(t.start) : null, duration: t.dur, priority: t.priority || 'normale', habit: !!t.isHabit, oneOff: t.oneOff })),
+      meetings: meetingsLite.map(m => ({ title: m.title, start: toHHMM(m.start), end: toHHMM(m.end) })),
+    });
+    const ids = new Set(L.remaining.map(t => t.id));
+    if (res && (res.postpone?.length || res.reschedule?.length)) {
+      const plan: LightenProposal = { summary: res.summary, postpone: (res.postpone || []).filter(x => ids.has(x.id)), reschedule: (res.reschedule || []).filter(x => ids.has(x.id) && /^\d{2}:\d{2}$/.test(x.startTime)), source: 'ia' };
+      setLighten({ plan, selected: sel(plan), busy: false });
+    } else setLighten(l => l ? { ...l, busy: false } : l);
+  };
+  const applyLighten = () => {
+    if (!lighten || !onApplyLighten) return;
+    const byId = new Map(lite.map(t => [t.id, t]));
+    onApplyLighten({
+      postpone: lighten.plan.postpone.filter(x => lighten.selected.has('p:' + x.id) && byId.has(x.id)).map(x => ({ id: x.id, blockId: byId.get(x.id)!.blockId, oneOff: byId.get(x.id)!.oneOff })),
+      reschedule: lighten.plan.reschedule.filter(x => lighten.selected.has('r:' + x.id) && byId.has(x.id)).map(x => ({ id: x.id, blockId: byId.get(x.id)!.blockId, startTime: x.startTime })),
+    }, dateKey);
+    setLighten(null);
+  };
   const allDayChip = (o: Occurrence, compact = false) => (
     <button key={o.uid} onClick={() => setInfo(o)} className={`max-w-full truncate rounded-md text-left font-bold ${compact ? 'px-1 py-0.5 text-[8px]' : 'px-2 py-1 text-[11px]'} ${ink}`} style={{ backgroundColor: `${o.color}2e`, boxShadow: `inset 2px 0 0 ${o.color}` }} title={`${o.title} · ${o.calendarName}`}>{o.title}</button>
   );
@@ -385,6 +431,17 @@ const Agenda: React.FC<Props> = (props) => {
               </div>
             ))}
           </div>
+
+          {/* Journée surchargée */}
+          {!isPast && onApplyLighten && load.overloaded && load.remaining.length > 1 && (
+            <div className="flex flex-wrap items-center gap-3 rounded-2xl px-4 py-3 border border-[#e66767]/25 bg-[#e66767]/[0.07]" role="status">
+              <Feather size={16} className="text-[#e66767] shrink-0" />
+              <p className={`flex-1 min-w-[180px] text-[12px] font-bold ${ink}`}>
+                Journée chargée : {fmtDur(load.planned)} de tâches pour {fmtDur(load.free)} disponibles{load.overlaps ? ` · ${load.overlaps} chevauchement${load.overlaps > 1 ? 's' : ''}` : ''}.
+              </p>
+              <button onClick={openLighten} className="px-3.5 py-2 rounded-xl bg-[#e66767] text-white text-[10px] font-black uppercase tracking-wider">Proposer une version allégée</button>
+            </div>
+          )}
 
           {/* À placer : tâches sans horaire, à glisser sur la grille */}
           {todo.length > 0 && (
@@ -486,6 +543,42 @@ const Agenda: React.FC<Props> = (props) => {
       {ghost && (
         <div className="fixed z-[140] pointer-events-none -translate-x-1/2 -translate-y-[130%] px-3 py-2 rounded-xl shadow-2xl text-[12px] font-black text-white whitespace-nowrap" style={{ left: ghost.x, top: ghost.y, backgroundColor: ghost.u.color }}>
           {ghost.u.task.title}{ghost.min !== null ? ` · ${label(ghost.min)}` : ''}
+        </div>
+      )}
+
+      {/* Version allégée */}
+      {lighten && (
+        <div className="fixed inset-0 z-[130] bg-black/40 flex items-end sm:items-center justify-center p-3" onMouseDown={(e) => { if (e.target === e.currentTarget) setLighten(null); }}>
+          <div className="glass bg-[#F4F4F5] dark:bg-[#111] w-full max-w-md max-h-[86vh] overflow-y-auto custom-scrollbar rounded-3xl p-5 space-y-4 animate-in slide-in-from-bottom-4" role="dialog" aria-label="Version allégée">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className={`text-base font-black flex items-center gap-2 ${ink}`}><Feather size={16} className="text-accent" /> Version allégée</p>
+                <p className={`text-[11px] font-semibold ${muted}`}>{lighten.plan.source === 'ia' ? 'Proposée par le coach IA' : 'Proposition automatique'} · coche ce que tu acceptes</p>
+              </div>
+              <button onClick={() => setLighten(null)} aria-label="Fermer" className={`p-1.5 rounded-full hover:text-accent ${muted}`}><X size={16} /></button>
+            </div>
+            {lighten.busy && <p className={`flex items-center gap-2 text-[11px] font-bold ${muted}`}><Loader2 size={13} className="animate-spin text-accent" /> Le coach IA affine la proposition…</p>}
+            <p className={`text-[13px] font-semibold leading-relaxed ${ink}`}>{lighten.plan.summary}</p>
+            {[...lighten.plan.postpone.map(x => ({ key: 'p:' + x.id, id: x.id, what: (lite.find(t => t.id === x.id)?.oneOff ? 'Reporter à demain' : 'Sauter aujourd’hui'), why: x.reason })),
+              ...lighten.plan.reschedule.map(x => ({ key: 'r:' + x.id, id: x.id, what: `Déplacer à ${x.startTime.replace(':', 'h')}`, why: '' }))].map(r => {
+              const t = lite.find(x => x.id === r.id); if (!t) return null;
+              const on = lighten.selected.has(r.key);
+              return (
+                <button key={r.key} onClick={() => setLighten(l => { if (!l) return l; const n = new Set(l.selected); if (n.has(r.key)) n.delete(r.key); else n.add(r.key); return { ...l, selected: n }; })}
+                  className={`w-full flex items-start gap-3 text-left rounded-2xl p-3 border transition-all ${on ? 'border-accent/40 bg-accent/[0.06]' : 'border-[#18181B]/5 dark:border-[#E6E8E6]/5 opacity-60'}`}>
+                  <span className={`mt-0.5 w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 ${on ? 'bg-accent border-accent' : 'border-[#18181B]/25 dark:border-[#E6E8E6]/25'}`}>{on && <Check size={12} strokeWidth={4} className="text-white" />}</span>
+                  <span className="min-w-0 flex-1">
+                    <span className={`block text-[13px] font-bold truncate ${ink}`}>{t.title}</span>
+                    <span className={`block text-[11px] font-semibold ${muted}`}><span className="text-accent font-black">{r.what}</span>{r.why ? ` · ${r.why}` : ''} · {t.block}{t.start !== null ? ` · ${toHHMM(t.start).replace(':', 'h')}` : ''}</span>
+                  </span>
+                </button>
+              );
+            })}
+            {(lighten.plan.postpone.length + lighten.plan.reschedule.length) > 0 ? (
+              <button onClick={applyLighten} disabled={!lighten.selected.size} className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-accent text-white text-[11px] font-black uppercase tracking-wider shadow-lg shadow-accent/20 disabled:opacity-40"><Wand2 size={14} /> Appliquer ({lighten.selected.size})</button>
+            ) : <button onClick={() => setLighten(null)} className={`w-full py-3 rounded-2xl text-[11px] font-black uppercase tracking-wider bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 ${ink}`}>Fermer</button>}
+            {!aiLighten && <p className={`text-[10px] font-medium ${faint}`}>Connecte-toi pour obtenir une proposition affinée par le coach IA.</p>}
+          </div>
         </div>
       )}
 

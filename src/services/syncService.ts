@@ -181,6 +181,13 @@ const mergeHabits = (local: NonNullable<AppData['habits']>, cloud: NonNullable<A
   return Array.from(map.values());
 };
 
+// Journal : par jour, la version modifiée le plus récemment l'emporte
+const mergeJournal = (a: NonNullable<AppData['journal']>, b: NonNullable<AppData['journal']>) => {
+  const out = { ...b };
+  Object.entries(a).forEach(([k, e]) => { if (!out[k] || (e.updatedAt || '') > (out[k].updatedAt || '')) out[k] = e; });
+  return out;
+};
+
 export const mergeAppData = (local: AppData, cloud: AppData): AppData => {
   // Journées : union, conflit résolu au profit de l'entrée la plus riche
   const days: AppData['days'] = { ...cloud.days };
@@ -221,5 +228,6 @@ export const mergeAppData = (local: AppData, cloud: AppData): AppData => {
     skips: mergeById(local.skips || [], cloud.skips || []),
     monthlyReviews: { ...(cloud.monthlyReviews || {}), ...(local.monthlyReviews || {}) },
     habits: mergeHabits(local.habits || [], cloud.habits || []),
+    journal: mergeJournal(local.journal || {}, cloud.journal || {}),
   };
 };

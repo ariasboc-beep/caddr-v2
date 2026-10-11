@@ -19,10 +19,10 @@ export default defineConfig({
     sourcemap: false,
     rollupOptions: {
       output: {
+        // Les bibliothèques lourdes (graphiques, PDF) sont chargées à la demande
+        // par les onglets qui les utilisent (import dynamique).
         manualChunks: {
-          'react-vendor': ['react', 'react-dom'],
-          'chart-vendor': ['recharts'],
-          'pdf-vendor': ['jspdf', 'jspdf-autotable']
+          'firebase-vendor': ['firebase/app', 'firebase/auth', 'firebase/firestore'],
         }
       }
     }
