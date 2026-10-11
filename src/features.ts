@@ -39,6 +39,40 @@ export const FEATURE_GROUPS: { title: string; items: FeatureDef[] }[] = [
   ] },
 ];
 
+// ─── Modes : Essentiel (défaut) ou Complet ────────────────────────────────────
+export type AppMode = 'essentiel' | 'complet' | 'custom';
+
+/** Désactivé en mode Essentiel : les couches en plus, jamais le contenu déjà créé. */
+export const ESSENTIEL_OFF: FeatureId[] = ['briefing', 'nowNext', 'weekPlan', 'evening', 'journalPrompt', 'jokers', 'identities', 'mastery', 'buddy', 'assign'];
+
+export const essentielFeatures = (): Record<string, boolean> =>
+  Object.fromEntries(ESSENTIEL_OFF.map(id => [id, false]));
+
+export const appMode = (d?: AppData): AppMode => {
+  const m = d?.settings?.appMode;
+  if (m) return m;
+  const off = Object.values(d?.settings?.features || {}).some(v => v === false) || d?.settings?.motivation === false;
+  return off ? 'custom' : 'complet';
+};
+
+// ─── Découverte progressive : une proposition à la fois, jamais deux ──────────
+export interface UnlockStep { at: number; ids: FeatureId[]; title: string; text: string }
+
+export const UNLOCKS: UnlockStep[] = [
+  { at: 3, ids: ['briefing', 'evening'], title: 'Ouvrir et fermer tes journées', text: "Trois jours sur Caddr. Veux-tu la priorité du matin et le bilan de 3 minutes le soir ?" },
+  { at: 7, ids: ['identities'], title: 'Qui je deviens', text: "Une semaine tenue. Chaque tâche cochée peut devenir un vote pour la personne que tu deviens." },
+  { at: 14, ids: ['jokers', 'mastery'], title: 'Jokers et paliers de maîtrise', text: "Deux semaines. Protège ta série les jours d'écart et vois tes habitudes passer de Graine à Forêt." },
+  { at: 21, ids: ['buddy'], title: 'Un binôme de discipline', text: "Vingt-et-un jours : l'habitude est prise. Veux-tu avancer à deux, avec séries partagées et encouragements ?" },
+  { at: 30, ids: ['weekPlan', 'nowNext'], title: 'Prendre de l’avance', text: "Un mois. Le rituel du dimanche et la carte « En cours / Ensuite » t'aident à garder le cap." },
+];
+
+/** La prochaine fonctionnalité à proposer, ou rien (hors mode Essentiel : rien). */
+export function nextUnlock(d: AppData | undefined, days: number): UnlockStep | null {
+  if (!d || appMode(d) !== 'essentiel') return null;
+  const seen = d.settings?.unlocksSeen || [];
+  return UNLOCKS.find(s => days >= s.at && !seen.includes(s.at) && s.ids.every(id => featureOn(d, id) === false)) || null;
+}
+
 export const featureOn = (d: AppData | undefined, id: FeatureId): boolean => {
   if (!d) return true;
   if (id === 'motivation' && d.settings?.motivation === false) return false; // ancien réglage

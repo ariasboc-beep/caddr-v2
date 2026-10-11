@@ -1,12 +1,14 @@
 
-import { featureOn, FEATURE_GROUPS, FeaturesContext, type FeatureId } from './features';
+import { featureOn, FEATURE_GROUPS, FeaturesContext, appMode, essentielFeatures, nextUnlock, ESSENTIEL_OFF, type FeatureId } from './features';
+import UnlockOffer from './components/UnlockOffer';
+import SettingsGroup from './components/SettingsGroup';
 import BuddyPanel, { BuddyCard } from './components/BuddyPanel';
 import { inviteBuddy, listBuddyLinks, answerInvite, removeBuddyLink, publishStats, sendCheer, unreadCheers, markCheerRead, loadBuddies, type Buddy, type BuddyLink, type Cheer } from './services/buddyService';
 import DayRing from './components/DayRing';
 import PerfectDay from './components/PerfectDay';
 import IdentityPanel from './components/IdentityPanel';
 import RewardsCollection from './components/RewardsCollection';
-import { isHardDay, setHardDay, useJoker, jokerOffer, identityVotes, activeIdentities, addIdentity, removeIdentity, patchTaskEverywhere, drawCard, addReward, mastery, type CardDef } from './progress';
+import { isHardDay, setHardDay, useJoker, jokerOffer, identityVotes, activeIdentities, addIdentity, removeIdentity, patchTaskEverywhere, drawCard, addReward, mastery, daysUsed, type CardDef } from './progress';
 import { activeHabits as activeStandaloneHabits, habitStats as standaloneHabitStats } from './habits';
 import ShareSheet from './components/ShareSheet';
 import type { SharePeriod } from './shareCard';
@@ -43,7 +45,7 @@ import {
   Loader2, Sparkles, BrainCircuit, Sprout, 
   ArrowRight, Camera, Wand2, Zap,
   ChevronUp, ChevronDown, CalendarDays, GripVertical, Link2, CalendarRange,
-  History, MoveVertical, Minimize2, Clock, ListPlus,
+  History, MoveVertical, Minimize2, Clock, ListPlus, Feather,
   ChevronRightSquare, Bell, BellRing, BellOff, Timer, AlarmClock,
   ClipboardCheck, Smile, Meh, Frown, Laugh, Star, Flame, Trophy,
   ListChecks, Search, AlertCircle, Quote, Archive, Inbox, Send,
@@ -2239,6 +2241,43 @@ const App: React.FC = () => {
   const offer = useMemo(() => appData.settings?.jokerOfferDismissed === todayKeyNow ? null : jokerOffer(appData, todayKeyNow), [appData, todayKeyNow]);
   const votes = useMemo(() => identityVotes(appData), [appData]);
   const [perfect, setPerfect] = useState<{ card: CardDef | null } | null>(null);
+  const [momentOpen, setMomentOpen] = useState(false); // « carte du moment » : les autres cartes dépliées
+  const offCount = useMemo(() => Object.values(appData.settings?.features || {}).filter(v => v === false).length
+    + (appData.settings?.motivation === false && appData.settings?.features?.motivation !== false ? 1 : 0), [appData.settings]);
+
+  // ---------- Allure de l'app : Essentiel par défaut, Complet au choix ----------
+  const mode = appMode(appData);
+  const usedDays = useMemo(() => daysUsed(appData), [appData.days, appData.daySnapshots]); // eslint-disable-line react-hooks/exhaustive-deps
+  const unlock = useMemo(() => nextUnlock(appData, usedDays), [appData, usedDays]);
+  const setMode = (m: 'essentiel' | 'complet') => updateAppData(prev => ({
+    ...prev,
+    settings: { ...(prev.settings || {}), appMode: m, motivation: undefined, features: m === 'essentiel' ? essentielFeatures() : {} },
+  }));
+  const acceptUnlock = (step: NonNullable<typeof unlock>) => {
+    updateAppData(prev => {
+      const f = { ...(prev.settings?.features || {}) };
+      step.ids.forEach(id => { f[id] = true; });
+      return { ...prev, settings: { ...(prev.settings || {}), features: f, unlocksSeen: Array.from(new Set([...(prev.settings?.unlocksSeen || []), step.at])) } };
+    });
+    notify(`${step.title} : c'est activé. 🌿`, 3500);
+  };
+  const skipUnlock = (step: NonNullable<typeof unlock>) => updateAppData(prev => ({
+    ...prev,
+    settings: { ...(prev.settings || {}), unlocksSeen: Array.from(new Set([...(prev.settings?.unlocksSeen || []), step.at])) },
+  }));
+
+  // Premier lancement : on démarre léger (anneau, message du jour, routine).
+  // Les comptes qui ont déjà des données gardent l'app telle qu'ils la connaissent.
+  useEffect(() => {
+    if (isLoading || (user && !cloudReady.current)) return;
+    if (appData.settings?.appMode) return;
+    const fresh = !appData.blocks?.some(b => b.tasks.length > 0) && Object.keys(appData.days || {}).length === 0 && !(appData.habits || []).length;
+    updateAppData(prev => prev.settings?.appMode ? prev : ({
+      ...prev,
+      settings: { ...(prev.settings || {}), appMode: fresh ? 'essentiel' : appMode(prev), ...(fresh ? { features: essentielFeatures() } : {}) },
+    }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoading, user, appData.settings?.appMode]);
 
   // Journée parfaite : célébration une fois par jour, avec une carte surprise éventuelle
   useEffect(() => {
@@ -2907,85 +2946,124 @@ const App: React.FC = () => {
               <button onClick={() => { updateAppData(prev => setHardDay(prev, todayKeyNow, !hardToday)); notify(hardToday ? 'Retour à une journée normale.' : "Mode jour difficile : fais la version minimale de l'essentiel. Une tâche suffit pour tenir ta série. 🌿", 4500); }}
                 className={`w-full glass rounded-[2rem] px-5 py-3.5 text-left text-[11px] font-black uppercase tracking-wider ${hardToday ? 'text-accent border border-accent/30' : 'text-[#18181B]/60 dark:text-[#E6E8E6]/55'}`}>{hardToday ? 'Jour difficile activé · revenir à une journée normale' : 'Journée difficile ? Passer en mode doux'}</button>
             )}
-            {!isReorderMode && dateKey === todayKeyNow && offer && featureOn(appData, 'jokers') && (
-              <div className="glass rounded-[2rem] p-4 sm:p-5 border border-[#FDCA40]/30 space-y-2.5 animate-in slide-in-from-top-2" aria-label="Joker de série">
-                <p className="text-[10px] font-black uppercase tracking-widest text-[#B8900A] dark:text-[#FDCA40]">🃏 Protège ta série</p>
-                <p className="text-[13px] font-semibold text-[#18181B] dark:text-[#E6E8E6]">Hier n'a pas été tenu. Ta série de {offer.streak} jours peut continuer avec un joker{offer.ok ? ` (${offer.left} restant${offer.left > 1 ? 's' : ''} ce mois-ci).` : '.'}</p>
-                {!offer.ok && <p className="text-[11px] font-semibold text-[#18181B]/60 dark:text-[#E6E8E6]/55">{offer.reason}</p>}
-                <div className="flex flex-wrap gap-2">
-                  {offer.ok && <button onClick={() => { updateAppData(prev => useJoker(prev, offer.date)); notify(`Joker utilisé : ta série de ${offer.streak} jours continue. Aujourd'hui, on repart. 💪`, 4000); }} className="px-4 py-2.5 rounded-xl bg-[#FDCA40] text-[#111213] text-[10px] font-black uppercase tracking-wider">Utiliser un joker</button>}
-                  <button onClick={() => updateAppData(prev => ({ ...prev, settings: { ...(prev.settings || {}), jokerOfferDismissed: todayKeyNow } }))} className="px-4 py-2.5 rounded-xl bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 text-[10px] font-black uppercase tracking-wider text-[#18181B] dark:text-[#E6E8E6]">Repartir de zéro</button>
-                </div>
-                <p className="text-[10px] font-semibold text-[#18181B]/55 dark:text-[#E6E8E6]/50">2 jokers par mois, jamais deux jours de suite.</p>
-              </div>
-            )}
-            {!isReorderMode && dateKey === todayKeyNow && featureOn(appData, 'buddy') && cheersIn.map(c => (
-              <div key={c.id} className="glass rounded-[2rem] px-5 py-4 flex items-center gap-3 border border-accent/25 animate-in slide-in-from-top-2" aria-label="Encouragement reçu">
-                <span className="text-2xl">{c.emoji}</span>
-                <p className="flex-1 text-[13px] font-semibold text-[#18181B] dark:text-[#E6E8E6]"><strong>{c.fromName}</strong> t'encourage : « {c.message} »</p>
-                <button onClick={() => { markCheerRead(c.id).catch(() => {}); setCheersIn(l => l.filter(x => x.id !== c.id)); }} aria-label="Merci" className="px-3 py-2 rounded-xl bg-accent/10 text-accent text-[10px] font-black uppercase tracking-wider">Merci</button>
-              </div>
-            ))}
-            {!isReorderMode && dateKey === todayKeyNow && buddies.length > 0 && featureOn(appData, 'buddy') && (
-              <div className="space-y-2" aria-label="Mes binômes">
-                <p className="px-2 text-[9px] font-black uppercase tracking-widest text-[#18181B]/55 dark:text-[#E6E8E6]/55">Mon binôme aujourd'hui</p>
-                {buddies.map(b => <BuddyCard key={b.linkId} buddy={b} onCheer={cheerBuddy} compact />)}
-              </div>
-            )}
-            {!isReorderMode && dateKey === todayKeyNow && buddyLinks.incoming.length > 0 && featureOn(appData, 'buddy') && (
-              <button onClick={() => setActiveTab('goals')} className="w-full glass rounded-[2rem] px-5 py-4 text-left border border-accent/30 text-[13px] font-semibold text-[#18181B] dark:text-[#E6E8E6]">🤝 {buddyLinks.incoming[0].fromName || buddyLinks.incoming[0].fromEmail} t'invite à devenir son binôme de discipline · <span className="text-accent font-black">Voir</span></button>
-            )}
+            {/* Message du jour : une phrase, toujours visible */}
             {!isReorderMode && dateKey === todayKeyNow && featureOn(appData, 'motivation') && appData.settings?.motivationHiddenOn !== todayKeyNow && (() => {
               const y = new Date(todayKeyNow + 'T12:00:00'); y.setDate(y.getDate() - 1);
               return <DailyMotivation dateKey={todayKeyNow} yesterdayRate={computeDay(appData, getKeyFromDate(y), todayKeyNow).rate} streak={perfectStreak(appData, todayKeyNow).current}
                 name={user?.displayName?.split(' ')[0] || undefined}
                 onHide={() => updateAppData(prev => ({ ...prev, settings: { ...(prev.settings || {}), motivationHiddenOn: todayKeyNow } }))} />;
             })()}
-            {!isReorderMode && dateKey === todayKeyNow && <IncomingAssignments items={incoming} todayKey={todayKeyNow} onAccept={acceptAssignment} onDecline={declineAssignment} />}
-            {!isReorderMode && dateKey === todayKeyNow && briefing && featureOn(appData, 'briefing') && (
-              <MorningBriefing b={briefing} name={user?.displayName?.split(' ')[0] || undefined}
-                onAskClaude={featureOn(appData, 'cady') ? () => askClaude(PROMPTS.morning) : undefined} onOpenPlanning={() => setActiveTab('schedule')}
-                onHide={() => updateAppData(prev => ({ ...prev, settings: { ...(prev.settings || {}), briefingHiddenOn: todayKeyNow } }))} />
-            )}
-            {!isReorderMode && dateKey === todayKeyNow && eveningDue && featureOn(appData, 'evening') && (
-              <div className="glass p-4 sm:p-5 rounded-[2rem] border border-accent/25 flex flex-wrap items-center gap-3 animate-in slide-in-from-top-2">
-                <div className="w-10 h-10 rounded-xl bg-accent/15 flex items-center justify-center shrink-0"><Moon size={18} className="text-accent" /></div>
-                <div className="flex-1 min-w-[160px]">
-                  <p className="text-sm font-black text-[#18181B] dark:text-[#E6E8E6]">Bilan du soir</p>
-                  <p className="text-[11px] font-semibold text-[#18181B]/55 dark:text-[#E6E8E6]/55">Coche, reporte, note ton ressenti et ton journal : 3 minutes.</p>
-                </div>
-                <button onClick={() => setShowEvening(true)} className="px-4 py-2.5 rounded-xl bg-accent text-white text-[10px] font-black uppercase tracking-wider shadow-lg shadow-accent/20">Commencer</button>
-                {featureOn(appData, 'cady') && <button onClick={() => askClaude(PROMPTS.evening)} className="flex items-center gap-1 px-3 py-2.5 rounded-xl bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 text-[10px] font-black uppercase tracking-wider text-[#18181B] dark:text-[#E6E8E6] hover:text-accent"><Sparkles size={12} /> Avec Cady</button>}
-              </div>
-            )}
-            {!isReorderMode && dateKey === todayKeyNow && showJournalPrompt && featureOn(appData, 'journalPrompt') && featureOn(appData, 'journal') && (
-              <button onClick={() => setActiveTab('journal')} className="w-full glass p-4 sm:p-5 rounded-[2rem] border border-[#FDCA40]/25 flex items-center gap-3 text-left animate-in slide-in-from-top-2 hover:border-[#FDCA40]/50 transition-all">
-                <div className="w-10 h-10 rounded-xl bg-[#FDCA40]/15 flex items-center justify-center shrink-0"><BookHeart size={18} className="text-[#B8900A] dark:text-[#FDCA40]" /></div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-black text-[#18181B] dark:text-[#E6E8E6]">Mon journal du soir</p>
-                  <p className="text-[11px] font-semibold text-[#18181B]/55 dark:text-[#E6E8E6]/55">3 gratitudes et 3 fiertés avant de clore la journée.</p>
-                </div>
-                <ChevronRight size={18} className="text-[#18181B]/40 dark:text-[#E6E8E6]/40 shrink-0" />
-              </button>
-            )}
-            {!isReorderMode && dateKey === todayKeyNow && showWeekPlanPrompt && featureOn(appData, 'weekPlan') && (
-              <div className="glass p-4 sm:p-5 rounded-[2rem] border border-accent/25 flex items-center gap-3 animate-in slide-in-from-top-2">
-                <div className="hidden sm:flex w-10 h-10 rounded-xl bg-accent/15 items-center justify-center shrink-0"><Sparkles size={18} className="text-accent" /></div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-black text-[#18181B] dark:text-[#E6E8E6]">Planifier ma semaine</p>
-                  <p className="text-[11px] font-semibold text-[#18181B]/55 dark:text-[#E6E8E6]/55"><span className="sm:hidden">Bilan, reports, objectif · 3 min</span><span className="hidden sm:inline">Bilan, tâches à reporter et objectif de la semaine : 3 minutes.</span></p>
-                </div>
-                <button onClick={() => setShowWeekPlanner(true)} className="shrink-0 px-4 py-2.5 rounded-xl bg-accent text-white text-[10px] font-black uppercase tracking-wider shadow-lg shadow-accent/20">Commencer</button>
-                <button onClick={() => updateAppData(prev => ({ ...prev, settings: { ...(prev.settings || {}), weekPlanDismissed: weekPlan.planKey } }))} aria-label="Plus tard" title="Plus tard (reste disponible dans Planning)" className="shrink-0 p-1.5 rounded-lg text-[#18181B]/40 dark:text-[#E6E8E6]/40 hover:text-accent"><X size={16} /></button>
-              </div>
-            )}
-            {!isReorderMode && dateKey === todayKeyNow && pendingItems.length > 0 && featureOn(appData, 'carryOver') && (
-              <CarryOver items={pendingItems} todayKey={todayKeyNow}
-                onMove={(id, k) => { saveToHistory(); handleRescheduleTask(id, k); }}
-                onInbox={(id) => { saveToHistory(); updateAppData(prev => sendToInbox(prev, id)); setActiveNotification('Renvoyée dans la Boîte de tâches 📥'); setTimeout(() => setActiveNotification(null), 2500); }}
-                onAbandon={(p) => { updateAppData(prev => ({ ...prev, skips: [...(prev.skips || []), { id: generateId(), taskId: p.task.id, taskTitle: p.task.title, date: p.date, reason: 'Abandonnée' }] })); setActiveNotification('Tâche abandonnée. Choisir, c\'est aussi avancer. 🌿'); setTimeout(() => setActiveNotification(null), 2500); }}
-                onHide={() => updateAppData(prev => ({ ...prev, settings: { ...(prev.settings || {}), carryHiddenOn: todayKeyNow } }))} />
-            )}
+
+            {/* La carte du moment : une seule à la fois, les autres derrière une pastille */}
+            {!isReorderMode && dateKey === todayKeyNow && (() => {
+              const cards: { id: string; label: string; node: React.ReactNode }[] = [];
+              const push = (id: string, label: string, node: React.ReactNode) => cards.push({ id, label, node });
+
+              if (incoming.length > 0) push('incoming', 'Tâche reçue',
+                <IncomingAssignments items={incoming} todayKey={todayKeyNow} onAccept={acceptAssignment} onDecline={declineAssignment} />);
+
+              if (briefing && featureOn(appData, 'briefing')) push('briefing', 'Briefing du matin',
+                <MorningBriefing b={briefing} name={user?.displayName?.split(' ')[0] || undefined}
+                  onAskClaude={featureOn(appData, 'cady') ? () => askClaude(PROMPTS.morning) : undefined} onOpenPlanning={() => setActiveTab('schedule')}
+                  onHide={() => updateAppData(prev => ({ ...prev, settings: { ...(prev.settings || {}), briefingHiddenOn: todayKeyNow } }))} />);
+
+              if (eveningDue && featureOn(appData, 'evening')) push('evening', 'Bilan du soir',
+                <div className="glass p-4 sm:p-5 rounded-[2rem] border border-accent/25 flex flex-wrap items-center gap-3 animate-in slide-in-from-top-2">
+                  <div className="w-10 h-10 rounded-xl bg-accent/15 flex items-center justify-center shrink-0"><Moon size={18} className="text-accent" /></div>
+                  <div className="flex-1 min-w-[160px]">
+                    <p className="text-sm font-black text-[#18181B] dark:text-[#E6E8E6]">Bilan du soir</p>
+                    <p className="text-[11px] font-semibold text-[#18181B]/55 dark:text-[#E6E8E6]/55">Coche, reporte, note ton ressenti et ton journal : 3 minutes.</p>
+                  </div>
+                  <button onClick={() => setShowEvening(true)} className="px-4 py-2.5 rounded-xl bg-accent text-white text-[10px] font-black uppercase tracking-wider shadow-lg shadow-accent/20">Commencer</button>
+                  {featureOn(appData, 'cady') && <button onClick={() => askClaude(PROMPTS.evening)} className="flex items-center gap-1 px-3 py-2.5 rounded-xl bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 text-[10px] font-black uppercase tracking-wider text-[#18181B] dark:text-[#E6E8E6] hover:text-accent"><Sparkles size={12} /> Avec Cady</button>}
+                </div>);
+
+              if (offer && featureOn(appData, 'jokers')) push('joker', 'Protéger ma série',
+                <div className="glass rounded-[2rem] p-4 sm:p-5 border border-[#FDCA40]/30 space-y-2.5 animate-in slide-in-from-top-2" aria-label="Joker de série">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-[#B8900A] dark:text-[#FDCA40]">🃏 Protège ta série</p>
+                  <p className="text-[13px] font-semibold text-[#18181B] dark:text-[#E6E8E6]">Hier n'a pas été tenu. Ta série de {offer.streak} jours peut continuer avec un joker{offer.ok ? ` (${offer.left} restant${offer.left > 1 ? 's' : ''} ce mois-ci).` : '.'}</p>
+                  {!offer.ok && <p className="text-[11px] font-semibold text-[#18181B]/60 dark:text-[#E6E8E6]/55">{offer.reason}</p>}
+                  <div className="flex flex-wrap gap-2">
+                    {offer.ok && <button onClick={() => { updateAppData(prev => useJoker(prev, offer.date)); notify(`Joker utilisé : ta série de ${offer.streak} jours continue. Aujourd'hui, on repart. 💪`, 4000); }} className="px-4 py-2.5 rounded-xl bg-[#FDCA40] text-[#111213] text-[10px] font-black uppercase tracking-wider">Utiliser un joker</button>}
+                    <button onClick={() => updateAppData(prev => ({ ...prev, settings: { ...(prev.settings || {}), jokerOfferDismissed: todayKeyNow } }))} className="px-4 py-2.5 rounded-xl bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 text-[10px] font-black uppercase tracking-wider text-[#18181B] dark:text-[#E6E8E6]">Repartir de zéro</button>
+                  </div>
+                  <p className="text-[10px] font-semibold text-[#18181B]/55 dark:text-[#E6E8E6]/50">2 jokers par mois, jamais deux jours de suite.</p>
+                </div>);
+
+              if (featureOn(appData, 'buddy') && cheersIn.length > 0) push('cheers', 'Encouragement',
+                <div className="space-y-2">
+                  {cheersIn.map(c => (
+                    <div key={c.id} className="glass rounded-[2rem] px-5 py-4 flex items-center gap-3 border border-accent/25 animate-in slide-in-from-top-2" aria-label="Encouragement reçu">
+                      <span className="text-2xl">{c.emoji}</span>
+                      <p className="flex-1 text-[13px] font-semibold text-[#18181B] dark:text-[#E6E8E6]"><strong>{c.fromName}</strong> t'encourage : « {c.message} »</p>
+                      <button onClick={() => { markCheerRead(c.id).catch(() => {}); setCheersIn(l => l.filter(x => x.id !== c.id)); }} aria-label="Merci" className="px-3 py-2 rounded-xl bg-accent/10 text-accent text-[10px] font-black uppercase tracking-wider">Merci</button>
+                    </div>
+                  ))}
+                </div>);
+
+              if (unlock) push('unlock', 'Nouveauté',
+                <UnlockOffer step={unlock} onEnable={() => acceptUnlock(unlock)} onLater={() => skipUnlock(unlock)} />);
+
+              if (buddyLinks.incoming.length > 0 && featureOn(appData, 'buddy')) push('buddyInvite', 'Invitation de binôme',
+                <button onClick={() => setActiveTab('goals')} className="w-full glass rounded-[2rem] px-5 py-4 text-left border border-accent/30 text-[13px] font-semibold text-[#18181B] dark:text-[#E6E8E6]">🤝 {buddyLinks.incoming[0].fromName || buddyLinks.incoming[0].fromEmail} t'invite à devenir son binôme de discipline · <span className="text-accent font-black">Voir</span></button>);
+
+              if (pendingItems.length > 0 && featureOn(appData, 'carryOver')) push('carry', 'Pas terminé',
+                <CarryOver items={pendingItems} todayKey={todayKeyNow}
+                  onMove={(id, k) => { saveToHistory(); handleRescheduleTask(id, k); }}
+                  onInbox={(id) => { saveToHistory(); updateAppData(prev => sendToInbox(prev, id)); setActiveNotification('Renvoyée dans la Boîte de tâches 📥'); setTimeout(() => setActiveNotification(null), 2500); }}
+                  onAbandon={(p) => { updateAppData(prev => ({ ...prev, skips: [...(prev.skips || []), { id: generateId(), taskId: p.task.id, taskTitle: p.task.title, date: p.date, reason: 'Abandonnée' }] })); setActiveNotification('Tâche abandonnée. Choisir, c\'est aussi avancer. 🌿'); setTimeout(() => setActiveNotification(null), 2500); }}
+                  onHide={() => updateAppData(prev => ({ ...prev, settings: { ...(prev.settings || {}), carryHiddenOn: todayKeyNow } }))} />);
+
+              if (showWeekPlanPrompt && featureOn(appData, 'weekPlan')) push('weekPlan', 'Planifier ma semaine',
+                <div className="glass p-4 sm:p-5 rounded-[2rem] border border-accent/25 flex items-center gap-3 animate-in slide-in-from-top-2">
+                  <div className="hidden sm:flex w-10 h-10 rounded-xl bg-accent/15 items-center justify-center shrink-0"><Sparkles size={18} className="text-accent" /></div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-black text-[#18181B] dark:text-[#E6E8E6]">Planifier ma semaine</p>
+                    <p className="text-[11px] font-semibold text-[#18181B]/55 dark:text-[#E6E8E6]/55"><span className="sm:hidden">Bilan, reports, objectif · 3 min</span><span className="hidden sm:inline">Bilan, tâches à reporter et objectif de la semaine : 3 minutes.</span></p>
+                  </div>
+                  <button onClick={() => setShowWeekPlanner(true)} className="shrink-0 px-4 py-2.5 rounded-xl bg-accent text-white text-[10px] font-black uppercase tracking-wider shadow-lg shadow-accent/20">Commencer</button>
+                  <button onClick={() => updateAppData(prev => ({ ...prev, settings: { ...(prev.settings || {}), weekPlanDismissed: weekPlan.planKey } }))} aria-label="Plus tard" title="Plus tard (reste disponible dans Planning)" className="shrink-0 p-1.5 rounded-lg text-[#18181B]/40 dark:text-[#E6E8E6]/40 hover:text-accent"><X size={16} /></button>
+                </div>);
+
+              if (showJournalPrompt && featureOn(appData, 'journalPrompt') && featureOn(appData, 'journal')) push('journal', 'Journal du soir',
+                <button onClick={() => setActiveTab('journal')} className="w-full glass p-4 sm:p-5 rounded-[2rem] border border-[#FDCA40]/25 flex items-center gap-3 text-left animate-in slide-in-from-top-2 hover:border-[#FDCA40]/50 transition-all">
+                  <div className="w-10 h-10 rounded-xl bg-[#FDCA40]/15 flex items-center justify-center shrink-0"><BookHeart size={18} className="text-[#B8900A] dark:text-[#FDCA40]" /></div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-black text-[#18181B] dark:text-[#E6E8E6]">Mon journal du soir</p>
+                    <p className="text-[11px] font-semibold text-[#18181B]/55 dark:text-[#E6E8E6]/55">3 gratitudes et 3 fiertés avant de clore la journée.</p>
+                  </div>
+                  <ChevronRight size={18} className="text-[#18181B]/40 dark:text-[#E6E8E6]/40 shrink-0" />
+                </button>);
+
+              if (buddies.length > 0 && featureOn(appData, 'buddy')) push('buddies', 'Mon binôme',
+                <div className="space-y-2" aria-label="Mes binômes">
+                  <p className="px-2 text-[9px] font-black uppercase tracking-widest text-[#18181B]/55 dark:text-[#E6E8E6]/55">Mon binôme aujourd'hui</p>
+                  {buddies.map(b => <BuddyCard key={b.linkId} buddy={b} onCheer={cheerBuddy} compact />)}
+                </div>);
+
+              if (!cards.length) return null;
+              const [first, ...rest] = cards;
+              return (
+                <>
+                  <React.Fragment key={first.id}>{first.node}</React.Fragment>
+                  {rest.length > 0 && !momentOpen && (
+                    <button onClick={() => setMomentOpen(true)} aria-expanded={false} className="w-full glass rounded-[2rem] px-5 py-3.5 flex items-center gap-2.5 text-left hover:border-accent/30 transition-all">
+                      <span className="w-7 h-7 shrink-0 rounded-lg bg-accent/10 text-accent text-[11px] font-black flex items-center justify-center">+{rest.length}</span>
+                      <span className="flex-1 min-w-0 text-[11px] font-bold text-[#18181B]/65 dark:text-[#E6E8E6]/60 truncate">{rest.map(c => c.label).join(' · ')}</span>
+                      <ChevronDown size={16} className="shrink-0 text-[#18181B]/40 dark:text-[#E6E8E6]/40" />
+                    </button>
+                  )}
+                  {rest.length > 0 && momentOpen && (
+                    <>
+                      {rest.map(c => <React.Fragment key={c.id}>{c.node}</React.Fragment>)}
+                      <button onClick={() => setMomentOpen(false)} className="w-full px-5 py-2.5 flex items-center justify-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-[#18181B]/50 dark:text-[#E6E8E6]/50 hover:text-accent transition-all">
+                        <ChevronUp size={14} /> Réduire
+                      </button>
+                    </>
+                  )}
+                </>
+              );
+            })()}
             {!isReorderMode && dateKey === getKeyFromDate(new Date()) && (nowNextData.current || nowNextData.next) && featureOn(appData, 'nowNext') && (
               <NowNext
                 current={nowNextData.current}
@@ -3739,9 +3817,27 @@ const App: React.FC = () => {
               <p className="text-xs font-bold text-[#18181B]/50 dark:text-[#E6E8E6]/50 mt-1">Personnalise ton Caddr.</p>
             </div>
 
+            {/* Allure de l'app : Essentiel ou Complet */}
+            <div className="glass p-6 rounded-[2rem] space-y-3" aria-label="Allure de l'app">
+              <div>
+                <h2 className="font-black uppercase tracking-wider text-sm flex items-center gap-2"><Feather size={16} className="text-accent" /> Allure de l'app</h2>
+                <p className="text-[11px] font-semibold text-[#18181B]/60 dark:text-[#E6E8E6]/55 mt-1">Essentiel garde l'écran du jour presque vide : l'anneau, le message du jour et ta routine. Caddr te proposera le reste au fil des jours. Complet affiche tout, tout de suite.</p>
+              </div>
+              <div className="grid sm:grid-cols-2 gap-2">
+                {([['essentiel', 'Essentiel', "L'anneau, le message et la routine"], ['complet', 'Complet', 'Toutes les cartes et tous les leviers']] as const).map(([v, label, hint]) => (
+                  <button key={v} onClick={() => setMode(v)} aria-pressed={mode === v}
+                    className={`px-4 py-3.5 rounded-2xl border text-left transition-all ${mode === v ? 'border-accent bg-accent/10' : 'border-[#18181B]/10 dark:border-[#E6E8E6]/10 hover:border-accent/30'}`}>
+                    <span className={`block text-[12px] font-black uppercase tracking-wider ${mode === v ? 'text-accent' : 'text-[#18181B]/70 dark:text-[#E6E8E6]/65'}`}>{label}</span>
+                    <span className="block text-[10px] font-semibold text-[#18181B]/55 dark:text-[#E6E8E6]/50">{hint}</span>
+                  </button>
+                ))}
+              </div>
+              {mode === 'custom' && <p className="text-[10px] font-bold uppercase tracking-wider text-[#B8900A] dark:text-[#FDCA40]">Réglage personnalisé · tes interrupteurs sont respectés</p>}
+              {mode === 'essentiel' && <p className="text-[10px] font-semibold text-[#18181B]/50 dark:text-[#E6E8E6]/50">{ESSENTIEL_OFF.length} fonctionnalités en veille · {usedDays} jour{usedDays > 1 ? 's' : ''} d'utilisation. Rien n'est perdu : tout revient à la demande.</p>}
+            </div>
+
             {/* Apparence */}
-            <div className="glass p-6 rounded-[2rem] space-y-5">
-              <h2 className="font-black uppercase tracking-wider text-sm flex items-center gap-2"><Settings2 size={16} className="text-accent" /> Apparence</h2>
+            <SettingsGroup title="Apparence et confort" icon={<Settings2 size={16} />} hint="Thème, en-tête, rappels, XP, barre d'onglets">
 
               {/* Mode clair / sombre */}
               <div className="space-y-2">
@@ -3811,11 +3907,10 @@ const App: React.FC = () => {
                   </button>
                 )}
               </div>
-            </div>
+            </SettingsGroup>
 
             {/* Discipline */}
-            <div className="glass p-6 rounded-[2rem] space-y-4">
-              <h2 className="font-black uppercase tracking-wider text-sm flex items-center gap-2"><Flame size={16} className="text-accent" /> Discipline</h2>
+            <SettingsGroup title="Discipline" icon={<Flame size={16} />} hint="Jours de grâce, son de validation">
               <div className="space-y-2">
                 <label className="text-[10px] font-black uppercase tracking-widest text-[#18181B]/50 dark:text-[#E6E8E6]/50">Jours de grâce par semaine</label>
                 <p className="text-[10px] font-medium text-[#18181B]/50 dark:text-[#E6E8E6]/50">Nombre de jours non-parfaits tolérés sans rompre votre série. Un seul jour manqué ne doit pas tout effacer.</p>
@@ -3840,18 +3935,16 @@ const App: React.FC = () => {
                   {(appData.settings?.soundEffects ?? true) ? 'Activé' : 'Désactivé'}
                 </button>
               </div>
-            </div>
+            </SettingsGroup>
 
             {/* Fonctionnalités : activer / désactiver */}
-            <div className="glass p-6 rounded-[2rem] space-y-5" aria-label="Fonctionnalités">
+            <SettingsGroup title="Fonctionnalités" icon={<Settings2 size={16} />} hint="Activer ou désactiver chaque élément"
+              badge={offCount > 0 ? `${offCount} en veille` : undefined}>
               <div className="flex items-start justify-between gap-3">
-                <div>
-                  <h2 className="font-black uppercase tracking-wider text-sm flex items-center gap-2"><Settings2 size={16} className="text-accent" /> Fonctionnalités</h2>
-                  <p className="text-[11px] font-semibold text-[#18181B]/60 dark:text-[#E6E8E6]/55 mt-1">Garde seulement ce qui t'aide. Une fonctionnalité désactivée disparaît de l'app ; tes données restent enregistrées et reviennent si tu la réactives.</p>
-                </div>
-                {Object.values(appData.settings?.features || {}).some(v => v === false) || appData.settings?.motivation === false ? (
-                  <button onClick={() => updateAppData(prev => ({ ...prev, settings: { ...(prev.settings || {}), features: {}, motivation: undefined } }))} className="shrink-0 text-[10px] font-black uppercase tracking-wider text-accent">Tout réactiver</button>
-                ) : null}
+                <p className="text-[11px] font-semibold text-[#18181B]/60 dark:text-[#E6E8E6]/55">Garde seulement ce qui t'aide. Une fonctionnalité désactivée disparaît de l'app ; tes données restent enregistrées et reviennent si tu la réactives.</p>
+                {offCount > 0 && (
+                  <button onClick={() => setMode('complet')} className="shrink-0 text-[10px] font-black uppercase tracking-wider text-accent">Tout réactiver</button>
+                )}
               </div>
               {FEATURE_GROUPS.map(g => (
                 <div key={g.title} className="space-y-2">
@@ -3861,7 +3954,7 @@ const App: React.FC = () => {
                       const on = featureOn(appData, f.id);
                       return (
                         <button key={f.id} role="switch" aria-checked={on} aria-label={f.label}
-                          onClick={() => updateAppData(prev => ({ ...prev, settings: { ...(prev.settings || {}), ...(f.id === 'motivation' ? { motivation: undefined } : {}), features: { ...(prev.settings?.features || {}), [f.id]: !on } } }))}
+                          onClick={() => updateAppData(prev => ({ ...prev, settings: { ...(prev.settings || {}), appMode: 'custom', ...(f.id === 'motivation' ? { motivation: undefined } : {}), features: { ...(prev.settings?.features || {}), [f.id]: !on } } }))}
                           className={`flex items-center justify-between gap-3 px-4 py-3 rounded-xl border text-left transition-all ${on ? 'border-accent/30 bg-accent/5' : 'border-[#18181B]/10 dark:border-[#E6E8E6]/10'}`}>
                           <span className="min-w-0"><span className={`block text-[12px] font-bold ${on ? 'text-[#18181B] dark:text-[#E6E8E6]' : 'text-[#18181B]/50 dark:text-[#E6E8E6]/45'}`}>{f.label}</span>
                             <span className="block text-[10px] font-semibold text-[#18181B]/55 dark:text-[#E6E8E6]/50 truncate">{f.hint}</span></span>
@@ -3872,14 +3965,12 @@ const App: React.FC = () => {
                   </div>
                 </div>
               ))}
-            </div>
+            </SettingsGroup>
 
             {/* Sections d'Analytics */}
-            <div className="glass p-6 rounded-[2rem] space-y-4">
-              <div>
-                <h2 className="font-black uppercase tracking-wider text-sm flex items-center gap-2"><BarChart3 size={16} className="text-accent" /> Sections d'Analytics</h2>
-                <p className="text-[11px] font-semibold text-[#18181B]/60 dark:text-[#E6E8E6]/55 mt-1">Choisis les sections affichées dans l'onglet Analytics. Les données restent enregistrées, même masquées.</p>
-              </div>
+            <SettingsGroup title="Sections d'Analytics" icon={<BarChart3 size={16} />} hint="Ce qui s'affiche dans l'onglet Analytics"
+              badge={hiddenSections.size > 0 ? `${hiddenSections.size} masquée${hiddenSections.size > 1 ? 's' : ''}` : undefined}>
+              <p className="text-[11px] font-semibold text-[#18181B]/60 dark:text-[#E6E8E6]/55">Choisis les sections affichées dans l'onglet Analytics. Les données restent enregistrées, même masquées.</p>
               <div className="grid sm:grid-cols-2 gap-2">
                 {ANALYTICS_SECTIONS.map(sec => {
                   const on = !hiddenSections.has(sec.id);
@@ -3893,11 +3984,10 @@ const App: React.FC = () => {
                 })}
               </div>
               {hiddenSections.size > 0 && <button onClick={() => updateAppData(prev => ({ ...prev, settings: { ...(prev.settings || {}), analyticsHidden: [] } }))} className="text-[10px] font-black uppercase tracking-wider text-accent">Tout réafficher</button>}
-            </div>
+            </SettingsGroup>
 
             {/* Notifications */}
-            <div className="glass p-6 rounded-[2rem] space-y-4">
-              <h2 className="font-black uppercase tracking-wider text-sm flex items-center gap-2"><Bell size={16} className="text-accent" /> Notifications</h2>
+            <SettingsGroup title="Notifications" icon={<Bell size={16} />} hint="Rappels à l'heure et notifications push">
               <div className="flex items-center justify-between">
                 <p className="text-xs font-medium text-[#18181B]/70 dark:text-[#E6E8E6]/70 max-w-xs">Recevoir les rappels de tâches à l'heure prévue (nécessite l'app ouverte).</p>
                 <button
@@ -3922,11 +4012,10 @@ const App: React.FC = () => {
                 </button>
               </div>
               {pushStatus && <p className="text-[10px] font-bold text-[#18181B]/50 dark:text-[#E6E8E6]/50">{pushStatus}</p>}
-            </div>
+            </SettingsGroup>
 
             {/* Compte */}
-            <div className="glass p-6 rounded-[2rem] space-y-4">
-              <h2 className="font-black uppercase tracking-wider text-sm flex items-center gap-2"><User size={16} className="text-accent" /> Compte</h2>
+            <SettingsGroup title="Compte" icon={<User size={16} />} hint={user ? (user.email || 'Connecté') : 'Sans compte'} defaultOpen={!user}>
               {user ? (
                 <div className="flex items-center justify-between">
                   <div className="overflow-hidden">
@@ -3938,11 +4027,10 @@ const App: React.FC = () => {
               ) : (
                 <button onClick={() => setShowAuth(true)} className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-accent text-white text-[10px] font-black uppercase tracking-widest"><User size={14} /> Créer un compte ou se connecter</button>
               )}
-            </div>
+            </SettingsGroup>
 
             {/* Données */}
-            <div className="glass p-6 rounded-[2rem] space-y-4">
-              <h2 className="font-black uppercase tracking-wider text-sm flex items-center gap-2"><Archive size={16} className="text-accent" /> Données</h2>
+            <SettingsGroup title="Données" icon={<Archive size={16} />} hint="Export, import, agenda, réinitialisation">
               <div className="grid grid-cols-2 gap-3">
                 <button onClick={handleExportData} className="flex items-center justify-center gap-2 py-3 rounded-xl bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 text-[#18181B] dark:text-[#E6E8E6] text-[10px] font-black uppercase tracking-widest hover:bg-accent hover:text-white transition-all"><Download size={14} /> Exporter</button>
                 <button onClick={() => backupInputRef.current?.click()} className="flex items-center justify-center gap-2 py-3 rounded-xl bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 text-[#18181B] dark:text-[#E6E8E6] text-[10px] font-black uppercase tracking-widest hover:bg-accent hover:text-white transition-all"><Upload size={14} /> Importer</button>
@@ -3952,7 +4040,7 @@ const App: React.FC = () => {
               <button onClick={() => setShowFullResetModal(true)} className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-[#DF2935]/5 text-[#DF2935] text-[10px] font-black uppercase tracking-widest border border-[#DF2935]/10 hover:bg-[#DF2935] hover:text-white transition-all mt-2">
                 <Trash2 size={14} /> Réinitialiser l'application
               </button>
-            </div>
+            </SettingsGroup>
 
             <p className="text-center text-[9px] font-medium text-[#18181B]/30 dark:text-[#E6E8E6]/30 pt-2">Version {APP_VERSION}</p>
           </div>

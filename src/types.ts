@@ -154,6 +154,8 @@ export interface AppSettings {
   briefingHiddenOn?: string;        // briefing du matin masqué ce jour-là
   eveningDoneOn?: string;           // bilan du soir fait ce jour-là
   analyticsHidden?: string[];       // sections d'Analytics désactivées
+  appMode?: 'essentiel' | 'complet' | 'custom'; // allure de l'app : Essentiel (défaut), Complet, ou personnalisée
+  unlocksSeen?: number[];           // paliers de découverte progressive déjà proposés (nombre de jours)
   weeklyTarget?: number;            // objectif de discipline hebdomadaire (%) pour les bonus XP   // agendas externes affichés dans le Planning (lecture seule)
 }
 

@@ -7,7 +7,11 @@ const atNoon = (k: string) => new Date(k + 'T12:00:00');
 const addDays = (k: string, n: number) => { const d = atNoon(k); d.setDate(d.getDate() + n); return getKeyFromDate(d); };
 
 // ---------- Jour difficile ----------
-export const isHardDay = (d: AppData, k: string) => (d.hardDays || []).includes(k);
+/** Nombre de jours où l'app a réellement servi (pour la découverte progressive). */
+export const daysUsed = (d: AppData): number =>
+  new Set([...Object.keys(d.daySnapshots || {}), ...Object.keys(d.days || {})]).size;
+
+export const isHardDay =(d: AppData, k: string) => (d.hardDays || []).includes(k);
 export const setHardDay = (d: AppData, k: string, on: boolean): AppData => ({ ...d, hardDays: on ? Array.from(new Set([...(d.hardDays || []), k])) : (d.hardDays || []).filter(x => x !== k) });
 
 // ---------- Jokers de série : 2 par mois, jamais deux jours de suite ----------
