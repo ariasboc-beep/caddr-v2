@@ -2242,6 +2242,7 @@ const App: React.FC = () => {
   const votes = useMemo(() => identityVotes(appData), [appData]);
   const [perfect, setPerfect] = useState<{ card: CardDef | null } | null>(null);
   const [momentOpen, setMomentOpen] = useState(false); // « carte du moment » : les autres cartes dépliées
+  const [restoreAsk, setRestoreAsk] = useState(false); // bouton « Jour personnalisé » : confirmation en deux temps
   const offCount = useMemo(() => Object.values(appData.settings?.features || {}).filter(v => v === false).length
     + (appData.settings?.motivation === false && appData.settings?.features?.motivation !== false ? 1 : 0), [appData.settings]);
 
@@ -2779,6 +2780,25 @@ const App: React.FC = () => {
                 <span className="text-xs font-bold">{currentDate.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}</span>
             </div>
             <button onClick={() => { const d = new Date(currentDate); d.setDate(d.getDate()+1); setCurrentDate(d); }} className="p-2 text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-[#18181B] dark:hover:text-[#E6E8E6] transition-colors"><ChevronRight size={20}/></button>
+            {/* Jour dont la routine a été personnalisée : un bouton discret, à côté de la date.
+                Premier appui : il demande confirmation ; second appui : la routine du plan revient. */}
+            {activeTab === 'routine' && appData.days[dateKey]?.blocks && (
+              <button onClick={() => {
+                  if (!restoreAsk) { setRestoreAsk(true); setTimeout(() => setRestoreAsk(false), 4000); return; }
+                  setRestoreAsk(false); saveToHistory();
+                  updateAppData(prev => { const d = { ...prev.days }; if (d[dateKey]) { const c = { ...d[dateKey] }; delete c.blocks; d[dateKey] = c; } return { ...prev, days: d }; });
+                  notify('Routine du plan rétablie pour ce jour.');
+                }}
+                title={restoreAsk ? 'Confirmer : revenir à la routine du plan' : "La routine de ce jour a été personnalisée. Toucher pour revenir à celle du plan."}
+                aria-label={restoreAsk ? 'Confirmer le rétablissement de la routine' : 'Routine personnalisée pour ce jour'}
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-[9px] font-black uppercase tracking-widest transition-all ${restoreAsk
+                  ? 'border-[#FDCA40] bg-[#FDCA40]/15 text-[#B8900A] dark:text-[#FDCA40]'
+                  : 'border-[#FDCA40]/25 text-[#B8900A]/80 dark:text-[#FDCA40]/80 hover:border-[#FDCA40]/60'}`}>
+                <Wand2 size={11} className="shrink-0" />
+                <span className="hidden sm:inline">{restoreAsk ? 'Rétablir la routine ?' : 'Jour personnalisé'}</span>
+                <span className="sm:hidden">{restoreAsk ? 'Rétablir ?' : 'Perso'}</span>
+              </button>
+            )}
             </div>
             <div className="flex items-center gap-2 flex-wrap justify-end">
             {/* Backup Actions */}
@@ -3181,14 +3201,6 @@ const App: React.FC = () => {
                 </div>
             ) : (
                 <>
-                    {/* Routine détachée du plan : une mention discrète, posée sur la routine elle-même */}
-                    {appData.days[dateKey]?.blocks && (
-                      <div className="flex items-center gap-2 px-2 -mb-1 animate-in fade-in">
-                        <Info size={11} className="text-[#B8900A] dark:text-[#FDCA40] shrink-0" />
-                        <span className="text-[9px] font-black uppercase tracking-widest text-[#B8900A] dark:text-[#FDCA40]">Routine personnalisée pour ce jour</span>
-                        <button onClick={() => updateAppData(prev => { const d = { ...prev.days }; delete d[dateKey].blocks; return { ...prev, days: d }; })} className="text-[9px] font-black uppercase tracking-widest underline text-[#18181B]/50 dark:text-[#E6E8E6]/45 hover:text-accent">Rétablir</button>
-                      </div>
-                    )}
                     <DndContext sensors={dndSensors} collisionDetection={closestCenter} onDragEnd={handleBlockDragEnd}>
                     <SortableContext items={displayedRoutineBlocks.map(b => b.id)} strategy={verticalListSortingStrategy}>
                     {displayedRoutineBlocks.map((block, bIdx) => {
