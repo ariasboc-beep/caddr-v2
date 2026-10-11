@@ -16,3 +16,4 @@ release/
 # Logs & OS
 *.log
 .DS_Store
+dist-demo

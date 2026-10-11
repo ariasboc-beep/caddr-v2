@@ -2615,6 +2615,9 @@ const App: React.FC = () => {
             </div>
           </button>
         )}
+        {import.meta.env.VITE_DEMO === '1' && (
+          <p className="text-[10px] font-bold text-center rounded-xl px-3 py-2 bg-[#FDCA40]/15 text-[#c98500]">Version de démonstration · données d'exemple, gardées seulement dans ce navigateur · connexion, synchronisation et assistant Claude désactivés ici</p>
+        )}
       </header>
 
       <main className="max-w-4xl mx-auto px-4 sm:px-6 mt-4 space-y-8 pb-24 md:pb-16">
