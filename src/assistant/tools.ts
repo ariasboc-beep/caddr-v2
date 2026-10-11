@@ -1,4 +1,5 @@
 // Exécution locale des outils de l'assistant + contexte envoyé à chaque message.
+import { postponeTask, cancelTask } from '../taskActions';
 // Toutes les fonctions sont pures : (données) → (nouvelles données, résultat).
 import type { AppData, Block, Task, RecurrenceType, StandaloneHabit, TabType, RecurringGoal, JournalEntry } from '../types';
 import { getKeyFromDate, generateId, isDateInRange } from '../utils';
@@ -114,7 +115,17 @@ export function executeTool(data: AppData, name: string, input: Record<string, a
     case 'reschedule_task': {
       const f = findTask(data, input.task_id);
       if (!f || !validDate(input.date)) return fail('Tâche ou date invalide.');
-      const d = relocateTask(data, f.task.id, input.date, hhmm(input.start_time), todayKey);
+      const recurring = !(f.task.recurrence === 'specific' || f.task.recurrence === 'once' || !f.inPlan);
+      if (recurring && input.date > todayKey) {
+        // Tâche récurrente reportée : on la marque « reportée » aujourd'hui et on crée une copie le jour choisi
+        let d = postponeTask(data, f.task.id, todayKey, input.date);
+        if (input.start_time) { const moved = (d.taskLog || []).slice(-1)[0]?.newTaskId; if (moved) d = relocateTask(d, moved, input.date, hhmm(input.start_time), todayKey); }
+        return ok(d, { ok: true }, `« ${f.task.title} » reportée au ${fmtDay(input.date)}${input.start_time ? ` à ${hhmm(input.start_time)}` : ''} (la récurrence continue)`);
+      }
+      const before = data;
+      let d = relocateTask(data, f.task.id, input.date, hhmm(input.start_time), todayKey);
+      const from = f.task.specificDate;
+      if (d !== before && from && from !== input.date) d = { ...d, taskLog: [...(d.taskLog || []), { id: generateId(), kind: 'postponed', taskId: f.task.id, taskTitle: f.task.title, date: from, to: input.date, at: new Date().toISOString() }] };
       return ok(d, { ok: true }, `« ${f.task.title} » déplacée au ${fmtDay(input.date)}${input.start_time ? ` à ${hhmm(input.start_time)}` : ''}`);
     }
 
@@ -141,7 +152,7 @@ export function executeTool(data: AppData, name: string, input: Record<string, a
       const f = findTask(data, input.task_id);
       if (!f) return fail('Tâche introuvable.');
       const k = validDate(input.date) ? input.date : todayKey;
-      return ok({ ...data, skips: [...(data.skips || []), { id: generateId(), taskId: f.task.id, taskTitle: f.task.title, date: k, reason: input.reason || 'Choix' }] }, { ok: true }, `« ${f.task.title} » sautée (${fmtDay(k)})`);
+      return ok(cancelTask(data, f.task.id, f.task.title, k, input.reason || ''), { ok: true }, `« ${f.task.title} » annulée pour le ${fmtDay(k)}`);
     }
 
     case 'remove_task': {

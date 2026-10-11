@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import DurationInput from './DurationInput';
 import { ChevronLeft, ChevronRight, Clock, Check, Plus, AlertTriangle, CalendarClock, X, Target, GripHorizontal, CalendarPlus, MapPin, Hand, Sparkles } from 'lucide-react';
 import { AppData, Task, ExternalCalendar, ExtEventRaw } from '../types';
 import { getKeyFromDate, isDateInRange } from '../utils';
@@ -612,9 +613,7 @@ const Agenda: React.FC<Props> = (props) => {
               <label className="space-y-1"><span className={`text-[9px] font-black uppercase tracking-widest ${muted}`}>Début</span>
                 <input type="time" step={900} value={toHHMM(quick.start)} onChange={e => { const v = parse(e.target.value); if (v !== null) setQuick({ ...quick, start: v }); }} className={`w-full bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 px-3 py-2.5 rounded-xl text-sm font-bold border border-[#18181B]/10 dark:border-[#E6E8E6]/10 outline-none focus:border-accent [color-scheme:dark] ${ink}`} /></label>
               <label className="space-y-1"><span className={`text-[9px] font-black uppercase tracking-widest ${muted}`}>Durée</span>
-                <select value={quick.dur} onChange={e => setQuick({ ...quick, dur: Number(e.target.value) })} className={`w-full bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 px-3 py-2.5 rounded-xl text-sm font-bold border border-[#18181B]/10 dark:border-[#E6E8E6]/10 outline-none focus:border-accent ${ink}`}>
-                  {[15, 30, 45, 60, 90, 120, 180].map(m => <option key={m} value={m}>{fmtDur(m)}</option>)}
-                </select></label>
+                <DurationInput value={quick.dur} onChange={(m) => setQuick({ ...quick, dur: m || 30 })} placeholder="1h30, 45 min…" className={`w-full bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 px-3 py-2.5 rounded-xl text-sm font-bold border border-[#18181B]/10 dark:border-[#E6E8E6]/10 outline-none focus:border-accent ${ink}`} /></label>
             </div>
             <div className="space-y-1.5">
               <span className={`text-[9px] font-black uppercase tracking-widest ${muted}`}>Bloc</span>

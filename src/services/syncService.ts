@@ -226,6 +226,8 @@ export const mergeAppData = (local: AppData, cloud: AppData): AppData => {
     settings: local.settings || cloud.settings,
     focusSessions: mergeById(local.focusSessions || [], cloud.focusSessions || []),
     skips: mergeById(local.skips || [], cloud.skips || []),
+    taskLog: (() => { const rank = (x?: string) => ({ pending: 1, accepted: 2, declined: 2, done: 3 } as Record<string, number>)[x || ''] || 0; const m = new Map((cloud.taskLog || []).map(e => [e.id, e])); (local.taskLog || []).forEach(e => { const c = m.get(e.id); if (!c || rank(e.status) > rank(c.status)) m.set(e.id, e); }); return Array.from(m.values()); })(),
+    daySnapshots: (() => { const out: { [k: string]: string[] } = { ...(cloud.daySnapshots || {}) }; Object.entries(local.daySnapshots || {}).forEach(([k, ids]) => { out[k] = Array.from(new Set([...(out[k] || []), ...ids])); }); return out; })(),
     monthlyReviews: { ...(cloud.monthlyReviews || {}), ...(local.monthlyReviews || {}) },
     habits: mergeHabits(local.habits || [], cloud.habits || []),
     journal: mergeJournal(local.journal || {}, cloud.journal || {}),

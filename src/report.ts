@@ -76,6 +76,7 @@ export async function generateReport(appData: AppData, tf: TimeframeType, period
   const habits = habitAggregates(appData, eachDay(period.start, period.end), todayKey);
   const streak = perfectStreak(appData, todayKey);
   const title = TITLE[tf];
+  const unplannedIds = new Set((appData.taskLog || []).filter(e => e.kind === 'unplanned').map(e => `${e.taskId}|${e.date}`));
 
   // ---------- En-tête ----------
   doc.setFillColor(...ACC);
@@ -212,7 +213,7 @@ export async function generateReport(appData: AppData, tf: TimeframeType, period
     const day = stats.days[0];
     sectionTitle('Détail de la journée', 'Tâches par bloc');
     if (!day || !day.blocks.length) { font('normal', 9); doc.text('Aucune tâche prévue ce jour-là.', M, y); y += 10; }
-    else table(['Bloc', 'Tâche', 'Statut'], day.tasks.map(t => [t.block, `${t.isSub ? '   ↳ ' : ''}${t.title}`, t.done ? 'Faite' : 'Non faite']),
+    else table(['Bloc', 'Tâche', 'Statut'], day.tasks.map(t => [t.block, `${t.isSub ? '   ↳ ' : ''}${t.title}${unplannedIds.has(`${t.id}|${day.date}`) ? '  (imprévue)' : ''}`, t.done ? 'Faite' : 'Non faite']),
       { didParseCell: (h: any) => { if (h.section === 'body' && h.column.index === 2) { h.cell.styles.fontStyle = 'bold'; h.cell.styles.textColor = h.cell.raw === 'Faite' ? ACC_DARK : RED; } } });
   } else if (blocks.length) {
     sectionTitle('Constance par bloc', 'Tâches faites dans chaque bloc et jours où le bloc a été bouclé à 100 %');
@@ -235,6 +236,41 @@ export async function generateReport(appData: AppData, tf: TimeframeType, period
           if (r > 0) { doc.setFillColor(...ACC); doc.roundedRect(bx, by, Math.max(2.2, (bwid * r) / 100), 2.2, 1.1, 1.1, 'F'); }
         },
       });
+  }
+
+  // ---------- Mouvements des tâches : reports, annulations, imprévus, affectations ----------
+  {
+    const from = getKeyFromDate(period.start), to = getKeyFromDate(period.end);
+    const STATUS: Record<string, string> = { pending: 'en attente', accepted: 'acceptée', declined: 'refusée', done: 'faite' };
+    type Mv = { date: string; title: string; kind: string; detail: string };
+    const rows: Mv[] = [];
+    (appData.taskLog || []).filter(e => e.date >= from && e.date <= to).forEach(e => {
+      if (e.kind === 'postponed') rows.push({ date: e.date, title: e.taskTitle, kind: 'Reportée', detail: e.to ? `au ${fmt(e.to, { weekday: 'short', day: 'numeric', month: 'short' })}` : '' });
+      if (e.kind === 'cancelled') rows.push({ date: e.date, title: e.taskTitle, kind: 'Annulée', detail: e.reason || '' });
+      if (e.kind === 'unplanned') rows.push({ date: e.date, title: e.taskTitle, kind: 'Imprévue', detail: 'Ajoutée le jour même, hors programme' });
+      if (e.kind === 'assigned') rows.push({ date: e.date, title: e.taskTitle, kind: 'Affectée', detail: `à ${e.email || '—'} · ${STATUS[e.status || 'pending']}${e.reason ? ` · « ${e.reason} »` : ''}` });
+    });
+    // Tâches sautées (ancien fonctionnement, ou via Cady avant ce suivi)
+    (appData.skips || []).filter(s => (!s.kind || s.kind === 'skip') && s.date >= from && s.date <= to)
+      .forEach(s => rows.push({ date: s.date, title: s.taskTitle, kind: 'Sautée', detail: s.reason || '' }));
+    if (rows.length) {
+      rows.sort((a, b) => a.date.localeCompare(b.date) || a.kind.localeCompare(b.kind));
+      const count = (k: string) => rows.filter(r => r.kind === k).length;
+      const parts = [['Reportée', 'reportée'], ['Annulée', 'annulée'], ['Imprévue', 'imprévue'], ['Affectée', 'affectée'], ['Sautée', 'sautée']]
+        .map(([k, l]) => { const n = count(k); return n ? `${n} ${l}${n > 1 ? 's' : ''}` : ''; }).filter(Boolean).join('  ·  ');
+      sectionTitle('Mouvements des tâches', parts);
+      const GOLD_DARK: RGB = [154, 116, 0];
+      table(['Date', 'Tâche', 'Mouvement', 'Détail'],
+        rows.map(r => [cap(fmt(r.date, { weekday: 'short', day: 'numeric', month: 'short' })), r.title, r.kind, r.detail]),
+        {
+          columnStyles: { 0: { cellWidth: 26 }, 1: { cellWidth: 58, fontStyle: 'bold' }, 2: { cellWidth: 24, fontStyle: 'bold' } },
+          didParseCell: (h: any) => {
+            if (h.section !== 'body' || h.column.index !== 2) return;
+            h.cell.styles.textColor = h.cell.raw === 'Annulée' ? RED : h.cell.raw === 'Imprévue' ? GOLD_DARK : h.cell.raw === 'Affectée' || h.cell.raw === 'Reportée' ? ACC_DARK : INK;
+          },
+        });
+      font('normal', 7.5); doc.text('Les tâches annulées, reportées, affectées ou sautées ne comptent pas dans le taux de réalisation du jour concerné.', M, y - 6); y += 2;
+    }
   }
 
   // ---------- Habitudes ----------

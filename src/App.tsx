@@ -1,4 +1,9 @@
 
+import TaskActionsSheet from './components/TaskActionsSheet';
+import IncomingAssignments from './components/IncomingAssignments';
+import DurationInput from './components/DurationInput';
+import { postponeTask, cancelTask, restoreTask, markAssigned, syncAssignmentStatuses, trackUnplanned, dayStatus, isUnplanned, fmtDayShort } from './taskActions';
+import { sendAssignment, listIncoming, listOutgoingStatuses, respondAssignment, normEmail, type Assignment } from './services/assignService';
 import { Logo } from './components/Logo';
 import { HiddenSectionsContext, ANALYTICS_SECTIONS } from './components/Section';
 import { brandColor } from './palette';
@@ -2207,6 +2212,101 @@ const App: React.FC = () => {
     setTimeout(() => setActiveNotification(null), 3000);
   };
 
+  // ---------- Actions sur une tâche : reporter, annuler, affecter, sous-tâche ----------
+  const [actionTask, setActionTask] = useState<{ task: Task; blockId: string; parentId?: string } | null>(null);
+  const [incoming, setIncoming] = useState<Assignment[]>([]);
+  const notify = (msg: string, ms = 3000) => { setActiveNotification(msg); setTimeout(() => setActiveNotification(null), ms); };
+
+  const postponeFromRoutine = (taskId: string, toKey: string) => {
+    saveToHistory();
+    updateAppData(prev => postponeTask(prev, taskId, dateKey, toKey));
+    notify(`Reportée au ${fmtDayShort(toKey)} ⏱`);
+  };
+  const cancelFromRoutine = (task: Task, reason: string) => {
+    saveToHistory();
+    updateAppData(prev => cancelTask(prev, task.id, task.title, dateKey, reason));
+    notify('Tâche annulée pour ce jour. Elle ne compte pas dans ton taux.');
+  };
+  const addSubtaskFromRoutine = (blockId: string, taskId: string, title: string) => {
+    const st: Task = { id: generateId(), title, completedDates: [], recurrence: 'daily', subTasks: [] };
+    handleRoutineStructureChange(blocks => blocks.map(b => b.id === blockId ? { ...b, tasks: b.tasks.map(t => t.id === taskId ? { ...t, subTasks: [...(t.subTasks || []), st] } : t) } : b));
+    setCollapsedTasks(prev => ({ ...prev, [taskId]: false }));
+    notify(`Sous-tâche « ${title} » ajoutée ✓`, 2000);
+  };
+  const assignFromRoutine = async (task: Task, email: string, note: string): Promise<string | null> => {
+    if (!user) return 'Connecte-toi pour confier une tâche.';
+    if (user.email && normEmail(email) === normEmail(user.email)) return "C'est ta propre adresse : choisis celle d'une autre personne.";
+    try {
+      const id = await sendAssignment({
+        fromUid: user.uid, fromName: user.displayName || user.email || 'Un utilisateur Caddr.', fromEmail: user.email || '', toEmail: email,
+        title: task.title, description: task.description ? task.description.replace(/<[^>]*>/g, ' ').trim().slice(0, 2000) : undefined,
+        duration: task.duration, priority: task.priority, subTasks: (task.subTasks || []).map(s => s.title).slice(0, 30),
+        note: note.trim() || undefined, dueDate: dateKey,
+      });
+      saveToHistory();
+      updateAppData(prev => markAssigned(prev, task.id, task.title, dateKey, normEmail(email), id, note));
+      notify(`Tâche confiée à ${normEmail(email)} ✉`);
+      return null;
+    } catch (e) {
+      console.error('assign', e);
+      return "L'envoi a échoué. Vérifie ta connexion, ou que les règles Firestore ont bien été mises à jour (voir SECURITY.md).";
+    }
+  };
+  const acceptAssignment = async (a: Assignment, where: 'today' | 'due' | 'inbox') => {
+    const base: Task = { id: generateId(), title: a.title, description: a.description, duration: a.duration, priority: a.priority as Task['priority'], completedDates: [], recurrence: 'once', subTasks: (a.subTasks || []).map(t => ({ id: generateId(), title: t, completedDates: [], recurrence: 'daily', subTasks: [] })), assignmentId: a.id, assignedBy: a.fromName || a.fromEmail };
+    try { await respondAssignment(a.id, 'accepted'); } catch (e) { console.error(e); notify("Impossible de répondre pour l'instant. Réessaie dans un moment."); return; }
+    if (where === 'inbox') updateAppData(prev => ({ ...prev, inboxTasks: [{ ...base, deadline: a.dueDate }, ...(prev.inboxTasks || [])] }));
+    else updateAppData(prev => addOneOff(prev, base, where === 'due' && a.dueDate ? a.dueDate : todayKeyNow));
+    setIncoming(list => list.filter(x => x.id !== a.id));
+    notify(where === 'inbox' ? 'Tâche acceptée, rangée dans la Boîte ✓' : 'Tâche acceptée et ajoutée à ta journée ✓');
+  };
+  const declineAssignment = async (a: Assignment) => {
+    try { await respondAssignment(a.id, 'declined'); setIncoming(list => list.filter(x => x.id !== a.id)); notify('Tâche refusée. La personne en sera informée.'); }
+    catch (e) { console.error(e); notify("Impossible de répondre pour l'instant. Réessaie dans un moment."); }
+  };
+
+  // Tâches imprévues : photo du jour au premier affichage, puis repérage des ajouts
+  useEffect(() => {
+    if (isLoading || (user && !cloudReady.current)) return;
+    setAppData(prev => trackUnplanned(prev, todayKeyNow));
+  }, [appData, todayKeyNow, isLoading, user]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Tâches reçues et suivi des tâches confiées (au démarrage, au retour sur l'app, toutes les 5 min)
+  useEffect(() => {
+    if (!user?.email) { setIncoming([]); return; }
+    let stop = false;
+    const refresh = async () => {
+      try {
+        const [inc, out] = await Promise.all([listIncoming(user.email!), listOutgoingStatuses(user.uid)]);
+        if (stop) return;
+        setIncoming(inc);
+        setAppData(prev => syncAssignmentStatuses(prev, out));
+      } catch (e) { console.warn('assignments', e); }
+    };
+    refresh();
+    const id = setInterval(refresh, 5 * 60 * 1000);
+    const onVis = () => { if (document.visibilityState === 'visible') refresh(); };
+    document.addEventListener('visibilitychange', onVis);
+    return () => { stop = true; clearInterval(id); document.removeEventListener('visibilitychange', onVis); };
+  }, [user]);
+
+  // Une tâche reçue est cochée : on prévient la personne qui l'a confiée (statut « faite »)
+  useEffect(() => {
+    if (!user) return;
+    let sent: string[] = [];
+    try { sent = JSON.parse(localStorage.getItem('caddr_assign_done') || '[]'); } catch { /* rien */ }
+    const done: string[] = [];
+    const scan = (tasks: Task[]) => tasks.forEach(t => { if (t.assignmentId && (t.completedDates?.length || t.doneAt) && !sent.includes(t.assignmentId)) done.push(t.assignmentId); });
+    appData.blocks.forEach(b => scan(b.tasks));
+    Object.values(appData.days).forEach(d => d.blocks?.forEach(b => scan(b.tasks)));
+    scan(appData.inboxTasks || []);
+    if (!done.length) return;
+    Promise.all(done.map(id => respondAssignment(id, 'done').then(() => id).catch(() => null))).then(ok => {
+      const okIds = ok.filter(Boolean) as string[];
+      if (okIds.length) try { localStorage.setItem('caddr_assign_done', JSON.stringify([...sent, ...okIds].slice(-300))); } catch { /* rien */ }
+    });
+  }, [appData, user]);
+
   const handleResetApp = async () => {
     // Réinitialise toutes les données, en conservant les préférences d'apparence.
     const blank: AppData = {
@@ -2687,6 +2787,7 @@ const App: React.FC = () => {
                 ))}
               </div>
             )}
+            {!isReorderMode && dateKey === todayKeyNow && <IncomingAssignments items={incoming} todayKey={todayKeyNow} onAccept={acceptAssignment} onDecline={declineAssignment} />}
             {!isReorderMode && dateKey === todayKeyNow && briefing && (
               <MorningBriefing b={briefing} name={user?.displayName?.split(' ')[0] || undefined}
                 onAskClaude={() => askClaude(PROMPTS.morning)} onOpenPlanning={() => setActiveTab('schedule')}
@@ -2902,13 +3003,15 @@ const App: React.FC = () => {
                                 const visibleSubTasks = getVisibleTasks(task.subTasks || []); const active = isTaskActive(task);
                                 const priorityInfo = getPriorityInfo(task.priority);
                                 const hasLogToday = !!task.executionNotes?.[dateKey];
+                                const dStatus = dayStatus(appData, task.id, dateKey);
+                                const unplanned = isUnplanned(appData, task.id, dateKey);
                                 
                                 return (
                                   <Sortable key={task.id} id={task.id} disabled={!isReorderMode}>
                                     {(taskHandle) => (
-                                  <div className={active ? 'bg-accent/5' : ''}>
-                                    <div className={`flex items-center p-5 gap-4 group transition-colors ${isReorderMode ? 'bg-[#18181B]/[0.01] dark:bg-[#E6E8E6]/[0.01]' : 'cursor-pointer hover:bg-[#18181B]/[0.02] dark:hover:bg-[#E6E8E6]/[0.02]'}`} onClick={() => toggleTask(block.id, task.id)}>
-                                      <div className={`w-6 h-6 rounded-xl border-2 flex items-center justify-center transition-all ${task.completedDates?.includes(dateKey) ? 'bg-accent border-accent' : 'border-[#18181B]/20 dark:border-[#E6E8E6]/20'}`}>{task.completedDates?.includes(dateKey) && <Check size={14} className="text-white" strokeWidth={3} />}</div>
+                                  <div className={active && !dStatus ? 'bg-accent/5' : ''}>
+                                    <div className={`flex items-center p-5 gap-4 group transition-colors ${dStatus ? 'opacity-60' : ''} ${isReorderMode ? 'bg-[#18181B]/[0.01] dark:bg-[#E6E8E6]/[0.01]' : 'cursor-pointer hover:bg-[#18181B]/[0.02] dark:hover:bg-[#E6E8E6]/[0.02]'}`} onClick={() => dStatus ? setActionTask({ task, blockId: block.id }) : toggleTask(block.id, task.id)}>
+                                      <div className={`w-6 h-6 rounded-xl border-2 flex items-center justify-center transition-all ${dStatus ? 'border-dashed border-[#18181B]/25 dark:border-[#E6E8E6]/25' : task.completedDates?.includes(dateKey) ? 'bg-accent border-accent' : 'border-[#18181B]/20 dark:border-[#E6E8E6]/20'}`}>{dStatus ? <X size={12} className="text-[#18181B]/40 dark:text-[#E6E8E6]/40" strokeWidth={3} /> : task.completedDates?.includes(dateKey) && <Check size={14} className="text-white" strokeWidth={3} />}</div>
                                       {visibleSubTasks.length > 0 && (
                                         <button onClick={(e) => { e.stopPropagation(); toggleTaskCollapse(task.id); }} className="p-0.5 text-[#18181B]/40 dark:text-[#E6E8E6]/40 hover:text-accent shrink-0" title={collapsedTasks[task.id] ? 'Déplier' : 'Replier'}>
                                           {collapsedTasks[task.id] ? <ChevronRight size={15} /> : <ChevronDown size={15} />}
@@ -2917,7 +3020,7 @@ const App: React.FC = () => {
                                       <div className="flex-1 min-w-0">
                                           <div className="flex items-center gap-2 mb-0.5">
                                             <input 
-                                              className={`bg-transparent text-sm font-semibold transition-all truncate outline-none w-full ${task.completedDates?.includes(dateKey) ? 'line-through text-[#18181B]/40 dark:text-[#E6E8E6]/40' : 'text-[#18181B] dark:text-[#E6E8E6]'}`} 
+                                              className={`bg-transparent text-sm font-semibold transition-all truncate outline-none w-full ${task.completedDates?.includes(dateKey) || dStatus ? 'line-through text-[#18181B]/40 dark:text-[#E6E8E6]/40' : 'text-[#18181B] dark:text-[#E6E8E6]'}`} 
                                               value={task.title}
                                               onClick={(e) => e.stopPropagation()}
                                               onChange={(e) => {
@@ -2926,12 +3029,15 @@ const App: React.FC = () => {
                                               }}
                                             />
                                             {hasLogToday && <BookOpen size={10} className="text-accent shrink-0" />}
+                                            {unplanned && !dStatus && <span title="Ajoutée aujourd'hui alors qu'elle n'était pas prévue" className="text-[7px] font-black uppercase px-1.5 py-0.5 rounded-md border border-[#18181B]/15 dark:border-[#E6E8E6]/15 text-[#18181B]/60 dark:text-[#E6E8E6]/60 tracking-widest shrink-0">Imprévue</span>}
+                                            {task.assignedBy && <span title={`Confiée par ${task.assignedBy}`} className="text-[7px] font-black uppercase px-1.5 py-0.5 rounded-md bg-accent/10 text-accent tracking-widest shrink-0 max-w-[110px] truncate">De {task.assignedBy}</span>}
                                             {!task.completedDates?.includes(dateKey) && task.priority && task.priority !== 'medium' && (
                                               <span className={`text-[7px] font-black uppercase px-1.5 py-0.5 rounded-md ${priorityInfo.bg} ${priorityInfo.color} tracking-widest shrink-0`}>
                                                 {priorityInfo.label}
                                               </span>
                                             )}
                                           </div>
+                                          {dStatus && <p className={`text-[9px] font-black uppercase tracking-widest mb-0.5 ${dStatus.kind === 'cancel' ? 'text-[#DF2935]' : 'text-[#18181B]/60 dark:text-[#E6E8E6]/60'}`}>{dStatus.kind === 'cancel' ? `Annulée${dStatus.reason && dStatus.reason !== 'Annulée' ? ` · ${dStatus.reason}` : ''}` : dStatus.reason || 'Sautée'}</p>}
                                           {task.description && !task.completedDates?.includes(dateKey) && (
                                             <p className="text-[10px] text-[#18181B]/50 dark:text-[#E6E8E6]/50 font-medium mb-1 line-clamp-2 leading-relaxed">
                                               {stripHtml(task.description)}
@@ -2944,20 +3050,20 @@ const App: React.FC = () => {
                                       <div className="flex items-center gap-2">
                                         <button 
                                           onClick={(e) => { e.stopPropagation(); openLogModal(task, block.id); }}
-                                          className={`opacity-0 group-hover:opacity-100 p-2 transition-all ${hasLogToday ? 'text-accent' : 'text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-accent'}`}
+                                          className={`max-md:hidden opacity-0 group-hover:opacity-100 p-2 transition-all ${hasLogToday ? 'text-accent' : 'text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-accent'}`}
                                           title="Journal de bord"
                                         >
                                           <BookOpen size={16} />
                                         </button>
                                         <button 
                                           onClick={(e) => { e.stopPropagation(); setConfigModal({ type: 'task', id: task.id, blockId: block.id }); }}
-                                          className="opacity-0 group-hover:opacity-100 p-2 text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-accent transition-all"
+                                          className="max-md:hidden opacity-0 group-hover:opacity-100 p-2 text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-accent transition-all"
                                         >
                                           <Settings2 size={16} />
                                         </button>
                                         <button 
                                           onClick={(e) => { e.stopPropagation(); handleDuplicate('task', task.id, block.id); }}
-                                          className="opacity-0 group-hover:opacity-100 p-2 text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-accent transition-all"
+                                          className="max-md:hidden opacity-0 group-hover:opacity-100 p-2 text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-accent transition-all"
                                           title="Dupliquer"
                                         >
                                           <Copy size={16} />
@@ -2968,23 +3074,25 @@ const App: React.FC = () => {
                                               saveToHistory();
                                               handleRoutineStructureChange(blocks => blocks.map(b => b.id === block.id ? { ...b, tasks: b.tasks.filter(t => t.id !== task.id) } : b)); 
                                           }}
-                                          className="opacity-0 group-hover:opacity-100 p-2 text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-[#DF2935] transition-all"
+                                          className="max-md:hidden opacity-0 group-hover:opacity-100 p-2 text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-[#DF2935] transition-all"
                                           title="Supprimer"
                                         >
                                           <Trash2 size={16} />
                                         </button>
+                                        {!isReorderMode && <button onClick={(e) => { e.stopPropagation(); setActionTask({ task, blockId: block.id }); }} aria-label={`Actions pour ${task.title}`} title="Reporter, annuler, affecter, sous-tâche…" className="p-2 -mr-2 rounded-xl text-[#18181B]/50 dark:text-[#E6E8E6]/50 hover:text-accent hover:bg-accent/10 transition-all"><MoreHorizontal size={18} /></button>}
                                         {isReorderMode && <button {...taskHandle} onClick={(e) => e.stopPropagation()} className="cursor-grab active:cursor-grabbing touch-none text-accent p-1" title="Glisser pour réordonner"><GripVertical size={14}/></button>}
                                       </div>
                                     </div>
                                     {visibleSubTasks.length > 0 && !collapsedTasks[task.id] && <div className="pl-14 pr-5 pb-5 space-y-3">{visibleSubTasks.map(st => {
                                       const stPriority = getPriorityInfo(st.priority);
                                       const stHasLog = !!st.executionNotes?.[dateKey];
+                                      const stStatus = dayStatus(appData, st.id, dateKey);
                                       return (
-                                        <div key={st.id} className="flex flex-col gap-1 group/sub cursor-pointer" onClick={(e) => { e.stopPropagation(); toggleTask(block.id, st.id, task.id); }}>
+                                        <div key={st.id} className={`flex flex-col gap-1 group/sub cursor-pointer ${stStatus ? 'opacity-60' : ''}`} onClick={(e) => { e.stopPropagation(); if (stStatus) setActionTask({ task: st, blockId: block.id, parentId: task.id }); else toggleTask(block.id, st.id, task.id); }}>
                                           <div className="flex items-center gap-3">
                                             <div className={`w-4 h-4 rounded-lg border flex items-center justify-center transition-all ${st.completedDates?.includes(dateKey) ? 'bg-accent/80 border-accent' : 'border-[#18181B]/20 dark:border-[#E6E8E6]/20'}`}>{st.completedDates?.includes(dateKey) && <Check size={10} className="text-white" strokeWidth={3} />}</div>
                                             <input 
-                                              className={`bg-transparent text-xs font-medium flex-1 transition-all truncate outline-none ${st.completedDates?.includes(dateKey) ? 'line-through text-[#18181B]/40 dark:text-[#E6E8E6]/40' : 'text-[#18181B]/80 dark:text-[#E6E8E6]/80'}`}
+                                              className={`bg-transparent text-xs font-medium flex-1 transition-all truncate outline-none ${st.completedDates?.includes(dateKey) || stStatus ? 'line-through text-[#18181B]/40 dark:text-[#E6E8E6]/40' : 'text-[#18181B]/80 dark:text-[#E6E8E6]/80'}`}
                                               value={st.title}
                                               onClick={(e) => e.stopPropagation()}
                                               onChange={(e) => {
@@ -2999,19 +3107,19 @@ const App: React.FC = () => {
                                             <div className="flex items-center gap-2">
                                               <button 
                                                   onClick={(e) => { e.stopPropagation(); openLogModal(st, block.id, task.id); }}
-                                                  className={`opacity-0 group-hover/sub:opacity-100 p-1.5 transition-all ${stHasLog ? 'text-accent' : 'text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-accent'}`}
+                                                  className={`max-md:hidden opacity-0 group-hover/sub:opacity-100 p-1.5 transition-all ${stHasLog ? 'text-accent' : 'text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-accent'}`}
                                               >
                                                   <BookOpen size={14} />
                                               </button>
                                               <button 
                                                   onClick={(e) => { e.stopPropagation(); setConfigModal({ type: 'task', id: st.id, blockId: block.id, parentTaskId: task.id }); }}
-                                                  className="opacity-0 group-hover/sub:opacity-100 p-1.5 text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-accent transition-all"
+                                                  className="max-md:hidden opacity-0 group-hover/sub:opacity-100 p-1.5 text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-accent transition-all"
                                               >
                                                   <Settings2 size={14} />
                                               </button>
                                               <button 
                                                   onClick={(e) => { e.stopPropagation(); handleDuplicate('subtask', st.id, task.id, block.id); }}
-                                                  className="opacity-0 group-hover/sub:opacity-100 p-1.5 text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-accent transition-all"
+                                                  className="max-md:hidden opacity-0 group-hover/sub:opacity-100 p-1.5 text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-accent transition-all"
                                                   title="Dupliquer"
                                               >
                                                   <Copy size={14} />
@@ -3025,13 +3133,14 @@ const App: React.FC = () => {
                                                           tasks: b.tasks.map(t => t.id === task.id ? { ...t, subTasks: (t.subTasks || []).filter(s => s.id !== st.id) } : t) 
                                                       } : b)); 
                                                   }}
-                                                  className="opacity-0 group-hover/sub:opacity-100 p-1.5 text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-[#DF2935] transition-all"
+                                                  className="max-md:hidden opacity-0 group-hover/sub:opacity-100 p-1.5 text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-[#DF2935] transition-all"
                                               >
                                                   <Trash2 size={14} />
                                               </button>
                                               {!st.completedDates?.includes(dateKey) && st.priority && st.priority !== 'medium' && (
                                                   <div className={`w-1.5 h-1.5 rounded-full ${stPriority.color.replace('text', 'bg')}`} />
                                               )}
+                                              <button onClick={(e) => { e.stopPropagation(); setActionTask({ task: st, blockId: block.id, parentId: task.id }); }} aria-label={`Actions pour ${st.title}`} className="p-1.5 rounded-lg text-[#18181B]/45 dark:text-[#E6E8E6]/45 hover:text-accent transition-all"><MoreHorizontal size={15} /></button>
                                             </div>
                                           </div>
                                           {st.description && !st.completedDates?.includes(dateKey) && (
@@ -3272,7 +3381,7 @@ const App: React.FC = () => {
         {/* TAB: INBOX */}
         {activeTab === 'inbox' && (
           <div className="space-y-6 animate-in slide-in-from-left-4 duration-500 pb-20">
-            {/* ... Existing Inbox Code ... */}
+            <IncomingAssignments items={incoming} todayKey={todayKeyNow} onAccept={acceptAssignment} onDecline={declineAssignment} />
             <div className="glass p-5 sm:p-8 rounded-[2.5rem] space-y-4 border border-accent/20 bg-accent/5">
               <div className="flex items-center gap-3"><div className="w-12 h-12 bg-accent/10 rounded-2xl flex items-center justify-center"><Archive className="text-accent" size={24} /></div><div><h2 className="font-black text-lg uppercase leading-tight text-[#18181B] dark:text-[#E6E8E6]">Boîte de tâches</h2><p className="text-[9px] text-[#18181B]/60 dark:text-[#E6E8E6]/60 uppercase font-black">Capturer vos idées en un clin d'œil</p></div></div>
               <div className="space-y-1.5 pt-2"><div className="flex gap-2"><input className="flex-1 bg-white dark:bg-[#080708] p-4 rounded-2xl text-sm font-bold border border-[#18181B]/5 dark:border-[#E6E8E6]/5 outline-none focus:border-accent transition-all text-[#18181B] dark:text-[#E6E8E6]" placeholder="Ex : Appeler Paul demain 15h p1 @appel" value={newInboxTitle} onChange={e => setNewInboxTitle(e.target.value)} onKeyDown={e => e.key === 'Enter' && addInboxTask()} /><button onClick={addInboxTask} className="p-4 bg-accent rounded-2xl text-white shadow-lg shadow-accent/20 active:scale-95 transition-all"><Plus size={20} /></button></div><p className="text-[9px] font-medium text-[#18181B]/40 dark:text-[#E6E8E6]/40 px-1">Reconnaît « demain », « lundi », « 20/10 », « chaque mardi », « 15h30 », « p1/p2/p3 », « @étiquette » et « avant vendredi » (échéance).</p></div>
@@ -3682,6 +3791,25 @@ const App: React.FC = () => {
         )}
       </Suspense>
 
+      {/* Feuille d'actions d'une tâche (Routine) */}
+      {actionTask && (() => {
+        const { task: t, blockId, parentId } = actionTask;
+        return (
+          <TaskActionsSheet task={t} isSub={!!parentId} dateKey={dateKey} status={dayStatus(appData, t.id, dateKey)} canAssign={!!user}
+            onPostpone={(k) => postponeFromRoutine(t.id, k)}
+            onCancel={(r) => cancelFromRoutine(t, r)}
+            onRestore={() => { saveToHistory(); updateAppData(prev => restoreTask(prev, t.id, dateKey)); notify('Tâche rétablie ✓', 2000); }}
+            onAssign={(email, note) => assignFromRoutine(t, email, note)}
+            onAddSubtask={(title) => addSubtaskFromRoutine(blockId, t.id, title)}
+            onOpenLog={() => openLogModal(t, blockId, parentId)}
+            onConfigure={() => setConfigModal({ type: 'task', id: t.id, blockId, ...(parentId ? { parentTaskId: parentId } : {}) })}
+            onDuplicate={() => parentId ? handleDuplicate('subtask', t.id, parentId, blockId) : handleDuplicate('task', t.id, blockId)}
+            onDelete={() => { saveToHistory(); handleRoutineStructureChange(blocks => blocks.map(b => b.id !== blockId ? b : parentId ? { ...b, tasks: b.tasks.map(x => x.id === parentId ? { ...x, subTasks: (x.subTasks || []).filter(s => s.id !== t.id) } : x) } : { ...b, tasks: b.tasks.filter(x => x.id !== t.id) })); }}
+            onSignIn={() => setShowAuth(true)}
+            onClose={() => setActionTask(null)} />
+        );
+      })()}
+
       {/* Navigation : 5 onglets (Aujourd'hui · Planning · Cady · Croissance · Analytics) */}
       {/* Barre du bas — toujours sur mobile ; sur desktop uniquement si position = bas */}
       <nav className={`fixed bottom-0 left-0 right-0 z-50 bg-[#F4F4F5]/95 dark:bg-[#080708]/95 backdrop-blur-3xl border-t border-[#18181B]/5 dark:border-[#E6E8E6]/5 pt-2 px-2 md:pt-3 transition-colors duration-300 ${navPosition === 'left' ? 'md:hidden' : ''}`} style={{ paddingBottom: 'max(0.6rem, env(safe-area-inset-bottom))' }} aria-label="Navigation principale">
@@ -4008,7 +4136,7 @@ const App: React.FC = () => {
                     <>
                       <div className="space-y-2">
                         <p className="text-[8px] font-black text-[#18181B]/60 dark:text-[#E6E8E6]/60 uppercase px-2">Durée estimée (minutes)</p>
-                        <div className="flex items-center gap-3 bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 p-4 rounded-3xl border border-[#18181B]/10 dark:border-[#E6E8E6]/10"><Timer size={18} className="text-accent" /><input type="number" min="0" placeholder="Ex: 30" className="bg-transparent flex-1 font-black text-lg outline-none text-[#18181B] dark:text-[#E6E8E6]" value={(configModal.parentTaskId ? (activeTab === 'routine' && appData.days[dateKey]?.blocks ? appData.days[dateKey].blocks?.find(b => b.id === configModal.blockId) : appData.blocks.find(b => b.id === configModal.blockId))?.tasks.find(t => t.id === configModal.parentTaskId)?.subTasks?.find(s => s.id === configModal.id)?.duration : (activeTab === 'routine' && appData.days[dateKey]?.blocks ? appData.days[dateKey].blocks?.find(b => b.id === configModal.blockId) : appData.blocks.find(b => b.id === configModal.blockId))?.tasks.find(t => t.id === configModal.id)?.duration) || ""} onChange={(e) => updateConfiguredItem('duration', parseInt(e.target.value) || 0)} /></div>
+                        <div className="flex items-center gap-3 bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 p-4 rounded-3xl border border-[#18181B]/10 dark:border-[#E6E8E6]/10"><Timer size={18} className="text-accent shrink-0 self-start mt-3" /><DurationInput chips value={(configModal.parentTaskId ? (activeTab === 'routine' && appData.days[dateKey]?.blocks ? appData.days[dateKey].blocks?.find(b => b.id === configModal.blockId) : appData.blocks.find(b => b.id === configModal.blockId))?.tasks.find(t => t.id === configModal.parentTaskId)?.subTasks?.find(s => s.id === configModal.id)?.duration : (activeTab === 'routine' && appData.days[dateKey]?.blocks ? appData.days[dateKey].blocks?.find(b => b.id === configModal.blockId) : appData.blocks.find(b => b.id === configModal.blockId))?.tasks.find(t => t.id === configModal.id)?.duration) || undefined} onChange={(m) => updateConfiguredItem('duration', m || 0)} className="w-full bg-transparent font-black text-lg outline-none text-[#18181B] dark:text-[#E6E8E6] border-b border-transparent focus:border-accent py-1.5" /></div>
                       </div>
                       <div className="space-y-2">
                         <p className="text-[8px] font-black text-[#18181B]/60 dark:text-[#E6E8E6]/60 uppercase px-2">Échéance (date limite)</p>

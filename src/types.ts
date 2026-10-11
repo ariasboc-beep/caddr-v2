@@ -24,6 +24,8 @@ export interface Task {
   doneAt?: string;      // Boîte de tâches : idée réglée sans passer par la Routine
   isHabit?: boolean;    // Suivie comme habitude dans Analytics
   completedAt?: { [dateKey: string]: string }; // heure de validation « HH:mm » (analyse des heures productives)
+  assignmentId?: string;  // tâche reçue d'un autre utilisateur Caddr (document Firestore « assignments »)
+  assignedBy?: string;    // nom ou e-mail de la personne qui l'a confiée
 }
 
 export interface Block {
@@ -91,6 +93,8 @@ export interface AppData {
   settings?: AppSettings;
   focusSessions?: FocusSession[];
   skips?: SkipRecord[];
+  taskLog?: TaskEvent[];                     // mouvements de tâches (reports, annulations, imprévus, affectations)
+  daySnapshots?: { [dateKey: string]: string[] }; // tâches prévues au premier affichage du jour (détection des imprévus)
   journal?: { [dateKey: string]: JournalEntry }; // journal de gratitude et de fierté
   assistantMemory?: AssistantMemoryItem[];      // ce que l'assistant Claude retient (préférences durables)
   lifeReviews?: { [quarterKey: string]: LifeReview }; // revues trimestrielles (roue de la vie), clé « AAAA-Tn »
@@ -163,6 +167,24 @@ export interface SkipRecord {
   taskTitle: string;
   date: string;
   reason: string;
+  kind?: 'skip' | 'cancel' | 'postpone' | 'assign'; // absent = sautée (ancien format)
+}
+
+// Journal des mouvements de tâches (rapports PDF) : reports, annulations, imprévus, affectations
+export type TaskEventKind = 'postponed' | 'cancelled' | 'unplanned' | 'assigned';
+export interface TaskEvent {
+  id: string;
+  kind: TaskEventKind;
+  taskId: string;
+  taskTitle: string;
+  date: string;          // jour concerné (AAAA-MM-JJ)
+  to?: string;           // report : nouveau jour
+  newTaskId?: string;    // report d'une tâche récurrente : id de la copie ponctuelle
+  reason?: string;       // annulation : motif ; affectation : message
+  email?: string;        // affectation : destinataire
+  assignmentId?: string; // affectation : document Firestore
+  status?: 'pending' | 'accepted' | 'declined' | 'done'; // affectation : suivi
+  at: string;            // horodatage ISO
 }
 
 // Habitude indépendante des blocs et des tâches (inspirée d'HabitNow)

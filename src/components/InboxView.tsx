@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import DurationInput from './DurationInput';
 import {
   DndContext, closestCenter, PointerSensor, useSensor, useSensors, DragEndEvent,
 } from '@dnd-kit/core';
@@ -230,7 +231,7 @@ const InboxView: React.FC<Props> = ({ items, onChange, onTransfer, saveToHistory
               </label>
               <label className="flex flex-col gap-1">
                 <span className={sectionLabel}>Durée</span>
-                <input type="number" min={0} placeholder="min" className={`${inputCls} w-20`} value={task.duration ?? ''} onChange={(e) => patchItem(task.id, { duration: e.target.value ? parseInt(e.target.value) : undefined })} />
+                <div className="w-28"><DurationInput value={task.duration} onChange={(m) => patchItem(task.id, { duration: m })} placeholder="1h30…" className={`${inputCls} w-28`} /></div>
               </label>
               <label className="flex flex-col gap-1">
                 <span className={sectionLabel}>Échéance</span>

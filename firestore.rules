@@ -1,0 +1,43 @@
+rules_version = '2';
+// Règles Firestore de Caddr. — à coller dans Console Firebase → Firestore Database → Règles.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Données personnelles : chaque utilisateur ne lit et n'écrit que les siennes
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+      match /{document=**} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+    }
+
+    // Tâches confiées entre utilisateurs (par adresse e-mail)
+    match /assignments/{id} {
+      function signedIn() { return request.auth != null; }
+      function myEmail() { return request.auth.token.email.lower(); }
+      function isSender() { return signedIn() && resource.data.fromUid == request.auth.uid; }
+      function isRecipient() { return signedIn() && resource.data.toEmail == myEmail(); }
+
+      // Créer : uniquement en son propre nom, statut « en attente », vers une autre adresse
+      allow create: if signedIn()
+        && request.resource.data.fromUid == request.auth.uid
+        && request.resource.data.status == 'pending'
+        && request.resource.data.toEmail is string
+        && request.resource.data.toEmail != myEmail()
+        && request.resource.data.title is string
+        && request.resource.data.title.size() > 0
+        && request.resource.data.title.size() <= 300;
+
+      // Lire : l'expéditeur et le destinataire seulement
+      allow read: if isSender() || isRecipient();
+
+      // Répondre : le destinataire change le statut (accepter, refuser, terminer)
+      allow update: if isRecipient()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'responseNote', 'updatedAt'])
+        && request.resource.data.status in ['accepted', 'declined', 'done'];
+
+      // Supprimer : l'expéditeur peut retirer une tâche confiée
+      allow delete: if isSender();
+    }
+  }
+}

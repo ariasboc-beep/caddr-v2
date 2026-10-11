@@ -76,6 +76,14 @@ export function trackingStart(appData: AppData): string {
   return min;
 }
 
+// Tâches annulées, reportées, affectées ou sautées ce jour-là : elles ne comptent pas dans le taux
+const skipCache = new WeakMap<object, Set<string>>();
+const skippedSet = (appData: AppData): Set<string> => {
+  const hit = skipCache.get(appData); if (hit) return hit;
+  const s = new Set((appData.skips || []).map(x => `${x.taskId}|${x.date}`));
+  skipCache.set(appData, s); return s;
+};
+
 export function computeDay(appData: AppData, dateKey: string, todayKey: string): DayStat {
   const date = atNoon(dateKey);
   const future = dateKey > todayKey;
@@ -87,7 +95,8 @@ export function computeDay(appData: AppData, dateKey: string, todayKey: string):
   let total = 0, done = 0;
   resolveDay(appData, date).forEach(b => {
     let bt = 0, bd = 0;
-    visible(b.tasks, date).forEach(t => {
+    const skipped = skippedSet(appData);
+    visible(b.tasks, date).filter(t => !skipped.has(`${t.id}|${dateKey}`)).forEach(t => {
       const d = !!t.completedDates?.includes(dateKey);
       bt++; if (d) bd++;
       tasks.push({ id: t.id, title: t.title, block: b.title, done: d, isSub: false });

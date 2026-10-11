@@ -48,7 +48,7 @@ const EveningReview: React.FC<Props> = ({ appData, onFinish, onClose, onAskClaud
       const item = open.find(x => x.t.id === id); if (!item) return;
       if (c === 'done') { data = executeTool(data, 'set_task_done', { task_id: id, date: k, done: true }, ctx).data; done++; }
       if (c === 'later') {
-        data = oneOff(item.t) ? executeTool(data, 'reschedule_task', { task_id: id, date: tomorrow }, ctx).data : executeTool(data, 'skip_task', { task_id: id, date: k, reason: 'Reportée au bilan du soir' }, ctx).data;
+        data = executeTool(data, 'reschedule_task', { task_id: id, date: tomorrow }, ctx).data; // récurrente : reportée pour demain, la récurrence continue
         later++;
       }
     });
@@ -102,7 +102,7 @@ const EveningReview: React.FC<Props> = ({ appData, onFinish, onClose, onAskClaud
                           <div><p className={`text-[13px] font-bold ${ink}`}>{t.title}</p><p className={`text-[10px] font-semibold ${muted}`}>{block}{t.startTime ? ` · ${t.startTime}` : ''}</p></div>
                           <div className="flex flex-wrap gap-1.5">
                             <button onClick={() => set('done')} className={pill(c === 'done', 'bg-accent')}><Check size={12} /> Faite</button>
-                            <button onClick={() => set('later')} className={pill(c === 'later', 'bg-accent')}><ArrowRight size={12} /> {oneOff(t) ? 'Demain' : 'Sauter'}</button>
+                            <button onClick={() => set('later')} className={pill(c === 'later', 'bg-accent')}><ArrowRight size={12} /> Demain</button>
                             <button onClick={() => set('leave')} className={pill(c === 'leave', 'bg-[#18181B]/60')}><Minus size={12} /> Laisser</button>
                           </div>
                         </li>

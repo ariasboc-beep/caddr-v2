@@ -32,20 +32,15 @@ La clé Firebase est publique par design : **votre sécurité repose entièremen
 les règles Firestore.** Sans règles strictes, n'importe qui peut lire/écrire les
 données de tous les utilisateurs.
 
-Console Firebase → Firestore Database → Règles. Utilisez :
-```
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
-      match /{document=**} {
-        allow read, write: if request.auth != null && request.auth.uid == userId;
-      }
-    }
-  }
-}
-```
+Console Firebase → Firestore Database → Règles. Copiez-collez **tout le contenu du fichier
+`firestore.rules`** (à la racine du projet), puis cliquez sur « Publier ».
+
+Ces règles protègent vos données personnelles (`users/{uid}`) et autorisent la
+fonction « Affecter à quelqu'un » (`assignments`) : seuls l'expéditeur et le
+destinataire (adresse e-mail du compte) peuvent lire une tâche confiée ; seul le
+destinataire peut l'accepter, la refuser ou la marquer comme faite.
+**Sans cette mise à jour, l'envoi de tâches à un autre utilisateur échoue.**
+
 Si vos règles contiennent `allow read, write: if true;` → faille critique à corriger
 immédiatement.
 

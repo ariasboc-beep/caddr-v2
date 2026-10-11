@@ -69,7 +69,7 @@ body {
 * { -webkit-tap-highlight-color: transparent; }
 /* Écrans tactiles : zone de toucher d'au moins 34 px pour les boutons-icônes */
 @media (pointer: coarse) {
-  main button:has(> svg:only-child):not([aria-label="Marquer comme réglée"]) {
+  main button:has(> svg:only-child):not([aria-label="Marquer comme réglée"]):not([class*="max-md:hidden"]) {
     min-width: 34px;
     min-height: 34px;
     display: inline-flex;
