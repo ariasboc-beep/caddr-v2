@@ -254,7 +254,7 @@ const WeekPlanner: React.FC<Props> = ({ appData, update, onClose, notify, saveTo
                       </li>
                     ))}
                   </ul>
-                  {inbox.length > 12 && <p className={`text-[10px] font-medium ${faint}`}>… et {inbox.length - 12} autre(s) dans l'onglet Boîte.</p>}
+                  {inbox.length > 12 && <p className={`text-[10px] font-medium ${faint}`}>… et {inbox.length - 12} autre(s) dans Planning › Boîte.</p>}
                 </div>
               )}
             </>

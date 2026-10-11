@@ -247,7 +247,7 @@ const Analytics: React.FC<Props> = ({ appData, accentHex, onToggleHabit, onDownl
       {/* Objectif prioritaire */}
       <Section id="objective" title="Objectif prioritaire" icon={<Target size={16} />} subtitle={tf === 'day' ? "L'objectif de la journée" : 'Chaque jour, ton objectif n°1 : atteint ou non'}>
         {objective.list.length === 0 ? (
-          <p className={`text-xs font-medium py-4 ${muted}`}>Aucun objectif prioritaire sur cette période. Écris-le chaque jour en haut de l'onglet Routine, puis coche-le quand il est atteint.</p>
+          <p className={`text-xs font-medium py-4 ${muted}`}>Aucun objectif prioritaire sur cette période. Écris-le chaque jour en haut de l'onglet Aujourd'hui, puis coche-le quand il est atteint.</p>
         ) : (
           <div className="space-y-4">
             {tf !== 'day' && (
@@ -440,7 +440,7 @@ const Analytics: React.FC<Props> = ({ appData, accentHex, onToggleHabit, onDownl
           </div>
         )}
         {allHabits.length === 0 ? (
-          !chooseHabits && <p className={`text-xs font-medium py-4 ${muted}`}>Aucune habitude suivie. Clique sur « Choisir » pour sélectionner des tâches à suivre, ou crée une habitude indépendante dans l'onglet Habitudes{onOpenHabits ? <> (<button onClick={onOpenHabits} className="text-accent font-bold">ouvrir</button>)</> : null}.</p>
+          !chooseHabits && <p className={`text-xs font-medium py-4 ${muted}`}>Aucune habitude suivie. Clique sur « Choisir » pour sélectionner des tâches à suivre, ou crée une habitude indépendante dans Croissance › Habitudes{onOpenHabits ? <> (<button onClick={onOpenHabits} className="text-accent font-bold">ouvrir</button>)</> : null}.</p>
         ) : (
           <div className="divide-y divide-[#18181B]/5 dark:divide-[#E6E8E6]/5">
             {allHabits.map(h => (

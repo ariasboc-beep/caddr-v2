@@ -141,7 +141,7 @@ export interface AppSettings {
   weeklyTarget?: number;            // objectif de discipline hebdomadaire (%) pour les bonus XP   // agendas externes affichés dans le Planning (lecture seule)
 }
 
-export type TabType = 'routine' | 'stats' | 'schedule' | 'templates' | 'ai' | 'inbox' | 'settings' | 'habits' | 'journal';
+export type TabType = 'routine' | 'stats' | 'schedule' | 'templates' | 'ai' | 'inbox' | 'settings' | 'habits' | 'journal' | 'goals';
 export type TimeframeType = 'day' | 'week' | 'month' | 'year' | 'custom';
 
 // Session de concentration (mode Focus)

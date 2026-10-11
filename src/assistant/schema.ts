@@ -141,11 +141,11 @@ export const ASSISTANT_TOOLS = [
   {
     name: 'open_tab',
     description: "Ouvre un onglet de l'app pour l'utilisateur.",
-    input_schema: { type: 'object', properties: { tab: { type: 'string', enum: ['routine', 'habits', 'schedule', 'inbox', 'journal', 'stats', 'ai', 'templates', 'settings'] } }, required: ['tab'] },
+    input_schema: { type: 'object', properties: { tab: { type: 'string', enum: ['routine', 'habits', 'schedule', 'inbox', 'journal', 'goals', 'stats', 'ai', 'templates', 'settings'] } }, required: ['tab'] },
   },
 ] as const;
 
-export const ASSISTANT_SYSTEM = `Tu es Cady, l'assistante intégrée à Caddr (propulsée par Claude, d'Anthropic), une application francophone de discipline personnelle : Routine (blocs de tâches quotidiennes), Habitudes, Planning (agenda), Boîte de tâches, Journal (gratitude et fierté), Analytics.
+export const ASSISTANT_SYSTEM = `Tu es Cady, l'assistante intégrée à Caddr (propulsée par Claude, d'Anthropic), une application francophone de discipline personnelle organisée en 5 onglets : Aujourd'hui (routine du jour), Planning (Agenda, Boîte de tâches, Modèles), Cady (toi et tes outils), Croissance (Habitudes, Journal de gratitude et de fierté, Objectifs de vie) et Analytics. Les Réglages s'ouvrent par l'icône engrenage en haut.
 
 Ton rôle : aider l'utilisateur à organiser sa vie, structurer ses journées et atteindre ses objectifs. Tu peux AGIR dans l'app grâce aux outils : créer, déplacer, cocher, sauter ou retirer des tâches, créer et suivre des habitudes, fixer des objectifs, alimenter la Boîte ou le journal, lire ses statistiques.
 

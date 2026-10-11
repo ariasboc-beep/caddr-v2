@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { X, Send, Mic, MicOff, Sparkles, Loader2, Undo2, Volume2, VolumeX, Trash2, Check, AlertCircle, LogIn, Brain, Plus } from 'lucide-react';
+import { X, Send, Mic, MicOff, Sparkles, Loader2, Undo2, Volume2, VolumeX, Trash2, Check, AlertCircle, LogIn, Brain, Plus, ChevronRight } from 'lucide-react';
 import { generateId } from '../utils';
 import type { AppData, TabType } from '../types';
 import { callAssistant, ApiMessage, ApiBlock } from '../services/assistantService';
@@ -250,6 +250,10 @@ const Assistant: React.FC<Props> = ({ open, onClose, getData, commit, undo, navi
               <div className="flex flex-wrap gap-2 justify-center">
                 {SUGGESTIONS.map(s => <button key={s} onClick={() => send(s)} disabled={!signedIn} className={`px-3 py-2 rounded-xl text-[12px] font-semibold text-left bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 border border-[#18181B]/5 dark:border-[#E6E8E6]/5 hover:border-accent/40 disabled:opacity-40 ${ink}`}>{s}</button>)}
               </div>
+              <button onClick={() => { navigate('ai'); onClose(); }} className="w-full flex items-center justify-between gap-2 px-3.5 py-3 rounded-xl border border-accent/25 bg-accent/5 text-left hover:border-accent/50 transition-all">
+                <span><span className={`block text-[12px] font-black ${ink}`}>Les outils de Cady</span><span className={`block text-[10px] font-semibold ${muted}`}>Coach de la semaine, routine sur mesure, bibliothèque de départ</span></span>
+                <ChevronRight size={16} className="text-accent shrink-0" />
+              </button>
             </div>
           )}
           {msgs.map(m => (

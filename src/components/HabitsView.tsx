@@ -122,8 +122,8 @@ const HabitForm: React.FC<{ initial?: StandaloneHabit; accentHex: string; onSave
       <button type="button" onClick={() => setShowInRoutine(v => !v)} aria-pressed={showInRoutine}
         className={`w-full flex items-center justify-between gap-3 p-4 rounded-2xl border transition-all ${showInRoutine ? 'bg-accent/10 border-accent/40' : 'bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 border-transparent'}`}>
         <span className="text-left">
-          <span className={`block text-[10px] font-black uppercase tracking-wider ${ink}`}>Afficher dans l'onglet Routine</span>
-          <span className={`block text-[10px] font-medium ${muted}`}>{showInRoutine ? 'Visible dans la carte « Habitudes du jour » pour la cocher vite' : 'Suivie uniquement dans l’onglet Habitudes'}</span>
+          <span className={`block text-[10px] font-black uppercase tracking-wider ${ink}`}>Afficher dans Aujourd'hui</span>
+          <span className={`block text-[10px] font-medium ${muted}`}>{showInRoutine ? 'Visible dans la carte « Habitudes du jour » pour la cocher vite' : 'Suivie uniquement dans Croissance › Habitudes'}</span>
         </span>
         <span className={`w-9 h-5 rounded-full p-0.5 transition-all shrink-0 ${showInRoutine ? 'bg-accent' : 'bg-[#18181B]/15 dark:bg-[#E6E8E6]/15'}`}>
           <span className={`block w-4 h-4 rounded-full bg-white shadow transition-transform ${showInRoutine ? 'translate-x-4' : ''}`} />
@@ -443,7 +443,7 @@ const HabitsView: React.FC<Props> = ({ habits, onChange, accentHex }) => {
                         {h.kind === 'quit' && <span>· {s.sinceLastFail} j sans rechute</span>}
                         <span>· {s.rate === null ? '—' : `${s.rate} %`}</span>
                         <span className={faint}>· {freqLabel(h)}</span>
-                        {h.showInRoutine === false && <span className={`flex items-center gap-0.5 ${faint}`} title="Masquée de l'onglet Routine">· <EyeOff size={10} /> hors Routine</span>}
+                        {h.showInRoutine === false && <span className={`flex items-center gap-0.5 ${faint}`} title="Masquée d'Aujourd'hui">· <EyeOff size={10} /> hors Aujourd'hui</span>}
                       </span>
                     </span>
                   </button>

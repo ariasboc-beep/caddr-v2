@@ -21,7 +21,7 @@ import {
   Plus, Trash2, Layout, BarChart3, 
   Circle, Calendar, Repeat, X, 
   TrendingUp, Save, Copy, Cloud, 
-  Loader2, Sparkles, BrainCircuit, 
+  Loader2, Sparkles, BrainCircuit, Sprout, 
   ArrowRight, Camera, Wand2, Zap,
   ChevronUp, ChevronDown, CalendarDays, GripVertical, Link2, CalendarRange,
   History, MoveVertical, Minimize2, Clock, ListPlus,
@@ -403,10 +403,17 @@ const App: React.FC = () => {
     localStorage.setItem(ACCENT_KEY, accentTheme);
   }, [accentTheme]);
 
+  // Mémorise le dernier sous-onglet ouvert dans chaque groupe (Planning, Croissance)
+  useEffect(() => {
+    const g = [['plan', ['schedule', 'inbox', 'templates']], ['grow', ['habits', 'journal', 'goals']]].find(([, tabs]) => (tabs as string[]).includes(activeTab));
+    if (!g) return;
+    try { const m = JSON.parse(localStorage.getItem('caddr_last_sub') || '{}'); m[g[0] as string] = activeTab; localStorage.setItem('caddr_last_sub', JSON.stringify(m)); } catch { /* rien */ }
+  }, [activeTab]);
+
   // Raccourcis d'écran d'accueil (PWA) : ouvre l'onglet demandé via ?tab=
   useEffect(() => {
     const tab = new URLSearchParams(window.location.search).get('tab');
-    const valid: TabType[] = ['routine', 'stats', 'schedule', 'templates', 'ai', 'inbox', 'settings', 'habits', 'journal'];
+    const valid: TabType[] = ['routine', 'stats', 'schedule', 'templates', 'ai', 'inbox', 'settings', 'habits', 'journal', 'goals'];
     if (tab && valid.includes(tab as TabType)) setActiveTab(tab as TabType);
   }, []);
 
@@ -428,17 +435,24 @@ const App: React.FC = () => {
   const graceDays = appData.settings?.graceDaysPerWeek ?? 1;
   const navPosition = appData.settings?.navPosition || 'bottom';
   const navCollapsed = appData.settings?.navCollapsed || false;
-  const navTabs = [
-    { id: 'routine', icon: Layout, label: 'Routine' },
-    { id: 'habits', icon: Repeat, label: 'Habitudes' },
-    { id: 'schedule', icon: CalendarDays, label: 'Planning' },
-    { id: 'inbox', icon: Archive, label: 'Boîte' },
-    { id: 'journal', icon: BookHeart, label: 'Journal' },
-    { id: 'ai', icon: BrainCircuit, label: 'Caddr. IA' },
-    { id: 'templates', icon: Copy, label: 'Modèles' },
-    { id: 'stats', icon: BarChart3, label: 'Analytics' },
-    { id: 'settings', icon: Settings2, label: 'Réglages' },
-  ] as const;
+  // Navigation en 5 onglets : chaque onglet regroupe un ou plusieurs écrans (sous-onglets)
+  const navGroups: { id: string; label: string; icon: typeof Layout; tabs: TabType[] }[] = [
+    { id: 'today', label: "Aujourd'hui", icon: Layout, tabs: ['routine'] },
+    { id: 'plan', label: 'Planning', icon: CalendarDays, tabs: ['schedule', 'inbox', 'templates'] },
+    { id: 'cady', label: 'Cady', icon: Sparkles, tabs: ['ai'] },
+    { id: 'grow', label: 'Croissance', icon: Sprout, tabs: ['habits', 'journal', 'goals'] },
+    { id: 'stats', label: 'Analytics', icon: BarChart3, tabs: ['stats'] },
+  ];
+  const SUB_LABELS: Partial<Record<TabType, string>> = { schedule: 'Agenda', inbox: 'Boîte', templates: 'Modèles', habits: 'Habitudes', journal: 'Journal', goals: 'Objectifs de vie' };
+  const currentGroup = navGroups.find(g => g.tabs.includes(activeTab));
+  const goGroup = (g: typeof navGroups[number]) => {
+    setIsReorderMode(false);
+    if (g.id === 'cady') { setShowAssistant(true); return; }
+    let last: TabType | undefined;
+    try { last = (JSON.parse(localStorage.getItem('caddr_last_sub') || '{}') as Record<string, TabType>)[g.id]; } catch { /* rien */ }
+    setActiveTab(last && g.tabs.includes(last) ? last : g.tabs[0]);
+  };
+  const groupActive = (g: typeof navGroups[number]) => g.id === 'cady' ? (activeTab === 'ai' || showAssistant) : g.tabs.includes(activeTab) && !(showAssistant);
 
   // Lecture du cloud ratée (réseau) : nouvel essai automatique (retour du réseau, toutes les 30 s)
   useEffect(() => {
@@ -2582,7 +2596,7 @@ const App: React.FC = () => {
                 {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
             </button>
 
-            <button onClick={() => setShowAssistant(true)} title="Cady, ton assistante (Ctrl+K)" aria-label="Ouvrir Cady" className="flex items-center gap-1.5 px-2.5 py-2 rounded-xl bg-accent text-white shadow-lg shadow-accent/25 hover:scale-105 active:scale-95 transition-all"><Sparkles size={15} /><span className="hidden sm:inline text-[10px] font-black uppercase tracking-wider">Cady</span></button>
+            <button onClick={() => { setActiveTab('settings'); setIsReorderMode(false); }} title="Réglages" aria-label="Réglages" aria-current={activeTab === 'settings' ? 'page' : undefined} className={`p-2 rounded-xl transition-all hover:text-accent ${activeTab === 'settings' ? 'text-accent bg-accent/10' : 'text-[#18181B]/60 dark:text-[#E6E8E6]/60 bg-[#18181B]/5 dark:bg-[#E6E8E6]/5'}`}><Settings2 size={16} /></button>
             <button onClick={requestNotificationPermission} className={`p-2 rounded-xl transition-all ${notificationsEnabled ? 'text-accent bg-accent/10' : 'text-[#18181B]/60 dark:text-[#E6E8E6]/60 bg-[#18181B]/5 dark:bg-[#E6E8E6]/5'}`}>{notificationsEnabled ? <Bell size={16} /> : <BellOff size={16} />}</button>
             {activeTab === 'routine' && <button onClick={() => updateAppData(prev => ({ ...prev, settings: { ...(prev.settings || {}), simpleMode: !prev.settings?.simpleMode } }))} title="Mode journée simplifiée" className={`p-2 rounded-xl transition-all ${appData.settings?.simpleMode ? 'bg-accent text-white' : 'bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 text-[#18181B]/60 dark:text-[#E6E8E6]/60'}`}><Minimize2 size={16} /></button>}
             {activeTab === 'routine' && <button onClick={() => setIsReorderMode(!isReorderMode)} title={isReorderMode ? "Terminer le réordonnancement" : "Réordonner les blocs"} className={`p-2 rounded-xl transition-all ${isReorderMode ? 'bg-accent text-white' : 'bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 text-[#18181B]/60 dark:text-[#E6E8E6]/60'}`}><MoveVertical size={16} /></button>}
@@ -2629,6 +2643,18 @@ const App: React.FC = () => {
       <main className="max-w-4xl mx-auto px-4 sm:px-6 mt-4 space-y-8 pb-24 md:pb-16">
         <Suspense fallback={<div className="flex justify-center py-20"><Loader2 className="animate-spin text-accent" size={28} /></div>}>
         
+        {/* Sous-onglets du groupe courant (Planning : Agenda · Boîte · Modèles ; Croissance : Habitudes · Journal · Objectifs) */}
+        {currentGroup && currentGroup.tabs.length > 1 && (
+          <div className="flex p-1 bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 rounded-2xl border border-[#18181B]/5 dark:border-[#E6E8E6]/5" role="tablist" aria-label={currentGroup.label}>
+            {currentGroup.tabs.map(t => (
+              <button key={t} role="tab" aria-selected={activeTab === t} onClick={() => { setActiveTab(t); setIsReorderMode(false); }}
+                className={`flex-1 py-2.5 rounded-xl text-[10px] sm:text-[11px] font-black uppercase tracking-wider transition-all whitespace-nowrap ${activeTab === t ? 'bg-accent text-white shadow-lg shadow-accent/20' : 'text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-accent'}`}>
+                {SUB_LABELS[t]}
+              </button>
+            ))}
+          </div>
+        )}
+
         {/* TAB: ROUTINE */}
         {activeTab === 'routine' && (
           <div className="space-y-6 animate-in fade-in duration-500">
@@ -3073,12 +3099,6 @@ const App: React.FC = () => {
                 onOpenCalendars={() => setShowCalendars(true)} onPlanWeek={() => setShowWeekPlanner(true)}
                 aiLighten={user ? getLightenPlan : undefined} onApplyLighten={applyLighten} />
             )}
-            {!templateEditState && (
-              <LongTermGoals
-                goals={appData.longTermGoals || []} appData={appData} onAskClaude={askClaude}
-                onChange={(goals) => updateAppData(prev => ({ ...prev, longTermGoals: goals }))}
-              />
-            )}
             {/* ... Existing Schedule Code ... */}
              {templateEditState ? (
               <div className="glass p-6 rounded-[2rem] space-y-4 border border-[#FDCA40]/20 bg-[#FDCA40]/5 animate-in slide-in-from-top-4">
@@ -3338,6 +3358,15 @@ const App: React.FC = () => {
           <HabitsView habits={appData.habits || []} accentHex={accentHex} onChange={(habits) => updateAppData(prev => ({ ...prev, habits }))} />
         )}
 
+        {activeTab === 'goals' && (
+          <div className="space-y-6 animate-in fade-in duration-500 pb-20">
+            <LongTermGoals
+              goals={appData.longTermGoals || []} appData={appData} onAskClaude={askClaude}
+              onChange={(goals) => updateAppData(prev => ({ ...prev, longTermGoals: goals }))}
+            />
+          </div>
+        )}
+
         {activeTab === 'journal' && (
           <JournalView journal={appData.journal || {}} accentHex={accentHex}
             onSave={(k, entry) => updateAppData(prev => ({ ...prev, journal: { ...(prev.journal || {}), [k]: entry } }))}
@@ -3397,6 +3426,10 @@ const App: React.FC = () => {
         {/* ... (Existing Caddr AI Tab) */}
         {activeTab === 'ai' && (
            <div className="space-y-6 animate-in zoom-in-95 duration-500 pb-20">
+            <div className="px-2">
+              <h1 className="text-2xl font-black text-[#18181B] dark:text-[#E6E8E6]">Cady</h1>
+              <p className="text-xs font-bold mt-1 text-[#18181B]/50 dark:text-[#E6E8E6]/50">Ton assistante et ses outils : coach, routine sur mesure, bibliothèque.</p>
+            </div>
             <button onClick={() => setShowAssistant(true)} className="w-full text-left glass p-5 sm:p-6 rounded-[2rem] border border-accent/30 flex items-center gap-4 hover:border-accent/60 transition-all">
               <div className="w-12 h-12 rounded-2xl bg-accent flex items-center justify-center shrink-0 shadow-lg shadow-accent/30"><Sparkles size={22} className="text-white" /></div>
               <div className="flex-1 min-w-0">
@@ -3421,7 +3454,7 @@ const App: React.FC = () => {
               );
             })()}
             {/* Same AI view */}
-            <div className="glass p-8 rounded-[3.5rem] text-center space-y-6"><div className="w-20 h-20 bg-gradient-to-br from-[#FDCA40] to-accent rounded-3xl flex items-center justify-center mx-auto shadow-2xl"><BrainCircuit size={40} className="text-white" /></div><h2 className="text-2xl font-black text-[#18181B] dark:text-[#E6E8E6]">Caddr. IA</h2>{!aiAdvice && !isAiLoading && <button onClick={async () => { setIsAiLoading(true); setAiAdvice(await getRoutineAdvice(routineBlocks, perfToday)); setIsAiLoading(false); }} className="bg-[#18181B] dark:bg-[#E6E8E6] text-white dark:text-[#080708] px-8 py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest">Lancer l'Analyse</button>}{isAiLoading && <Loader2 className="animate-spin text-[#FDCA40] mx-auto" size={32} />}{aiAdvice && (<div className="text-left space-y-4 animate-in fade-in slide-in-from-top-4"><div className="p-5 bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 rounded-2xl border border-[#18181B]/5 dark:border-[#E6E8E6]/5"><p className="text-[8px] font-black text-[#FDCA40] uppercase tracking-widest mb-1">Conseil IA</p><p className="text-sm text-[#18181B] dark:text-[#E6E8E6] font-medium">{aiAdvice.advice}</p></div><div className="p-5 bg-accent/10 rounded-2xl border border-accent/10"><p className="text-[8px] font-black text-accent uppercase tracking-widest mb-1">Action Recommandée</p><p className="text-sm font-bold flex items-center gap-2 text-[#18181B] dark:text-[#E6E8E6]"><ArrowRight size={14} /> {aiAdvice.powerTask}</p></div></div>)}</div>
+            <div className="glass p-8 rounded-[3.5rem] text-center space-y-6"><div className="w-20 h-20 bg-gradient-to-br from-[#FDCA40] to-accent rounded-3xl flex items-center justify-center mx-auto shadow-2xl"><BrainCircuit size={40} className="text-white" /></div><h2 className="text-2xl font-black text-[#18181B] dark:text-[#E6E8E6]">Analyse de ma routine</h2>{!aiAdvice && !isAiLoading && <button onClick={async () => { setIsAiLoading(true); setAiAdvice(await getRoutineAdvice(routineBlocks, perfToday)); setIsAiLoading(false); }} className="bg-[#18181B] dark:bg-[#E6E8E6] text-white dark:text-[#080708] px-8 py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest">Lancer l'Analyse</button>}{isAiLoading && <Loader2 className="animate-spin text-[#FDCA40] mx-auto" size={32} />}{aiAdvice && (<div className="text-left space-y-4 animate-in fade-in slide-in-from-top-4"><div className="p-5 bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 rounded-2xl border border-[#18181B]/5 dark:border-[#E6E8E6]/5"><p className="text-[8px] font-black text-[#FDCA40] uppercase tracking-widest mb-1">Conseil IA</p><p className="text-sm text-[#18181B] dark:text-[#E6E8E6] font-medium">{aiAdvice.advice}</p></div><div className="p-5 bg-accent/10 rounded-2xl border border-accent/10"><p className="text-[8px] font-black text-accent uppercase tracking-widest mb-1">Action Recommandée</p><p className="text-sm font-bold flex items-center gap-2 text-[#18181B] dark:text-[#E6E8E6]"><ArrowRight size={14} /> {aiAdvice.powerTask}</p></div></div>)}</div>
           </div>
         )}
 
@@ -3648,56 +3681,26 @@ const App: React.FC = () => {
         )}
       </Suspense>
 
-      {/* Navigation */}
+      {/* Navigation : 5 onglets (Aujourd'hui · Planning · Cady · Croissance · Analytics) */}
       {/* Barre du bas — toujours sur mobile ; sur desktop uniquement si position = bas */}
-      {/* Navigation mobile : 5 onglets principaux + « Plus » (feuille avec les autres) */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-[#F4F4F5]/95 dark:bg-[#080708]/95 backdrop-blur-3xl border-t border-[#18181B]/5 dark:border-[#E6E8E6]/5 pt-2 px-2 transition-colors duration-300" style={{ paddingBottom: 'max(0.6rem, env(safe-area-inset-bottom))' }} aria-label="Navigation principale">
-        <div className="grid grid-cols-6">
-          {(() => {
-            const primary = ['routine', 'habits', 'schedule', 'inbox', 'stats'];
-            const secondaryActive = !primary.includes(activeTab);
-            return (
-              <>
-                {navTabs.filter(t => primary.includes(t.id)).map(tab => (
-                  <button key={tab.id} onClick={() => { setActiveTab(tab.id as TabType); setIsReorderMode(false); setShowMoreNav(false); }} aria-current={activeTab === tab.id ? 'page' : undefined}
-                    className={`flex flex-col items-center gap-1 py-1.5 rounded-xl transition-all ${activeTab === tab.id ? 'text-accent' : 'text-[#18181B]/60 dark:text-[#E6E8E6]/60'}`}>
-                    <tab.icon size={21} strokeWidth={activeTab === tab.id ? 2.5 : 2} />
-                    <span className="text-[9px] font-black whitespace-nowrap">{tab.label === 'Analytics' ? 'Stats' : tab.label}</span>
-                  </button>
-                ))}
-                <button onClick={() => setShowMoreNav(v => !v)} aria-expanded={showMoreNav}
-                  className={`flex flex-col items-center gap-1 py-1.5 rounded-xl transition-all ${secondaryActive || showMoreNav ? 'text-accent' : 'text-[#18181B]/60 dark:text-[#E6E8E6]/60'}`}>
-                  <MoreHorizontal size={21} strokeWidth={secondaryActive ? 2.5 : 2} />
-                  <span className="text-[9px] font-black">Plus</span>
-                </button>
-              </>
-            );
-          })()}
-        </div>
-      </nav>
-      {showMoreNav && (
-        <div className="md:hidden fixed inset-0 z-[45]" onClick={() => setShowMoreNav(false)}>
-          <div className="absolute inset-0 bg-black/40" />
-          <div className="absolute left-3 right-3 glass bg-[#F4F4F5] dark:bg-[#111] rounded-3xl p-3 space-y-1 animate-in slide-in-from-bottom-4" style={{ bottom: 'calc(max(0.6rem, env(safe-area-inset-bottom)) + 4.6rem)' }} onClick={e => e.stopPropagation()}>
-            {navTabs.filter(t => !['routine', 'habits', 'schedule', 'inbox', 'stats'].includes(t.id)).map(tab => (
-              <button key={tab.id} onClick={() => { setActiveTab(tab.id as TabType); setIsReorderMode(false); setShowMoreNav(false); }}
-                className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-sm font-bold transition-all ${activeTab === tab.id ? 'bg-accent/15 text-accent' : 'text-[#18181B] dark:text-[#E6E8E6] hover:bg-[#18181B]/5 dark:hover:bg-[#E6E8E6]/5'}`}>
-                <tab.icon size={19} /> {tab.label}
+      <nav className={`fixed bottom-0 left-0 right-0 z-50 bg-[#F4F4F5]/95 dark:bg-[#080708]/95 backdrop-blur-3xl border-t border-[#18181B]/5 dark:border-[#E6E8E6]/5 pt-2 px-2 md:pt-3 transition-colors duration-300 ${navPosition === 'left' ? 'md:hidden' : ''}`} style={{ paddingBottom: 'max(0.6rem, env(safe-area-inset-bottom))' }} aria-label="Navigation principale">
+        <div className="grid grid-cols-5 max-w-xl mx-auto items-end">
+          {navGroups.map(g => {
+            const on = groupActive(g);
+            if (g.id === 'cady') return (
+              <button key={g.id} onClick={() => goGroup(g)} aria-label="Ouvrir Cady (Ctrl+K)" title="Cady, ton assistante (Ctrl+K)" className="flex flex-col items-center gap-1 -mt-5">
+                <span className={`w-12 h-12 rounded-2xl flex items-center justify-center bg-accent text-white shadow-lg shadow-accent/30 transition-transform ${on ? 'scale-105 ring-4 ring-accent/20' : 'hover:scale-105'}`}><Sparkles size={22} /></span>
+                <span className={`text-[9px] md:text-[10px] font-black uppercase tracking-wider ${on ? 'text-accent' : 'text-[#18181B]/60 dark:text-[#E6E8E6]/60'}`}>{g.label}</span>
               </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Navigation ordinateur (barre du bas) */}
-      <nav className={`hidden md:block fixed bottom-0 left-0 right-0 z-50 bg-[#F4F4F5]/90 dark:bg-[#080708]/90 backdrop-blur-3xl border-t border-[#18181B]/5 dark:border-[#E6E8E6]/5 pb-6 pt-4 px-4 overflow-x-auto custom-scrollbar transition-colors duration-300 ${navPosition === 'left' ? 'md:hidden' : ''}`}>
-        <div className="max-w-4xl mx-auto flex items-center justify-between gap-4 min-w-max px-4">
-          {navTabs.map(tab => (
-            <button key={tab.id} onClick={() => { setActiveTab(tab.id as TabType); setIsReorderMode(false); }} className={`flex flex-col items-center gap-2 transition-all px-2 ${activeTab === tab.id ? 'text-accent scale-110' : 'text-[#18181B]/60 dark:text-[#E6E8E6]/60'}`}>
-              <tab.icon size={20} strokeWidth={activeTab === tab.id ? 2.5 : 2} />
-              <span className="text-[8px] font-black uppercase tracking-widest whitespace-nowrap">{tab.label}</span>
-            </button>
-          ))}
+            );
+            return (
+              <button key={g.id} onClick={() => goGroup(g)} aria-current={on ? 'page' : undefined}
+                className={`flex flex-col items-center gap-1 py-1.5 rounded-xl transition-all ${on ? 'text-accent' : 'text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:text-accent'}`}>
+                <g.icon size={21} strokeWidth={on ? 2.5 : 2} />
+                <span className="text-[9px] md:text-[10px] font-black uppercase tracking-wider whitespace-nowrap">{g.label}</span>
+              </button>
+            );
+          })}
         </div>
       </nav>
 
@@ -3715,17 +3718,16 @@ const App: React.FC = () => {
             </button>
           </div>
           <div className="flex flex-col gap-1 flex-1">
-            {navTabs.map(tab => (
-              <button
-                key={tab.id}
-                onClick={() => { setActiveTab(tab.id as TabType); setIsReorderMode(false); }}
-                title={tab.label}
-                className={`flex items-center gap-3 rounded-2xl transition-all ${navCollapsed ? 'justify-center p-3' : 'px-4 py-3'} ${activeTab === tab.id ? 'bg-accent text-white shadow-lg shadow-accent/20' : 'text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:bg-[#18181B]/5 dark:hover:bg-[#E6E8E6]/5'}`}
-              >
-                <tab.icon size={20} strokeWidth={activeTab === tab.id ? 2.5 : 2} className="shrink-0" />
-                {!navCollapsed && <span className="text-[11px] font-black uppercase tracking-widest whitespace-nowrap">{tab.label}</span>}
-              </button>
-            ))}
+            {navGroups.map(g => {
+              const on = groupActive(g);
+              return (
+                <button key={g.id} onClick={() => goGroup(g)} title={g.label}
+                  className={`flex items-center gap-3 rounded-2xl transition-all ${navCollapsed ? 'justify-center p-3' : 'px-4 py-3'} ${on ? 'bg-accent text-white shadow-lg shadow-accent/20' : 'text-[#18181B]/60 dark:text-[#E6E8E6]/60 hover:bg-[#18181B]/5 dark:hover:bg-[#E6E8E6]/5'}`}>
+                  <g.icon size={20} strokeWidth={on ? 2.5 : 2} className="shrink-0" />
+                  {!navCollapsed && <span className="text-[11px] font-black uppercase tracking-widest whitespace-nowrap">{g.label}</span>}
+                </button>
+              );
+            })}
           </div>
         </aside>
       )}
