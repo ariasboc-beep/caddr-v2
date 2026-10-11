@@ -73,9 +73,9 @@ const LifeWheel: React.FC<Props> = ({ reviews, onSave, onAskClaude, accentHex })
             return (
               <div key={d} className="space-y-1">
                 <div className="flex items-center gap-2">
-                  <button onClick={() => { setSaved(false); setFocus(f => f.includes(d) ? f.filter(x => x !== d) : f.length >= 3 ? f : [...f, d]); }} aria-label={isFocus ? `Retirer ${d} des priorités` : `Faire de ${d} une priorité`} title="Priorité du trimestre" className={isFocus ? 'text-accent' : 'text-[#18181B]/25 dark:text-[#E6E8E6]/25 hover:text-accent'}><Star size={13} fill={isFocus ? 'currentColor' : 'none'} /></button>
+                  <button onClick={() => { setSaved(false); setFocus(f => f.includes(d) ? f.filter(x => x !== d) : f.length >= 3 ? f : [...f, d]); }} aria-label={isFocus ? `Retirer ${d} des priorités` : `Faire de ${d} une priorité`} title="Priorité du trimestre" className={isFocus ? 'text-[#FDCA40]' : 'text-[#18181B]/25 dark:text-[#E6E8E6]/25 hover:text-[#FDCA40]'}><Star size={13} fill={isFocus ? 'currentColor' : 'none'} /></button>
                   <span className={`flex-1 text-[12px] font-bold ${ink}`}>{d}</span>
-                  {delta !== null && delta !== 0 && <span className={`text-[10px] font-black ${delta > 0 ? 'text-accent' : muted}`}>{delta > 0 ? '+' : ''}{delta}</span>}
+                  {delta !== null && delta !== 0 && <span className={`text-[10px] font-black ${delta > 0 ? 'text-accent' : 'text-[#DF2935]'}`}>{delta > 0 ? '+' : ''}{delta}</span>}
                   <span className="w-6 text-right text-[13px] font-black tabular-nums" style={{ color: accentHex }}>{scores[d]}</span>
                 </div>
                 <input type="range" min={1} max={10} value={scores[d] || 5} aria-label={`Note ${d}`} onChange={e => { setSaved(false); setScores(s => ({ ...s, [d]: Number(e.target.value) })); }} className="w-full accent-[color:var(--accent)]" />

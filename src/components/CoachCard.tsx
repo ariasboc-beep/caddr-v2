@@ -26,7 +26,7 @@ const CoachCard: React.FC<Props> = ({ coach, busy, onGenerate, title = 'Le mot d
       <>
         <p className={`text-[13px] font-semibold leading-relaxed ${ink}`}>{coach.summary}</p>
         {coach.wins?.length > 0 && <div><p className="text-[9px] font-black uppercase tracking-widest text-accent flex items-center gap-1 mb-1"><Trophy size={11} /> Réussites</p><ul className={`text-[12px] font-medium space-y-0.5 ${ink}`}>{coach.wins.map((x, i) => <li key={i}>· {x}</li>)}</ul></div>}
-        {coach.watch?.length > 0 && <div><p className="text-[9px] font-black uppercase tracking-widest text-[#18181B]/55 dark:text-[#E6E8E6]/55 flex items-center gap-1 mb-1"><Eye size={11} /> Vigilance</p><ul className={`text-[12px] font-medium space-y-0.5 ${ink}`}>{coach.watch.map((x, i) => <li key={i}>· {x}</li>)}</ul></div>}
+        {coach.watch?.length > 0 && <div><p className="text-[9px] font-black uppercase tracking-widest text-[#DF2935] flex items-center gap-1 mb-1"><Eye size={11} /> Vigilance</p><ul className={`text-[12px] font-medium space-y-0.5 ${ink}`}>{coach.watch.map((x, i) => <li key={i}>· {x}</li>)}</ul></div>}
         {coach.actions?.length > 0 && <div><p className="text-[9px] font-black uppercase tracking-widest text-accent flex items-center gap-1 mb-1"><ListChecks size={11} /> 3 actions pour la semaine prochaine</p><ol className={`text-[12px] font-medium space-y-0.5 list-decimal pl-4 ${ink}`}>{coach.actions.map((x, i) => <li key={i}>{x}</li>)}</ol></div>}
         {coach.focusNextWeek && <p className={`flex items-start gap-1.5 text-[12px] font-black ${ink}`}><Compass size={13} className="text-accent shrink-0 mt-0.5" />{coach.focusNextWeek}</p>}
       </>

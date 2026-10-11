@@ -57,7 +57,7 @@ const FocusMode: React.FC<Props> = ({ task, blockTitle, initialMicro, onComplete
           <circle cx="140" cy="140" r={R} stroke="rgba(255,255,255,0.08)" strokeWidth="10" fill="none" />
           <circle
             cx="140" cy="140" r={R}
-            style={{ stroke: finished ? '#22C55E' : 'var(--accent)' }}
+            style={{ stroke: finished ? 'var(--accent)' : 'var(--accent)' }}
             strokeWidth="10" fill="none" strokeLinecap="round"
             strokeDasharray={CIRC}
             strokeDashoffset={CIRC * (1 - progress)}
@@ -69,7 +69,7 @@ const FocusMode: React.FC<Props> = ({ task, blockTitle, initialMicro, onComplete
             {String(mins).padStart(2, '0')}:{String(secs).padStart(2, '0')}
           </span>
           {finished && (
-            <span className="text-[#22C55E] text-[10px] font-black uppercase tracking-widest mt-2 animate-pulse">
+            <span className="text-accent text-[10px] font-black uppercase tracking-widest mt-2 animate-pulse">
               Temps écoulé !
             </span>
           )}
@@ -89,7 +89,7 @@ const FocusMode: React.FC<Props> = ({ task, blockTitle, initialMicro, onComplete
           onClick={() => onComplete(elapsedMin)}
           className={`flex items-center gap-3 px-8 py-5 rounded-full font-black uppercase tracking-wider text-sm transition-all shadow-2xl ${
             finished
-              ? 'bg-[#22C55E] text-white shadow-[#22C55E]/30 scale-105'
+              ? 'bg-accent text-white shadow-accent/30 scale-105'
               : 'bg-accent text-white shadow-accent/30'
           }`}
         >

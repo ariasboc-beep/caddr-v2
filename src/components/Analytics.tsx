@@ -28,7 +28,7 @@ const Delta: React.FC<{ now: number | null; prev: number | null; label?: string 
   if (now === null || prev === null) return <span className={`text-[10px] font-bold ${faint}`}>Pas de comparaison</span>;
   const d = now - prev;
   const Icon = d > 0 ? TrendingUp : d < 0 ? TrendingDown : Minus;
-  const color = d > 0 ? 'text-accent' : muted;
+  const color = d > 0 ? 'text-accent' : d < 0 ? 'text-[#DF2935]' : muted;
   return (
     <span className={`inline-flex flex-wrap items-center gap-x-1 text-[10px] font-black ${color}`} title={label}>
       <Icon size={12} /> {d > 0 ? '+' : ''}{d} pt{Math.abs(d) > 1 ? 's' : ''}
@@ -236,10 +236,10 @@ const Analytics: React.FC<Props> = ({ appData, accentHex, onToggleHabit, onDownl
             <Tile icon={<Layers size={11} />} label="Blocs terminés" value={<>{day.blocks.filter(b => b.done === b.total).length}<span className={`text-base ${faint}`}> / {day.blocks.length}</span></>}
               foot={<span className={muted}>{day.rate === 100 ? 'Journée parfaite' : 'Bloc fait à 100 %'}</span>} />
           ) : (
-            <Tile icon={<Star size={11} />} label="Journées parfaites" value={<>{stats.perfectDays}<span className={`text-base ${faint}`}> / {stats.activeDays}</span></>}
+            <Tile icon={<Star size={11} className="text-[#FDCA40]" />} label="Journées parfaites" value={<>{stats.perfectDays}<span className={`text-base ${faint}`}> / {stats.activeDays}</span></>}
               foot={<span className={muted}>jours avec des tâches</span>} />
           )}
-          <Tile icon={<Flame size={11} />} label="Série en cours" value={`${streak.current} j`} foot={<span className={muted}>Record : {streak.best} j de suite à 100 %</span>} />
+          <Tile icon={<Flame size={11} className="text-[#FDCA40]" />} label="Série en cours" value={`${streak.current} j`} foot={<span className={muted}>Record : {streak.best} j de suite à 100 %</span>} />
         </div>
         <PerfLegend className="mt-3" />
       </Section>
@@ -281,10 +281,10 @@ const Analytics: React.FC<Props> = ({ appData, accentHex, onToggleHabit, onDownl
                 <ul className="divide-y divide-[#18181B]/5 dark:divide-[#E6E8E6]/5">
                   {rows.map(o => (
                     <li key={o.date} className="flex items-center gap-3 py-2.5">
-                      <span className={`w-5 h-5 rounded-md shrink-0 flex items-center justify-center ${o.done ? 'bg-accent' : o.today ? 'border-2 border-dashed border-accent' : 'border-2 border-[#18181B]/20 dark:border-[#E6E8E6]/20'}`}>{o.done && <Check size={12} strokeWidth={3} className="text-white" />}</span>
+                      <span className={`w-5 h-5 rounded-md shrink-0 flex items-center justify-center ${o.done ? 'bg-accent' : o.today ? 'border-2 border-dashed border-accent' : 'border-2 border-[#DF2935]/60'}`}>{o.done && <Check size={12} strokeWidth={3} className="text-white" />}</span>
                       <span className={`w-24 shrink-0 text-[10px] font-black uppercase tracking-wider ${muted}`}>{fmtDay(o.date)}</span>
                       <span className={`flex-1 min-w-0 text-sm font-semibold ${ink}`}>{o.title}</span>
-                      <span className={`shrink-0 text-[9px] font-black uppercase tracking-wider ${o.done ? 'text-accent' : o.today ? muted : muted}`}>{o.done ? 'Atteint' : o.today ? 'En cours' : 'Non atteint'}</span>
+                      <span className={`shrink-0 text-[9px] font-black uppercase tracking-wider ${o.done ? 'text-accent' : o.today ? muted : 'text-[#DF2935]'}`}>{o.done ? 'Atteint' : o.today ? 'En cours' : 'Non atteint'}</span>
                     </li>
                   ))}
                 </ul>
@@ -325,7 +325,7 @@ const Analytics: React.FC<Props> = ({ appData, accentHex, onToggleHabit, onDownl
                               : <>
                                   <p className="text-base font-black" style={perfStyle(b.rate)}>{b.rate} % · {perfLevel(b.rate)?.label}</p>
                                   <p className={`text-[11px] font-bold ${muted}`}>{b.done} tâche{b.done > 1 ? 's' : ''} faite{b.done > 1 ? 's' : ''} sur {b.total}</p>
-                                  {b.perfect && <p className="text-[11px] font-bold text-accent">★ Journée parfaite</p>}
+                                  {b.perfect && <p className="text-[11px] font-bold text-[#B8900A] dark:text-[#FDCA40]">★ Journée parfaite</p>}
                                   {b.days > 1 && <p className={`text-[11px] font-bold ${muted}`}>{b.days} jours avec des tâches</p>}
                                 </>}
                           </div>
@@ -383,7 +383,7 @@ const Analytics: React.FC<Props> = ({ appData, accentHex, onToggleHabit, onDownl
           <div className="space-y-5">
             {blocks.length > 1 && (
               <div className={`flex flex-wrap gap-x-5 gap-y-1 text-[10px] font-bold ${muted}`}>
-                <span className="flex items-center gap-1"><Trophy size={11} className="text-accent" /> Point fort : <span className={ink}>{blocks[0].title}</span> · <Pct v={blocks[0].rate} /></span>
+                <span className="flex items-center gap-1"><Trophy size={11} className="text-[#FDCA40]" /> Point fort : <span className={ink}>{blocks[0].title}</span> · <Pct v={blocks[0].rate} /></span>
                 <span className="flex items-center gap-1"><Target size={11} /> À renforcer : <span className={ink}>{blocks[blocks.length - 1].title}</span> · <Pct v={blocks[blocks.length - 1].rate} /></span>
               </div>
             )}
@@ -451,7 +451,7 @@ const Analytics: React.FC<Props> = ({ appData, accentHex, onToggleHabit, onDownl
                     <p className={`text-[10px] font-bold uppercase tracking-wider ${faint}`}>{h.block}{h.since !== undefined ? ` · ${h.since} j sans rechute` : ''}</p>
                   </div>
                   <div className="flex items-center gap-5 sm:gap-4 shrink-0 sm:text-right">
-                    <div><p className={`text-lg font-black leading-none flex items-center gap-1 sm:justify-end ${ink}`}><Flame size={14} className={h.current ? 'text-accent' : faint} />{h.current} j</p><p className={`text-[9px] font-bold uppercase ${faint}`}>en cours</p></div>
+                    <div><p className={`text-lg font-black leading-none flex items-center gap-1 sm:justify-end ${ink}`}><Flame size={14} className={h.current ? 'text-[#FDCA40]' : faint} />{h.current} j</p><p className={`text-[9px] font-bold uppercase ${faint}`}>en cours</p></div>
                     <div><p className={`text-lg font-black leading-none ${ink}`}>{h.best} j</p><p className={`text-[9px] font-bold uppercase ${faint}`}>record</p></div>
                     <div><p className={`text-lg font-black leading-none ${ink}`}><Pct v={h.rate} /></p><p className={`text-[9px] font-bold uppercase ${faint}`}>{h.done}/{h.due} {period.short}</p></div>
                   </div>
@@ -460,7 +460,7 @@ const Analytics: React.FC<Props> = ({ appData, accentHex, onToggleHabit, onDownl
                   <div className="flex flex-wrap gap-[3px]">
                     {h.perDay.map(p => {
                       const lines = [h.title, fmtDay(p.date), p.state === 'done' ? 'Fait ✓' : p.state === 'missed' ? 'Pas fait' : p.state === 'today' ? "Aujourd'hui · pas encore fait" : p.state === 'future' ? 'À venir' : 'Pas prévu ce jour-là'];
-                      const cls = p.state === 'done' ? '' : p.state === 'missed' ? 'border-[1.5px] border-[#18181B]/20 dark:border-[#E6E8E6]/20' : p.state === 'today' ? 'border-[1.5px] border-dashed border-accent' : p.state === 'future' ? 'border border-dashed border-[#18181B]/10 dark:border-[#E6E8E6]/10' : 'bg-[#18181B]/[0.06] dark:bg-[#E6E8E6]/[0.06]';
+                      const cls = p.state === 'done' ? '' : p.state === 'missed' ? 'border-[1.5px] border-[#DF2935]/50' : p.state === 'today' ? 'border-[1.5px] border-dashed border-accent' : p.state === 'future' ? 'border border-dashed border-[#18181B]/10 dark:border-[#E6E8E6]/10' : 'bg-[#18181B]/[0.06] dark:bg-[#E6E8E6]/[0.06]';
                       return <span key={p.date} onMouseEnter={(e) => showTip(e, lines)} onMouseMove={(e) => showTip(e, lines)} onMouseLeave={hideTip}
                         className={`w-3.5 h-3.5 rounded-[4px] ${cls}`} style={p.state === 'done' ? { backgroundColor: accentHex } : undefined} />;
                     })}
@@ -470,7 +470,7 @@ const Analytics: React.FC<Props> = ({ appData, accentHex, onToggleHabit, onDownl
             ))}
             <div className={`pt-3 flex flex-wrap gap-x-3 gap-y-1 text-[9px] font-bold ${muted}`}>
               <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-[3px]" style={{ backgroundColor: accentHex }} /> Fait</span>
-              <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-[3px] border-[1.5px] border-[#18181B]/20 dark:border-[#E6E8E6]/20" /> Pas fait</span>
+              <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-[3px] border-[1.5px] border-[#DF2935]/50" /> Pas fait</span>
               <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-[3px] bg-[#18181B]/[0.06] dark:bg-[#E6E8E6]/[0.06]" /> Pas prévu</span>
               <span className={faint}>Série = jours prévus consécutifs réussis ; aujourd'hui ne casse pas la série.</span>
             </div>

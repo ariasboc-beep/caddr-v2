@@ -70,7 +70,7 @@ export function demoData(): AppData {
       { id: 'g2', title: 'Parler anglais avec aisance', progress: 0, createdAt: new Date(today.getTime() - 30 * 86400000).toISOString(), targetDate: key(240), autoProgress: true, linkedTasks: ['s1'] },
     ],
     weeklyReviews: { [getWeekKey(new Date(today.getTime() - 7 * 86400000))]: { weekKey: getWeekKey(new Date(today.getTime() - 7 * 86400000)), wins: 'Sport tenu 4 jours sur 5', improve: 'Moins de mails le matin', createdAt: new Date().toISOString() } },
-    habits: [habit('h1', 'Boire 2 L d’eau', 'build', '#3772FF', .7), habit('h2', 'Pas de sucre ajouté', 'quit', '#F43F6E', .75)],
+    habits: [habit('h1', 'Boire 2 L d’eau', 'build', '', .7), habit('h2', 'Pas de sucre ajouté', 'quit', '#FDCA40', .75)],
     journal,
     assistantMemory: [{ id: 'am1', text: 'Pas de travail après 21 h', createdAt: new Date().toISOString() }, { id: 'am2', text: 'Sport le matin avant 7 h', createdAt: new Date().toISOString() }],
     lifeReviews: {},

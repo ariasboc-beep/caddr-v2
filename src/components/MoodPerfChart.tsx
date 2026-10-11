@@ -11,8 +11,8 @@ interface Props {
 const MOODS = [
   { key: 'great', label: 'Excellent', Icon: Laugh, color: 'var(--accent)' },
   { key: 'good', label: 'Bien', Icon: Smile, color: 'rgb(var(--accent-rgb) / 0.7)' },
-  { key: 'neutral', label: 'Neutre', Icon: Meh, color: 'rgb(var(--accent-rgb) / 0.42)' },
-  { key: 'bad', label: 'Difficile', Icon: Frown, color: 'rgba(128,128,136,0.6)' },
+  { key: 'neutral', label: 'Neutre', Icon: Meh, color: '#8A8A93' },
+  { key: 'bad', label: 'Difficile', Icon: Frown, color: '#DF2935' },
 ];
 
 // Croise l'humeur du bilan du soir avec la performance du jour.

@@ -14,8 +14,8 @@ interface Props {
 const ink = 'text-[#18181B] dark:text-[#E6E8E6]';
 const muted = 'text-[#18181B]/55 dark:text-[#E6E8E6]/55';
 const faint = 'text-[#18181B]/35 dark:text-[#E6E8E6]/35';
-const GOLD = '#c98500';
-const GREEN = '#199e70';
+const GOLD = '#FDCA40';
+const GREEN = 'var(--accent)';
 const fmtLong = (k: string) => new Date(k + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 const fmtShort = (k: string) => new Date(k + 'T12:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' });
 const empty = (): JournalEntry => ({ gratitude: ['', '', ''], pride: ['', '', ''], note: '', updatedAt: new Date().toISOString() });
@@ -97,7 +97,7 @@ const JournalView: React.FC<Props> = ({ journal, onSave, doneOn, accentHex }) =>
           <div className="space-y-1.5 pt-1">
             <p className={`text-[10px] font-black uppercase tracking-widest ${faint}`}>Accompli {dateKey === todayKey ? 'aujourd’hui' : 'ce jour-là'}</p>
             <div className="flex flex-wrap gap-1.5">
-              {suggestions.map(t => <button key={t} onClick={() => addSuggestion(t)} className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold border border-[#199e70]/25 bg-[#199e70]/10 hover:bg-[#199e70]/20 ${ink}`}><Plus size={11} />{t}</button>)}
+              {suggestions.map(t => <button key={t} onClick={() => addSuggestion(t)} className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold border border-accent/25 bg-accent/10 hover:bg-accent/20 ${ink}`}><Plus size={11} />{t}</button>)}
             </div>
           </div>
         )}
@@ -116,7 +116,7 @@ const JournalView: React.FC<Props> = ({ journal, onSave, doneOn, accentHex }) =>
       {/* Chiffres */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
         {[
-          { l: 'Série', v: `${stats.current} j`, s: stats.current ? 'jours d’affilée' : 'commence aujourd’hui', icon: <Flame size={12} className="text-[#d95926]" /> },
+          { l: 'Série', v: `${stats.current} j`, s: stats.current ? 'jours d’affilée' : 'commence aujourd’hui', icon: <Flame size={12} className="text-[#FDCA40]" /> },
           { l: 'Record', v: `${stats.best} j`, s: `${stats.written} jour${stats.written > 1 ? 's' : ''} écrits`, icon: <Sparkles size={12} className="text-accent" /> },
           { l: 'Gratitudes', v: String(stats.gratitude), s: 'notées au total', icon: <HandHeart size={12} style={{ color: GOLD }} /> },
           { l: 'Fiertés', v: String(stats.pride), s: 'notées au total', icon: <Trophy size={12} style={{ color: GREEN }} /> },

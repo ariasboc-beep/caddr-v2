@@ -259,7 +259,7 @@ const Assistant: React.FC<Props> = ({ open, onClose, getData, commit, undo, navi
                 {m.role === 'assistant' ? <Rich text={m.text} /> : <p className="whitespace-pre-wrap">{m.text}</p>}
                 {m.actions && (
                   <div className="pt-2 space-y-1">
-                    {m.actions.map((a, i) => <p key={i} className={`flex items-start gap-1.5 text-[11px] font-bold ${m.undone ? 'line-through opacity-50' : 'text-[#199e70]'}`}><Check size={12} className="shrink-0 mt-0.5" />{a}</p>)}
+                    {m.actions.map((a, i) => <p key={i} className={`flex items-start gap-1.5 text-[11px] font-bold ${m.undone ? 'line-through opacity-50' : 'text-accent'}`}><Check size={12} className="shrink-0 mt-0.5" />{a}</p>)}
                     {m.undoable && <button onClick={() => doUndo(m.id)} className={`mt-1 flex items-center gap-1 text-[10px] font-black uppercase tracking-wider hover:text-accent ${muted}`}><Undo2 size={12} /> Annuler ces changements</button>}
                     {m.undone && <p className={`text-[10px] font-bold ${muted}`}>Changements annulés</p>}
                   </div>

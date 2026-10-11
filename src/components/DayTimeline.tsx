@@ -124,8 +124,8 @@ const DayTimeline: React.FC<Props> = ({ blocks, currentTime, dateKey }) => {
         {/* Curseur "maintenant" */}
         {showNow && (
           <div className="absolute left-0 right-0 z-10 flex items-center" style={{ top: nowY }}>
-            <div className="w-2 h-2 rounded-full bg-[#EF4444] -ml-1" />
-            <div className="flex-1 border-t-2 border-[#EF4444]" />
+            <div className="w-2 h-2 rounded-full bg-[#DF2935] -ml-1" />
+            <div className="flex-1 border-t-2 border-[#DF2935]" />
           </div>
         )}
 
@@ -141,7 +141,7 @@ const DayTimeline: React.FC<Props> = ({ blocks, currentTime, dateKey }) => {
               key={task.id}
               className={`absolute rounded-xl px-3 py-1.5 border overflow-hidden transition-all ${
                 done
-                  ? 'bg-[#22C55E]/10 border-[#22C55E]/25'
+                  ? 'bg-accent/10 border-accent/25'
                   : 'bg-accent/10 border-accent/25'
               }`}
               style={{

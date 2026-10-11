@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { BRAND_SWATCHES, brandColor } from '../palette';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell } from 'recharts';
 import {
   Plus, ChevronLeft, ChevronRight, Check, X, Minus, Flame, Trophy, Ban, Repeat, StickyNote, EyeOff,
@@ -21,7 +22,7 @@ const ink = 'text-[#18181B] dark:text-[#E6E8E6]';
 const muted = 'text-[#18181B]/50 dark:text-[#E6E8E6]/50';
 const faint = 'text-[#18181B]/35 dark:text-[#E6E8E6]/35';
 const RED = '#DF2935';
-const COLORS = ['', '#3772FF', '#7C5CFC', '#F5900C', '#F43F6E', '#22A06B'];
+const COLORS = BRAND_SWATCHES;
 const DOW = ['L', 'M', 'M', 'J', 'V', 'S', 'D']; // affichage lundi → dimanche
 const DOW_IDX = [1, 2, 3, 4, 5, 6, 0];
 const DOW_LONG = ['dim.', 'lun.', 'mar.', 'mer.', 'jeu.', 'ven.', 'sam.'];
@@ -140,7 +141,7 @@ const HabitForm: React.FC<{ initial?: StandaloneHabit; accentHex: string; onSave
 type DetailTab = 'calendar' | 'stats' | 'notes' | 'edit';
 
 const HabitDetail: React.FC<{ habit: StandaloneHabit; accentHex: string; onUpdate: (h: StandaloneHabit) => void; onBack: () => void }> = ({ habit, accentHex, onUpdate, onBack }) => {
-  const color = habit.color || accentHex;
+  const color = brandColor(habit.color, accentHex);
   const L = labelsFor(habit);
   const tk = getKeyFromDate(new Date());
   const [tab, setTab] = useState<DetailTab>('calendar');
@@ -429,7 +430,7 @@ const HabitsView: React.FC<Props> = ({ habits, onChange, accentHex }) => {
           </div>
           <div className="divide-y divide-[#18181B]/5 dark:divide-[#E6E8E6]/5">
             {list.map(h => {
-              const color = h.color || accentHex;
+              const color = brandColor(h.color, accentHex);
               const s = habitStats(h);
               return (
                 <div key={h.id} className="py-4 first:pt-1 last:pb-1 flex flex-col lg:flex-row lg:items-center gap-3">

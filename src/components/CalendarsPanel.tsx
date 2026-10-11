@@ -4,7 +4,7 @@ import type { ExternalCalendar } from '../types';
 import { parseICS, trimEvents, dropCache } from '../icsImport';
 import { generateId } from '../utils';
 
-const COLORS = ['#9085e9', '#3987e5', '#199e70', '#c98500', '#d55181', '#e66767', '#d95926', '#008300'];
+const COLORS = ['#2FB0A6', '#FDCA40', '#8A8A93', '#1E7F78', '#C9A227', '#5E5E66', '#7FD3CC', '#B4B4BB'];
 
 interface Props {
   calendars: ExternalCalendar[];

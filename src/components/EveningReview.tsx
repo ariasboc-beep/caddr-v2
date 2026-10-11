@@ -101,7 +101,7 @@ const EveningReview: React.FC<Props> = ({ appData, onFinish, onClose, onAskClaud
                         <li key={t.id} className="rounded-2xl bg-[#18181B]/[0.03] dark:bg-[#E6E8E6]/[0.03] border border-[#18181B]/5 dark:border-[#E6E8E6]/5 p-3 space-y-2">
                           <div><p className={`text-[13px] font-bold ${ink}`}>{t.title}</p><p className={`text-[10px] font-semibold ${muted}`}>{block}{t.startTime ? ` · ${t.startTime}` : ''}</p></div>
                           <div className="flex flex-wrap gap-1.5">
-                            <button onClick={() => set('done')} className={pill(c === 'done', 'bg-[#199e70]')}><Check size={12} /> Faite</button>
+                            <button onClick={() => set('done')} className={pill(c === 'done', 'bg-accent')}><Check size={12} /> Faite</button>
                             <button onClick={() => set('later')} className={pill(c === 'later', 'bg-accent')}><ArrowRight size={12} /> {oneOff(t) ? 'Demain' : 'Sauter'}</button>
                             <button onClick={() => set('leave')} className={pill(c === 'leave', 'bg-[#18181B]/60')}><Minus size={12} /> Laisser</button>
                           </div>
@@ -129,9 +129,9 @@ const EveningReview: React.FC<Props> = ({ appData, onFinish, onClose, onAskClaud
           )}
           {step === 2 && (
             <>
-              <p className={`text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 text-[#c98500]`}><HandHeart size={13} /> 3 gratitudes</p>
+              <p className={`text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 text-[#B8900A] dark:text-[#FDCA40]`}><HandHeart size={13} /> 3 gratitudes</p>
               {grat.map((v, i) => <input key={'g' + i} value={v} onChange={e => setGrat(g => g.map((x, j) => j === i ? e.target.value : x))} placeholder={i === 0 ? 'Merci pour…' : ''} aria-label={`Gratitude ${i + 1}`} className={field} />)}
-              <p className={`text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 pt-2 text-[#199e70]`}><Trophy size={13} /> 3 fiertés</p>
+              <p className={`text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 pt-2 text-accent`}><Trophy size={13} /> 3 fiertés</p>
               {pride.map((v, i) => <input key={'p' + i} value={v} onChange={e => setPride(g => g.map((x, j) => j === i ? e.target.value : x))} placeholder={i === 0 ? 'J’ai réussi à…' : ''} aria-label={`Fierté ${i + 1}`} className={field} />)}
             </>
           )}

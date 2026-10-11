@@ -2539,10 +2539,10 @@ const App: React.FC = () => {
                   const Icon = st === 'offline' ? CloudOff : st === 'saving' ? Loader2 : Cloud;
                   return (
                     <>
-                      <Icon className={`w-3.5 h-3.5 shrink-0 ${st === 'saving' ? 'animate-spin text-accent' : st === 'saved' ? 'text-green-500' : st === 'offline' ? 'text-[#c98500]' : 'text-red-500'}`} />
+                      <Icon className={`w-3.5 h-3.5 shrink-0 ${st === 'saving' ? 'animate-spin text-accent' : st === 'saved' ? 'text-accent' : st === 'offline' ? 'text-[#B8900A] dark:text-[#FDCA40]' : 'text-[#DF2935]'}`} />
                       <div className="flex flex-col min-w-0" title={lastSyncTime ? `Dernière synchronisation : ${lastSyncTime.toLocaleString('fr-FR')}` : undefined}>
                         <span className="text-[9px] font-bold truncate max-w-[110px]">{user.displayName?.split(' ')[0] || user.email?.split('@')[0]}</span>
-                        <span className={`text-[8px] truncate max-w-[130px] ${st === 'error' ? 'text-red-500' : st === 'offline' ? 'text-[#c98500]' : 'opacity-60'}`} aria-live="polite">{label}</span>
+                        <span className={`text-[8px] truncate max-w-[130px] ${st === 'error' ? 'text-[#DF2935]' : st === 'offline' ? 'text-[#B8900A] dark:text-[#FDCA40]' : 'opacity-60'}`} aria-live="polite">{label}</span>
                       </div>
                     </>
                   );
@@ -2591,7 +2591,7 @@ const App: React.FC = () => {
             <div className="flex items-center justify-between mb-1 gap-2">
                 <div className="flex items-center gap-1.5 min-w-0">
                     <span className="text-[10px] font-black text-accent uppercase tracking-wider flex items-center gap-1"><Target size={12} /> Discipline · {monthDiscipline.label}</span>
-                    {monthDiscipline.delta !== null && <span className={`text-[8px] font-black uppercase tracking-widest ${monthDiscipline.delta >= 0 ? 'text-accent' : 'text-[#18181B]/45 dark:text-[#E6E8E6]/45'}`}>{monthDiscipline.delta >= 0 ? '▲' : '▼'} {Math.abs(monthDiscipline.delta)} pt{Math.abs(monthDiscipline.delta) > 1 ? 's' : ''} vs {monthDiscipline.prevLabel}</span>}
+                    {monthDiscipline.delta !== null && <span className={`text-[8px] font-black uppercase tracking-widest ${monthDiscipline.delta >= 0 ? 'text-accent' : 'text-[#DF2935]'}`}>{monthDiscipline.delta >= 0 ? '▲' : '▼'} {Math.abs(monthDiscipline.delta)} pt{Math.abs(monthDiscipline.delta) > 1 ? 's' : ''} vs {monthDiscipline.prevLabel}</span>}
                 </div>
                 <span className="text-[8px] font-black text-[#18181B]/40 dark:text-[#E6E8E6]/40 uppercase tracking-widest whitespace-nowrap"><span className="text-[11px] text-[#18181B] dark:text-[#E6E8E6]" style={monthDiscipline.total ? perfStyle(monthDiscipline.rate) : undefined}>{monthDiscipline.total ? `${monthDiscipline.rate} %` : '—'}</span> · {monthDiscipline.done}/{monthDiscipline.total}</span>
             </div>
@@ -2610,14 +2610,14 @@ const App: React.FC = () => {
             </div>
             <div className="h-1.5 w-full bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 rounded-full overflow-hidden">
                 <div 
-                    className="h-full bg-gradient-to-r from-[#FDCA40] to-[#FF9F1C] transition-all duration-700 ease-out shadow-[0_0_10px_rgba(253,202,64,0.3)]" 
+                    className="h-full bg-[#FDCA40] transition-all duration-700 ease-out shadow-[0_0_10px_rgba(253,202,64,0.3)]" 
                     style={{ width: `${xpProgress}%` }} 
                 />
             </div>
           </button>
         )}
         {import.meta.env.VITE_DEMO === '1' && (
-          <p className="text-[10px] font-bold text-center rounded-xl px-3 py-2 bg-[#FDCA40]/15 text-[#c98500]">Version de démonstration · données d'exemple, gardées seulement dans ce navigateur · connexion, synchronisation et assistante Cady désactivées ici</p>
+          <p className="text-[10px] font-bold text-center rounded-xl px-3 py-2 bg-[#FDCA40]/15 text-[#B8900A] dark:text-[#FDCA40]">Version de démonstration · données d'exemple, gardées seulement dans ce navigateur · connexion, synchronisation et assistante Cady désactivées ici</p>
         )}
       </header>
 
@@ -2640,15 +2640,15 @@ const App: React.FC = () => {
               </div>
             )}
             {!isReorderMode && dateKey === todayKeyNow && late.length > 0 && (
-              <div className="glass rounded-[2rem] p-4 sm:p-5 border border-[#e66767]/30 space-y-2.5 animate-in slide-in-from-top-2" role="alert" aria-label="Tâches en retard">
-                <p className="text-[10px] font-black uppercase tracking-widest text-[#e66767] flex items-center gap-1.5"><AlarmClock size={13} /> Pas encore fait{late.length > 1 ? ` (${late.length})` : ''}</p>
+              <div className="glass rounded-[2rem] p-4 sm:p-5 border border-[#DF2935]/30 space-y-2.5 animate-in slide-in-from-top-2" role="alert" aria-label="Tâches en retard">
+                <p className="text-[10px] font-black uppercase tracking-widest text-[#DF2935] flex items-center gap-1.5"><AlarmClock size={13} /> Pas encore fait{late.length > 1 ? ` (${late.length})` : ''}</p>
                 {late.slice(0, 3).map(t => (
                   <div key={t.id} className="flex flex-wrap items-center gap-2">
                     <div className="flex-1 min-w-[150px]">
                       <p className="text-[13px] font-bold text-[#18181B] dark:text-[#E6E8E6]">{t.title}</p>
                       <p className="text-[10px] font-semibold text-[#18181B]/55 dark:text-[#E6E8E6]/55">Prévue à {t.start.replace(':', 'h')} · {t.block}</p>
                     </div>
-                    <button onClick={() => handleReminderAction('done', t.id, todayKeyNow)} className="px-3 py-2 rounded-xl bg-[#199e70] text-white text-[10px] font-black uppercase tracking-wider">Fait</button>
+                    <button onClick={() => handleReminderAction('done', t.id, todayKeyNow)} className="px-3 py-2 rounded-xl bg-accent text-white text-[10px] font-black uppercase tracking-wider">Fait</button>
                     <button onClick={() => handleReminderAction('later', t.id, todayKeyNow)} className="px-3 py-2 rounded-xl bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 text-[10px] font-black uppercase tracking-wider text-[#18181B] dark:text-[#E6E8E6] hover:text-accent">{t.oneOff ? 'Demain' : 'Sauter'}</button>
                     <button onClick={() => setLateDismissed(d => [...d, t.id])} aria-label="Ignorer" className="p-2 rounded-xl text-[#18181B]/40 dark:text-[#E6E8E6]/40 hover:text-accent"><X size={14} /></button>
                   </div>
@@ -2672,8 +2672,8 @@ const App: React.FC = () => {
               </div>
             )}
             {!isReorderMode && dateKey === todayKeyNow && showJournalPrompt && (
-              <button onClick={() => setActiveTab('journal')} className="w-full glass p-4 sm:p-5 rounded-[2rem] border border-[#c98500]/25 flex items-center gap-3 text-left animate-in slide-in-from-top-2 hover:border-[#c98500]/50 transition-all">
-                <div className="w-10 h-10 rounded-xl bg-[#c98500]/15 flex items-center justify-center shrink-0"><BookHeart size={18} className="text-[#c98500]" /></div>
+              <button onClick={() => setActiveTab('journal')} className="w-full glass p-4 sm:p-5 rounded-[2rem] border border-[#FDCA40]/25 flex items-center gap-3 text-left animate-in slide-in-from-top-2 hover:border-[#FDCA40]/50 transition-all">
+                <div className="w-10 h-10 rounded-xl bg-[#FDCA40]/15 flex items-center justify-center shrink-0"><BookHeart size={18} className="text-[#B8900A] dark:text-[#FDCA40]" /></div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-black text-[#18181B] dark:text-[#E6E8E6]">Mon journal du soir</p>
                   <p className="text-[11px] font-semibold text-[#18181B]/55 dark:text-[#E6E8E6]/55">3 gratitudes et 3 fiertés avant de clore la journée.</p>
@@ -3493,13 +3493,13 @@ const App: React.FC = () => {
                   ))}
                 </div>
                 <ul className="rounded-2xl bg-[#18181B]/[0.03] dark:bg-[#E6E8E6]/[0.03] p-3 space-y-1.5">
-                  {XP_RULES.map(r => <li key={r.label} className="flex items-center justify-between gap-3 text-[11px] font-semibold text-[#18181B] dark:text-[#E6E8E6]"><span>{r.label}</span><span className="shrink-0 font-black text-[#c98500]">{r.xp}</span></li>)}
+                  {XP_RULES.map(r => <li key={r.label} className="flex items-center justify-between gap-3 text-[11px] font-semibold text-[#18181B] dark:text-[#E6E8E6]"><span>{r.label}</span><span className="shrink-0 font-black text-[#B8900A] dark:text-[#FDCA40]">{r.xp}</span></li>)}
                 </ul>
                 {Object.keys(appData.userProfile?.bonuses || {}).length > 0 && (
                   <div className="space-y-1">
                     <p className="text-[10px] font-black uppercase tracking-widest text-[#18181B]/40 dark:text-[#E6E8E6]/40">Derniers bonus</p>
                     {Object.values(appData.userProfile?.bonuses || {}).sort((a, b) => b.at.localeCompare(a.at)).slice(0, 5).map((b, i) => (
-                      <p key={i} className="flex justify-between gap-3 text-[11px] font-semibold text-[#18181B]/70 dark:text-[#E6E8E6]/70"><span className="truncate">{b.label}</span><span className="font-black text-[#c98500] shrink-0">+{b.xp}</span></p>
+                      <p key={i} className="flex justify-between gap-3 text-[11px] font-semibold text-[#18181B]/70 dark:text-[#E6E8E6]/70"><span className="truncate">{b.label}</span><span className="font-black text-[#B8900A] dark:text-[#FDCA40] shrink-0">+{b.xp}</span></p>
                     ))}
                   </div>
                 )}

@@ -8,7 +8,7 @@ import { loadOf, localProposal, liteFromTask, LightenProposal, DayTaskLite, Meet
 import { Feather, Loader2, Wand2 } from 'lucide-react';
 
 // Palette catégorielle validée (ordre fixe, couleur = bloc, jamais le rang)
-const BLOCK_COLORS = ['#3987e5', '#d95926', '#199e70', '#c98500', '#d55181', '#008300', '#9085e9', '#e66767'];
+const BLOCK_COLORS = ['#2FB0A6', '#FDCA40', '#8A8A93', '#1E7F78', '#C9A227', '#5E5E66', '#7FD3CC', '#B4B4BB']; // charte : teal, or, gris et leurs nuances
 
 interface Props {
   appData: AppData;
@@ -285,7 +285,7 @@ const Agenda: React.FC<Props> = (props) => {
         onPointerDown={(e) => startDrag(e, it, 'move', k, col)}
         onContextMenu={e => e.preventDefault()}
         className={`group absolute rounded-lg overflow-hidden select-none touch-manipulation [-webkit-touch-callout:none] cursor-grab active:cursor-grabbing transition-shadow ${dragging ? 'z-30 shadow-2xl ring-2 ring-white/40' : 'z-10 hover:z-20 hover:shadow-lg'}`}
-        style={{ ...style, backgroundColor: `${it.color}${it.done ? '22' : '33'}`, boxShadow: `inset 3px 0 0 ${it.conflict && !it.done ? '#e66767' : it.color}` }}
+        style={{ ...style, backgroundColor: `${it.color}${it.done ? '22' : '33'}`, boxShadow: `inset 3px 0 0 ${it.conflict && !it.done ? '#DF2935' : it.color}` }}
         title={`${it.task!.title} · ${timeTxt} · ${it.blockTitle}${it.conflict ? ' · chevauchement' : ''}`}>
         <div className={`h-full flex ${compact ? 'px-1 py-0.5' : 'pl-2.5 pr-1.5 py-1'} gap-1.5`}>
           {!compact && k === dateKey && (
@@ -301,7 +301,7 @@ const Agenda: React.FC<Props> = (props) => {
             {!compact && h >= 38 && <p className={`text-[10px] font-semibold truncate ${muted}`}>{timeTxt} · {it.blockTitle}</p>}
             {compact && h >= 34 && <p className={`text-[8px] font-semibold truncate ${muted}`}>{label(previewStart)}</p>}
           </div>
-          {it.conflict && !it.done && !compact && <AlertTriangle size={12} className="text-[#e66767] shrink-0 mt-0.5" aria-label="Chevauchement" />}
+          {it.conflict && !it.done && !compact && <AlertTriangle size={12} className="text-[#DF2935] shrink-0 mt-0.5" aria-label="Chevauchement" />}
         </div>
         {/* Poignée de durée */}
         <div onPointerDown={(e) => startDrag(e, it, 'resize', k, col)} title="Glisser pour changer la durée"
@@ -330,8 +330,8 @@ const Agenda: React.FC<Props> = (props) => {
   );
   const nowLine = (
     <div className="absolute left-0 right-0 z-20 pointer-events-none flex items-center" style={{ top: nowY }}>
-      <span className="absolute -left-[46px] px-1 rounded bg-[#e66767] text-white text-[9px] font-black tabular-nums">{toHHMM(nowMin)}</span>
-      <span className="w-2 h-2 rounded-full bg-[#e66767] -ml-1" /><span className="flex-1 border-t-2 border-[#e66767]" />
+      <span className="absolute -left-[46px] px-1 rounded bg-[#DF2935] text-white text-[9px] font-black tabular-nums">{toHHMM(nowMin)}</span>
+      <span className="w-2 h-2 rounded-full bg-[#DF2935] -ml-1" /><span className="flex-1 border-t-2 border-[#DF2935]" />
     </div>
   );
 
@@ -426,7 +426,7 @@ const Agenda: React.FC<Props> = (props) => {
             ].map(c => (
               <div key={c.l} className="rounded-2xl bg-[#18181B]/[0.03] dark:bg-[#E6E8E6]/[0.03] border border-[#18181B]/5 dark:border-[#E6E8E6]/5 px-3 py-2.5 min-w-0">
                 <p className={`text-[9px] font-black uppercase tracking-widest ${muted}`}>{c.l}</p>
-                <p className={`text-lg font-black leading-tight ${c.l === 'Chevauchements' && conflicts ? 'text-[#e66767]' : ink}`}>{c.v}</p>
+                <p className={`text-lg font-black leading-tight ${c.l === 'Chevauchements' && conflicts ? 'text-[#DF2935]' : ink}`}>{c.v}</p>
                 <p className={`text-[10px] font-semibold truncate ${muted}`}>{c.s}</p>
               </div>
             ))}
@@ -434,12 +434,12 @@ const Agenda: React.FC<Props> = (props) => {
 
           {/* Journée surchargée */}
           {!isPast && onApplyLighten && load.overloaded && load.remaining.length > 1 && (
-            <div className="flex flex-wrap items-center gap-3 rounded-2xl px-4 py-3 border border-[#e66767]/25 bg-[#e66767]/[0.07]" role="status">
-              <Feather size={16} className="text-[#e66767] shrink-0" />
+            <div className="flex flex-wrap items-center gap-3 rounded-2xl px-4 py-3 border border-[#DF2935]/25 bg-[#DF2935]/[0.07]" role="status">
+              <Feather size={16} className="text-[#DF2935] shrink-0" />
               <p className={`flex-1 min-w-[180px] text-[12px] font-bold ${ink}`}>
                 Journée chargée : {fmtDur(load.planned)} de tâches pour {fmtDur(load.free)} disponibles{load.overlaps ? ` · ${load.overlaps} chevauchement${load.overlaps > 1 ? 's' : ''}` : ''}.
               </p>
-              <button onClick={openLighten} className="px-3.5 py-2 rounded-xl bg-[#e66767] text-white text-[10px] font-black uppercase tracking-wider">Proposer une version allégée</button>
+              <button onClick={openLighten} className="px-3.5 py-2 rounded-xl bg-[#DF2935] text-white text-[10px] font-black uppercase tracking-wider">Proposer une version allégée</button>
             </div>
           )}
 
@@ -534,7 +534,7 @@ const Agenda: React.FC<Props> = (props) => {
           <div className={`flex flex-wrap gap-x-4 gap-y-1 text-[10px] font-bold ${muted}`}>
             {titles.map(t => <span key={t} className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-[3px]" style={{ backgroundColor: colorOf(t) }} />{t}</span>)}
             {cals.map(c => <span key={c.id} className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-[3px]" style={{ backgroundImage: `repeating-linear-gradient(135deg, ${c.color} 0 2px, transparent 2px 4px)`, boxShadow: `inset 0 0 0 1px ${c.color}` }} />{c.name}</span>)}
-            {day.timed.some(i => i.conflict) && view === 'day' && <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-[3px] bg-[#e66767]" />Chevauchement</span>}
+            {day.timed.some(i => i.conflict) && view === 'day' && <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-[3px] bg-[#DF2935]" />Chevauchement</span>}
           </div>
         );
       })()}

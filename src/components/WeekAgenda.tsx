@@ -35,7 +35,7 @@ const Chip: React.FC<{ item: Item; top: number; height: number }> = ({ item, top
       {...listeners}
       {...attributes}
       title={`${item.title} — ${Math.floor(item.startMin / 60)}h${String(item.startMin % 60).padStart(2, '0')}`}
-      className={`absolute left-0.5 right-0.5 rounded-md px-1 py-0.5 overflow-hidden border cursor-grab active:cursor-grabbing touch-none ${item.done ? 'bg-[#22C55E]/10 border-[#22C55E]/25' : 'bg-accent/10 border-accent/25'} ${isDragging ? 'opacity-30' : ''}`}
+      className={`absolute left-0.5 right-0.5 rounded-md px-1 py-0.5 overflow-hidden border cursor-grab active:cursor-grabbing touch-none ${item.done ? 'bg-accent/10 border-accent/25' : 'bg-accent/10 border-accent/25'} ${isDragging ? 'opacity-30' : ''}`}
       style={{ top: Math.max(top, 0), height }}
     >
       <p className={`text-[8px] font-black leading-none truncate ${item.done ? 'line-through opacity-60' : ''}`}>{item.title}</p>

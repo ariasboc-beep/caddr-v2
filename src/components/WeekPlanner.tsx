@@ -118,7 +118,7 @@ const WeekPlanner: React.FC<Props> = ({ appData, update, onClose, notify, saveTo
   };
 
   const steps = ['Bilan', 'Pas terminé', 'Semaine prochaine'];
-  const bar = (rate: number | null) => rate === null ? 'bg-[#18181B]/10 dark:bg-[#E6E8E6]/10' : rate >= 80 ? 'bg-[#199e70]' : rate >= 50 ? 'bg-[#c98500]' : 'bg-[#e66767]';
+  const bar = (rate: number | null) => rate === null ? 'bg-[#18181B]/10 dark:bg-[#E6E8E6]/10' : rate >= 80 ? 'bg-accent' : rate >= 50 ? 'bg-accent/45' : 'bg-[#DF2935]';
 
   return (
     <div className="fixed inset-0 z-[125] bg-black/50 flex items-end sm:items-center justify-center p-0 sm:p-4" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
@@ -165,8 +165,8 @@ const WeekPlanner: React.FC<Props> = ({ appData, update, onClose, notify, saveTo
               </div>
               {(blocksAgg.best || blocksAgg.worst) && (
                 <div className="grid grid-cols-2 gap-2">
-                  {blocksAgg.best && <div className="rounded-2xl p-3 bg-[#199e70]/10 border border-[#199e70]/20"><p className="text-[9px] font-black uppercase tracking-widest text-[#199e70] flex items-center gap-1"><TrendingUp size={11} /> Point fort</p><p className={`text-[13px] font-bold truncate ${ink}`}>{blocksAgg.best.title}</p><p className={`text-[10px] font-semibold ${muted}`}>{blocksAgg.best.rate} % accompli</p></div>}
-                  {blocksAgg.worst && <div className="rounded-2xl p-3 bg-[#e66767]/10 border border-[#e66767]/20"><p className="text-[9px] font-black uppercase tracking-widest text-[#e66767] flex items-center gap-1"><TrendingDown size={11} /> À renforcer</p><p className={`text-[13px] font-bold truncate ${ink}`}>{blocksAgg.worst.title}</p><p className={`text-[10px] font-semibold ${muted}`}>{blocksAgg.worst.rate} % accompli</p></div>}
+                  {blocksAgg.best && <div className="rounded-2xl p-3 bg-accent/10 border border-accent/20"><p className="text-[9px] font-black uppercase tracking-widest text-accent flex items-center gap-1"><TrendingUp size={11} /> Point fort</p><p className={`text-[13px] font-bold truncate ${ink}`}>{blocksAgg.best.title}</p><p className={`text-[10px] font-semibold ${muted}`}>{blocksAgg.best.rate} % accompli</p></div>}
+                  {blocksAgg.worst && <div className="rounded-2xl p-3 bg-[#DF2935]/10 border border-[#DF2935]/20"><p className="text-[9px] font-black uppercase tracking-widest text-[#DF2935] flex items-center gap-1"><TrendingDown size={11} /> À renforcer</p><p className={`text-[13px] font-bold truncate ${ink}`}>{blocksAgg.worst.title}</p><p className={`text-[10px] font-semibold ${muted}`}>{blocksAgg.worst.rate} % accompli</p></div>}
                 </div>
               )}
               <label className="block space-y-1.5"><span className={`text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 ${muted}`}><Trophy size={12} className="text-[#FDCA40]" /> Ce qui a marché</span>
@@ -181,7 +181,7 @@ const WeekPlanner: React.FC<Props> = ({ appData, update, onClose, notify, saveTo
           {step === 1 && (
             pending.length === 0 ? (
               <div className="text-center py-10 space-y-2">
-                <div className="w-12 h-12 mx-auto rounded-2xl bg-[#199e70]/15 flex items-center justify-center"><Check size={22} className="text-[#199e70]" /></div>
+                <div className="w-12 h-12 mx-auto rounded-2xl bg-accent/15 flex items-center justify-center"><Check size={22} className="text-accent" /></div>
                 <p className={`text-sm font-black ${ink}`}>Rien en attente</p>
                 <p className={`text-xs font-semibold ${muted}`}>Toutes tes tâches ponctuelles de la semaine sont faites, reportées ou abandonnées.</p>
               </div>
@@ -222,16 +222,16 @@ const WeekPlanner: React.FC<Props> = ({ appData, update, onClose, notify, saveTo
                     const heavy = l.tasks > avg * 1.3 && l.tasks >= 4;
                     return (
                       <div key={l.k} className="flex-1 flex flex-col items-center gap-1 min-w-0" title={`${l.tasks} tâche(s)${l.minutes ? ` · ${fmtDur(l.minutes)} à heure fixe` : ''}`}>
-                        <span className={`text-[10px] font-black ${heavy ? 'text-[#e66767]' : ink}`}>{l.tasks}</span>
+                        <span className={`text-[10px] font-black ${heavy ? 'text-[#DF2935]' : ink}`}>{l.tasks}</span>
                         <div className="w-full flex-1 flex items-end rounded-md bg-[#18181B]/[0.04] dark:bg-[#E6E8E6]/[0.04] overflow-hidden">
-                          <div className={`w-full rounded-md ${heavy ? 'bg-[#e66767]' : 'bg-accent'}`} style={{ height: `${Math.max(4, (l.tasks / maxTasks) * 100)}%` }} />
+                          <div className={`w-full rounded-md ${heavy ? 'bg-[#DF2935]' : 'bg-accent'}`} style={{ height: `${Math.max(4, (l.tasks / maxTasks) * 100)}%` }} />
                         </div>
                         <span className={`text-[9px] font-black ${faint}`}>{DAYS[i]} {l.d.getDate()}</span>
                       </div>
                     );
                   })}
                 </div>
-                {load.some(l => l.tasks > avg * 1.3 && l.tasks >= 4) && <p className="text-[10px] font-bold text-[#e66767]">Un ou plusieurs jours sont nettement plus chargés que les autres : pense à répartir.</p>}
+                {load.some(l => l.tasks > avg * 1.3 && l.tasks >= 4) && <p className="text-[10px] font-bold text-[#DF2935]">Un ou plusieurs jours sont nettement plus chargés que les autres : pense à répartir.</p>}
               </div>
 
               {inbox.length > 0 && (

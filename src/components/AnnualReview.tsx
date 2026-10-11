@@ -35,8 +35,8 @@ const AnnualReview: React.FC<Props> = ({ appData, history }) => {
   if (data.activeDays < 3) return null; // Pas assez de données pour un bilan
 
   const cards = [
-    { Icon: CheckCircle2, val: data.perfectDays, label: 'Journées parfaites', color: 'text-accent', bg: 'bg-accent/10' },
-    { Icon: Flame, val: `${data.bestHabit.best}j`, label: `Record : ${data.bestHabit.title}`, color: 'text-accent', bg: 'bg-accent/10' },
+    { Icon: CheckCircle2, val: data.perfectDays, label: 'Journées parfaites', color: 'text-[#FDCA40]', bg: 'bg-[#FDCA40]/10' },
+    { Icon: Flame, val: `${data.bestHabit.best}j`, label: `Record : ${data.bestHabit.title}`, color: 'text-[#FDCA40]', bg: 'bg-[#FDCA40]/10' },
     { Icon: Award, val: `${data.avg}%`, label: 'Constance moyenne', color: 'text-accent', bg: 'bg-accent/10', style: perfStyle(data.avg) },
     { Icon: Timer, val: `${data.focusHours}h`, label: 'Concentration', color: 'text-accent', bg: 'bg-accent/10' },
   ];
