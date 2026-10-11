@@ -74,3 +74,14 @@ Console Firebase → Authentication → Settings → Authorized domains : ne gar
   contrôle d'origine.
 - Vérification du jeton Firebase (ID token) côté fonction pour réserver l'IA aux
   utilisateurs connectés (attention : bloquerait le mode invité).
+
+## IA (Gemini) : accès réservé aux comptes connectés
+
+- La clé `GEMINI_API_KEY` reste côté serveur (fonction `netlify/functions/gemini.mts`), elle n'est jamais envoyée au navigateur.
+- La fonction exige un jeton de connexion Firebase valide (`Authorization: Bearer …`), vérifié avec les clés publiques de Google (`netlify/lib/auth.mts`). Sans compte connecté, l'IA répond « Connecte-toi à ton compte pour utiliser l'IA ».
+- Quota quotidien par utilisateur stocké dans Netlify Blobs : 40 demandes par jour par défaut, modifiable avec la variable d'environnement `AI_DAILY_LIMIT`.
+- Restent actifs : contrôle d'origine, limite par adresse IP, taille maximale de requête.
+
+## Agendas externes (fonction `calendar`)
+
+- Relais en lecture seule pour les adresses iCal (Google, Outlook, iCloud) : https uniquement, adresses internes refusées (y compris après résolution DNS et redirections), réponse obligatoirement au format iCalendar, 5 Mo et 10 s maximum, limite par adresse IP.

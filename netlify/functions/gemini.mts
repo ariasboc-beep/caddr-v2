@@ -1,4 +1,8 @@
 import { GoogleGenAI, Type } from "@google/genai";
+import { verifyFirebaseToken, consumeDailyQuota } from "../lib/auth.mts";
+
+// Nombre maximal d'appels IA par utilisateur et par jour (modifiable sur Netlify).
+const DAILY_MAX = Number(process.env.AI_DAILY_LIMIT || 40);
 
 // La clé reste côté serveur : jamais préfixée VITE_, donc jamais envoyée au navigateur.
 const API_KEY = process.env.GEMINI_API_KEY || "";
@@ -159,12 +163,19 @@ export default async (req: Request) => {
     || (req.headers.get("x-forwarded-for") || "").split(",")[0].trim()
     || "unknown";
   if (isRateLimited(ip)) {
-    return json({ error: "Trop de requêtes, réessayez dans un instant." }, 429);
+    return json({ error: "rate", message: "Trop de requêtes, réessaie dans un instant." }, 429);
+  }
+
+  // Réservé aux utilisateurs connectés : sans jeton Firebase valide, personne ne
+  // peut consommer le quota Gemini (même en appelant la fonction hors du navigateur).
+  const user = await verifyFirebaseToken(req);
+  if (!user) {
+    return json({ error: "auth", message: "Connecte-toi à ton compte pour utiliser l'IA." }, 401);
   }
 
   if (!API_KEY) {
     // Erreur de config serveur : la variable GEMINI_API_KEY n'est pas définie sur Netlify.
-    return json({ error: "Server misconfiguration: missing GEMINI_API_KEY" }, 500);
+    return json({ error: "config", message: "IA non configurée : la variable GEMINI_API_KEY manque sur Netlify." }, 500);
   }
 
   // Plafond de taille de requête (~1,5 Mo) pour limiter l'abus / le coût.
@@ -186,6 +197,11 @@ export default async (req: Request) => {
     return json({ error: `Unknown action: ${action}` }, 400);
   }
 
+  const quota = await consumeDailyQuota("gemini", user.uid, DAILY_MAX);
+  if (!quota.ok) {
+    return json({ error: "quota", message: `Limite quotidienne atteinte (${DAILY_MAX} demandes à l'IA). Réessaie demain.` }, 429);
+  }
+
   try {
     const ai = new GoogleGenAI({ apiKey: API_KEY });
     const data = await handler(ai, payload);
@@ -193,7 +209,7 @@ export default async (req: Request) => {
   } catch (error) {
     console.error(`Gemini action "${action}" failed:`, error);
     // On renvoie null comme donnée pour que le client conserve son comportement de repli.
-    return json({ data: null, error: "Gemini request failed" }, 502);
+    return json({ data: null, error: "upstream", message: "L'IA n'a pas répondu. Réessaie dans un instant." }, 502);
   }
 };
 

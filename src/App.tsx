@@ -47,7 +47,12 @@ import WeeklyReview from './components/WeeklyReview';
 import FocusStats from './components/FocusStats';
 import Insights from './components/Insights';
 import Agenda from './components/Agenda';
-import { computePeriod, getPeriod } from './analytics';
+import { computePeriod, getPeriod, trackingStart } from './analytics';
+import CarryOver from './components/CarryOver';
+import WeekPlanner, { plannerWeeks } from './components/WeekPlanner';
+import CalendarsPanel from './components/CalendarsPanel';
+import { useCalendars } from './useCalendars';
+import { relocateTask, addOneOff, sendToInbox, pendingOneOffs } from './reschedule';
 import AnnualReview from './components/AnnualReview';
 import LandingPage from './components/LandingPage';
 import RichText, { RichTextView, sanitizeHtml, stripHtml } from './components/RichText';
@@ -141,6 +146,8 @@ const App: React.FC = () => {
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [pushStatus, setPushStatus] = useState<string>('');
   const [planningView, setPlanningView] = useState<'day' | 'week'>('day');
+  const [showWeekPlanner, setShowWeekPlanner] = useState(false);
+  const [showCalendars, setShowCalendars] = useState(false);
   const [daysAway, setDaysAway] = useState<number | null>(null);
   const [showFullResetModal, setShowFullResetModal] = useState(false);
   const [resetInput, setResetInput] = useState('');
@@ -202,6 +209,13 @@ const App: React.FC = () => {
   const backupInputRef = useRef<HTMLInputElement>(null);
   const templateInputRef = useRef<HTMLInputElement>(null);
   const dateKey = getKeyFromDate(currentDate);
+
+  // Erreurs de l'IA (non connecté, quota atteint, réseau…) → notification lisible
+  useEffect(() => {
+    const onAiError = (e: Event) => { setActiveNotification((e as CustomEvent).detail || "L'IA est indisponible."); setTimeout(() => setActiveNotification(null), 5000); };
+    window.addEventListener('caddr-ai-error', onAiError);
+    return () => window.removeEventListener('caddr-ai-error', onAiError);
+  }, []);
 
   // Initialize Firebase Auth & Load Data
   useEffect(() => {
@@ -721,6 +735,27 @@ const App: React.FC = () => {
   const getVisibleTasks = useCallback((tasks: Task[]) => {
     return (tasks || []).filter(t => isDateInRange(currentDate, t.recurrence, t.specificDate, t.startDate, t.endDate, t.stopDate));
   }, [currentDate]);
+
+  // Tâches ponctuelles des 7 derniers jours restées non faites (carte « Pas terminé »)
+  const todayKeyNow = getKeyFromDate(currentTime);
+  const pendingItems = useMemo(() => {
+    if (appData.settings?.carryHiddenOn === todayKeyNow) return [];
+    const from = new Date(todayKeyNow + 'T12:00:00'); from.setDate(from.getDate() - 7);
+    const y = new Date(todayKeyNow + 'T12:00:00'); y.setDate(y.getDate() - 1);
+    const start = getKeyFromDate(from) > trackingStart(appData) ? getKeyFromDate(from) : trackingStart(appData);
+    if (start > getKeyFromDate(y)) return [];
+    return pendingOneOffs(appData, start, getKeyFromDate(y));
+  }, [appData, todayKeyNow]);
+
+  // Agendas externes (Google, Outlook, iCloud) affichés dans le Planning
+  const externalCalendars = useMemo(() => appData.settings?.calendars || [], [appData.settings?.calendars]);
+  const cal = useCalendars(externalCalendars);
+  const setCalendars = (cals: typeof externalCalendars) => updateAppData(prev => ({ ...prev, settings: { ...(prev.settings || {}), calendars: cals } }));
+
+  // Rituel du dimanche / lundi : « Planifier ma semaine »
+  const weekPlan = useMemo(() => plannerWeeks(currentTime), [todayKeyNow]); // eslint-disable-line react-hooks/exhaustive-deps
+  const showWeekPlanPrompt = (currentTime.getDay() === 0 || currentTime.getDay() === 1)
+    && appData.settings?.weekPlanDone !== weekPlan.planKey && appData.settings?.weekPlanDismissed !== weekPlan.planKey;
 
   // Discipline du mois en cours (jours écoulés) + écart avec le mois précédent
   const headerBar = appData.settings?.headerBar || 'discipline';
@@ -1948,51 +1983,16 @@ const App: React.FC = () => {
 
   // Agenda : ajout rapide d'une tâche ponctuelle sur un créneau
   const quickAddTask = (blockId: string, title: string, startTime: string, duration: number, k: string) => {
-    const task: Task = { id: generateId(), title, completedDates: [], recurrence: 'specific' as RecurrenceType, specificDate: k, startTime, duration, subTasks: [] } as Task;
-    updateAppData(prev => {
-      const inPlan = prev.blocks.some(b => b.id === blockId);
-      const blocks = inPlan ? prev.blocks.map(b => b.id === blockId ? { ...b, tasks: [...b.tasks, task] } : b) : prev.blocks;
-      const days = { ...prev.days };
-      const d = days[k];
-      if (d?.blocks?.some(b => b.id === blockId)) days[k] = { ...d, blocks: d.blocks.map(b => b.id === blockId ? { ...b, tasks: [...b.tasks, task] } : b) };
-      return { ...prev, blocks, days };
-    });
+    updateAppData(prev => addOneOff(prev, { id: generateId(), title, completedDates: [], startTime, duration, subTasks: [] }, k, blockId));
     setActiveNotification(`« ${title} » ajoutée à ${startTime} ✓`);
     setTimeout(() => setActiveNotification(null), 2500);
   };
 
-  // Agenda semaine : déplacer une tâche vers un autre jour / une autre heure
-  const handleRescheduleTask = (taskId: string, targetDateKey: string, startTime: string) => {
-    const todayKey = getKeyFromDate(new Date());
-    updateAppData(prev => {
-      // Retrouver la tâche et son bloc (plan d'abord, sinon un jour figé)
-      let found: { task: Task; blockId: string; blockTitle: string } | null = null;
-      prev.blocks.forEach(b => b.tasks.forEach(t => { if (!found && t.id === taskId) found = { task: t, blockId: b.id, blockTitle: b.title }; }));
-      let inPlan = !!found;
-      if (!found) Object.values(prev.days).forEach(d => d.blocks?.forEach(b => b.tasks.forEach(t => { if (!found && t.id === taskId) found = { task: t, blockId: b.id, blockTitle: b.title }; })));
-      if (!found) return prev;
-      const f = found as { task: Task; blockId: string; blockTitle: string };
-      const oneOff = f.task.recurrence === 'specific' || f.task.recurrence === 'once' || !inPlan;
-      const move = (t: Task): Task => ({ ...t, startTime, ...(oneOff ? { recurrence: (t.recurrence === 'once' ? 'once' : 'specific') as RecurrenceType, specificDate: targetDateKey } : {}) });
-      const upd = (blocks: Block[]) => blocks.map(b => b.tasks.some(t => t.id === taskId) ? { ...b, tasks: b.tasks.map(t => t.id === taskId ? move(t) : t) } : b);
-      let blocks = upd(prev.blocks);
-      const days = { ...prev.days };
-      Object.keys(days).forEach(key => { const d = days[key]; if (d?.blocks && (key >= todayKey || d.blocks.some(b => b.tasks.some(t => t.id === taskId)))) days[key] = { ...d, blocks: upd(d.blocks) }; });
-      if (oneOff) {
-        const moved = move(f.task);
-        // Tâche qui n'existait que dans un jour figé : l'ajouter au plan pour le jour cible
-        if (!inPlan) blocks = blocks.map(b => (b.id === f.blockId || b.title === f.blockTitle) && !b.tasks.some(t => t.id === taskId) ? { ...b, tasks: [...b.tasks, moved] } : b);
-        // Jour cible déjà figé : y insérer la tâche si elle n'y est pas
-        const td = days[targetDateKey];
-        if (td?.blocks && !td.blocks.some(b => b.tasks.some(t => t.id === taskId))) {
-          const target = td.blocks.find(b => b.id === f.blockId) || td.blocks.find(b => b.title === f.blockTitle);
-          if (target) days[targetDateKey] = { ...td, blocks: td.blocks.map(b => b === target ? { ...b, tasks: [...b.tasks, moved] } : b) };
-        }
-      }
-      return { ...prev, blocks, days };
-    });
-    const label = new Date(targetDateKey + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric' });
-    setActiveNotification(`Déplacé ${label} à ${startTime} ⏱`);
+  // Déplacer une tâche vers un autre jour (agenda semaine, report des tâches non faites…)
+  const handleRescheduleTask = (taskId: string, targetDateKey: string, startTime?: string | null) => {
+    updateAppData(prev => relocateTask(prev, taskId, targetDateKey, startTime));
+    const label = new Date(targetDateKey + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+    setActiveNotification(`Déplacée au ${label}${startTime ? ` à ${startTime}` : ''} ⏱`);
     setTimeout(() => setActiveNotification(null), 3000);
   };
 
@@ -2441,6 +2441,24 @@ const App: React.FC = () => {
                 <button onClick={() => setDaysAway(null)} className="shrink-0 p-1.5 rounded-lg text-[#18181B]/40 dark:text-[#E6E8E6]/40 hover:text-accent"><X size={16} /></button>
               </div>
             )}
+            {!isReorderMode && dateKey === todayKeyNow && showWeekPlanPrompt && (
+              <div className="glass p-4 sm:p-5 rounded-[2rem] border border-accent/25 flex items-center gap-3 animate-in slide-in-from-top-2">
+                <div className="hidden sm:flex w-10 h-10 rounded-xl bg-accent/15 items-center justify-center shrink-0"><Sparkles size={18} className="text-accent" /></div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-black text-[#18181B] dark:text-[#E6E8E6]">Planifier ma semaine</p>
+                  <p className="text-[11px] font-semibold text-[#18181B]/55 dark:text-[#E6E8E6]/55"><span className="sm:hidden">Bilan, reports, objectif · 3 min</span><span className="hidden sm:inline">Bilan, tâches à reporter et objectif de la semaine : 3 minutes.</span></p>
+                </div>
+                <button onClick={() => setShowWeekPlanner(true)} className="shrink-0 px-4 py-2.5 rounded-xl bg-accent text-white text-[10px] font-black uppercase tracking-wider shadow-lg shadow-accent/20">Commencer</button>
+                <button onClick={() => updateAppData(prev => ({ ...prev, settings: { ...(prev.settings || {}), weekPlanDismissed: weekPlan.planKey } }))} aria-label="Plus tard" title="Plus tard (reste disponible dans Planning)" className="shrink-0 p-1.5 rounded-lg text-[#18181B]/40 dark:text-[#E6E8E6]/40 hover:text-accent"><X size={16} /></button>
+              </div>
+            )}
+            {!isReorderMode && dateKey === todayKeyNow && pendingItems.length > 0 && (
+              <CarryOver items={pendingItems} todayKey={todayKeyNow}
+                onMove={(id, k) => { saveToHistory(); handleRescheduleTask(id, k); }}
+                onInbox={(id) => { saveToHistory(); updateAppData(prev => sendToInbox(prev, id)); setActiveNotification('Renvoyée dans la Boîte de tâches 📥'); setTimeout(() => setActiveNotification(null), 2500); }}
+                onAbandon={(p) => { updateAppData(prev => ({ ...prev, skips: [...(prev.skips || []), { id: generateId(), taskId: p.task.id, taskTitle: p.task.title, date: p.date, reason: 'Abandonnée' }] })); setActiveNotification('Tâche abandonnée. Choisir, c\'est aussi avancer. 🌿'); setTimeout(() => setActiveNotification(null), 2500); }}
+                onHide={() => updateAppData(prev => ({ ...prev, settings: { ...(prev.settings || {}), carryHiddenOn: todayKeyNow } }))} />
+            )}
             {!isReorderMode && dateKey === getKeyFromDate(new Date()) && (nowNextData.current || nowNextData.next) && (
               <NowNext
                 current={nowNextData.current}
@@ -2805,7 +2823,9 @@ const App: React.FC = () => {
             {!templateEditState && (
               <Agenda appData={appData} date={currentDate} now={currentTime} view={planningView} onViewChange={setPlanningView}
                 onDateChange={setCurrentDate} onToggle={(b, t) => toggleTask(b, t)} onOpenTask={(b, t) => setConfigModal({ type: 'task', id: t, blockId: b })}
-                onSetTime={setTaskTime} onMoveTask={handleRescheduleTask} onQuickAdd={quickAddTask} />
+                onSetTime={setTaskTime} onMoveTask={handleRescheduleTask} onQuickAdd={quickAddTask}
+                calendars={externalCalendars} eventsOf={cal.eventsOf} calVersion={cal.version}
+                onOpenCalendars={() => setShowCalendars(true)} onPlanWeek={() => setShowWeekPlanner(true)} />
             )}
             {!templateEditState && (
               <LongTermGoals
@@ -3251,6 +3271,14 @@ const App: React.FC = () => {
 
             <p className="text-center text-[9px] font-medium text-[#18181B]/30 dark:text-[#E6E8E6]/30 pt-2">Version {APP_VERSION}</p>
           </div>
+        )}
+        {showWeekPlanner && (
+          <WeekPlanner appData={appData} update={(fn) => updateAppData(fn)} onClose={() => setShowWeekPlanner(false)} saveToHistory={saveToHistory}
+            notify={(m) => { setActiveNotification(m); setTimeout(() => setActiveNotification(null), 3500); }} />
+        )}
+        {showCalendars && (
+          <CalendarsPanel calendars={externalCalendars} onChange={setCalendars} onClose={() => setShowCalendars(false)}
+            errors={cal.errors} loading={cal.loading} lastSync={cal.lastSync} eventCount={(c) => cal.eventsOf(c).length} onRefresh={cal.refresh} />
         )}
       </main>
 

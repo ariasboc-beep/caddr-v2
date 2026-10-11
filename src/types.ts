@@ -120,6 +120,10 @@ export interface AppSettings {
   soundEffects?: boolean;           // retour sonore à la complétion
   simpleMode?: boolean;             // mode journée simplifiée (anti-surcharge)
   headerBar?: 'discipline' | 'xp';  // barre d'en-tête : discipline du mois (défaut) ou niveau XP
+  carryHiddenOn?: string;           // carte « Pas terminé » masquée ce jour-là (AAAA-MM-JJ)
+  weekPlanDone?: string;            // dernière semaine planifiée avec le rituel (clé AAAA-Www)
+  weekPlanDismissed?: string;       // rappel du rituel masqué pour cette semaine
+  calendars?: ExternalCalendar[];   // agendas externes affichés dans le Planning (lecture seule)
 }
 
 export type TabType = 'routine' | 'stats' | 'schedule' | 'templates' | 'ai' | 'inbox' | 'settings' | 'habits';
@@ -162,4 +166,25 @@ export interface StandaloneHabit {
   showInRoutine?: boolean;    // afficher dans la carte « Habitudes du jour » de Routine (par défaut : oui)
   deleted?: boolean;          // suppression conservée pour la synchro (sinon le cloud la ferait revenir)
   entries: { [dateKey: string]: HabitEntry };
+}
+
+// Agenda externe (Google, Outlook, iCloud…) importé au format iCalendar (.ics)
+export interface ExternalCalendar {
+  id: string;
+  name: string;
+  color: string;
+  url?: string;          // adresse ICS (actualisée automatiquement)
+  hidden?: boolean;
+  events?: ExtEventRaw[]; // événements d'un fichier importé (synchronisés)
+  updatedAt?: string;
+}
+export interface ExtEventRaw {
+  uid: string;
+  title: string;
+  start: string;          // ISO local « AAAA-MM-JJTHH:mm » ou « AAAA-MM-JJ » (journée entière)
+  end?: string;
+  allDay?: boolean;
+  location?: string;
+  rrule?: string;
+  exdates?: string[];     // occurrences exclues (même format que start)
 }
