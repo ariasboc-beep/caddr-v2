@@ -39,5 +39,40 @@ service cloud.firestore {
       // Supprimer : l'expéditeur peut retirer une tâche confiée
       allow delete: if isSender();
     }
+
+    // Binôme de discipline : invitations par e-mail
+    match /buddyLinks/{id} {
+      function signedIn() { return request.auth != null; }
+      function myEmail() { return request.auth.token.email.lower(); }
+      allow create: if signedIn()
+        && request.resource.data.fromUid == request.auth.uid
+        && request.resource.data.status == 'pending'
+        && request.resource.data.toEmail is string
+        && request.resource.data.toEmail != myEmail();
+      allow read: if signedIn() && (resource.data.fromUid == request.auth.uid || resource.data.toEmail == myEmail() || resource.data.get('toUid', '') == request.auth.uid);
+      // Le destinataire accepte (en s'identifiant) ou refuse
+      allow update: if signedIn() && resource.data.toEmail == myEmail()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'toUid', 'toName'])
+        && request.resource.data.status in ['accepted', 'declined']
+        && (request.resource.data.status == 'declined' || request.resource.data.toUid == request.auth.uid);
+      // Chacun peut mettre fin au binôme
+      allow delete: if signedIn() && (resource.data.fromUid == request.auth.uid || resource.data.get('toUid', '') == request.auth.uid || resource.data.toEmail == myEmail());
+    }
+
+    // Résumé publié (séries, taux du jour) : lisible uniquement par les binômes listés dans « viewers »
+    match /publicStats/{uid} {
+      allow write: if request.auth != null && request.auth.uid == uid;
+      allow read: if request.auth != null && (request.auth.uid == uid || request.auth.token.email.lower() in resource.data.viewers);
+    }
+
+    // Encouragements entre binômes
+    match /cheers/{id} {
+      allow create: if request.auth != null && request.resource.data.fromUid == request.auth.uid
+        && request.resource.data.toUid is string && request.resource.data.read == false
+        && request.resource.data.message is string && request.resource.data.message.size() <= 200;
+      allow read: if request.auth != null && (resource.data.toUid == request.auth.uid || resource.data.fromUid == request.auth.uid);
+      allow update: if request.auth != null && resource.data.toUid == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']);
+    }
   }
 }

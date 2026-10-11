@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { MasteryChip } from './MasteryBadge';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, ReferenceLine, Tooltip, Cell } from 'recharts';
 import {
   ChevronLeft, ChevronRight, ChevronDown, FileText, TrendingUp, TrendingDown, Minus,
@@ -122,7 +123,15 @@ const Analytics: React.FC<Props> = ({ appData, accentHex, onToggleHabit, onDownl
       return { id: h.id, title: h.name, block: h.kind === 'quit' ? 'Habitude à arrêter' : 'Habitude indépendante', current: all.current, best: all.best, due, done: per.done, rate: due ? Math.round((per.done / due) * 100) : null, perDay, color: h.color, since: h.kind === 'quit' ? all.sinceLastFail : undefined };
     });
   }, [appData.habits, period, todayKey]);
-  const allHabits: (typeof habits[number] & { color?: string; since?: number })[] = [...standalone, ...habits];
+  // Jours tenus au total (paliers de maîtrise) : habitudes indépendantes et tâches-habitudes (plan + jours figés)
+  const taskDoneDays = useMemo(() => {
+    const m = new Map<string, Set<string>>();
+    const scan = (ts: { id: string; completedDates?: string[]; subTasks?: any[] }[]) => ts.forEach(t => { (t.completedDates || []).forEach(k => { if (!m.has(t.id)) m.set(t.id, new Set()); m.get(t.id)!.add(k); }); if (t.subTasks?.length) scan(t.subTasks); });
+    appData.blocks.forEach(b => scan(b.tasks)); Object.values(appData.days).forEach(d => d.blocks?.forEach(b => scan(b.tasks)));
+    return m;
+  }, [appData.blocks, appData.days]);
+  const standaloneTotals = useMemo(() => Object.fromEntries(activeHabits(appData.habits).map(h => [h.id, standaloneStats(h).done])), [appData.habits]);
+  const allHabits: (typeof habits[number] & { color?: string; since?: number; totalDone?: number })[] = [...standalone.map(h => ({ ...h, totalDone: standaloneTotals[h.id] })), ...habits.map(h => ({ ...h, totalDone: taskDoneDays.get(h.id)?.size || 0 }))];
   const thisYear = new Date().getFullYear();
   const yearHistory = useMemo(() => {
     return computePeriod(appData, new Date(thisYear, 0, 1, 12), new Date(), todayKey).days.filter(d => d.rate !== null).map(d => ({ date: d.date, val: d.rate as number }));
@@ -451,6 +460,7 @@ const Analytics: React.FC<Props> = ({ appData, accentHex, onToggleHabit, onDownl
                   <div className="min-w-0">
                     <p className={`text-sm font-bold ${ink}`}>{h.title}</p>
                     <p className={`text-[10px] font-bold uppercase tracking-wider ${faint}`}>{h.block}{h.since !== undefined ? ` · ${h.since} j sans rechute` : ''}</p>
+                    <p className="text-[10px] font-black mt-0.5"><MasteryChip days={h.totalDone ?? 0} /></p>
                   </div>
                   <div className="flex items-center gap-5 sm:gap-4 shrink-0 sm:text-right">
                     <div><p className={`text-lg font-black leading-none flex items-center gap-1 sm:justify-end ${ink}`}><Flame size={14} className={h.current ? 'text-[#FDCA40]' : faint} />{h.current} j</p><p className={`text-[9px] font-bold uppercase ${faint}`}>en cours</p></div>

@@ -301,7 +301,9 @@ export function habitAggregates(appData: AppData, periodDays: string[], todayKey
 export function perfectStreak(appData: AppData, todayKey: string): { current: number; best: number } {
   const keys = eachDay(new Date(Date.now() - 365 * DAY), atNoon(todayKey));
   let best = 0, run = 0;
-  const rates = keys.map(k => ({ k, r: computeDay(appData, k, todayKey).rate }));
+  // Jour tenu = 100 %, ou « jour difficile » avec au moins une tâche faite ; un joker protège le jour (ni cassé, ni compté)
+  const hard = new Set(appData.hardDays || []), jok = new Set(appData.streakJokers || []);
+  const rates = keys.map(k => { const d = computeDay(appData, k, todayKey); const kept = d.rate === 100 || (hard.has(k) && d.done > 0); return { k, r: kept ? 100 : jok.has(k) ? null : d.rate }; });
   rates.forEach(({ k, r }) => {
     if (r === 100) { run++; best = Math.max(best, run); }
     else if (r !== null && k !== todayKey) run = 0;

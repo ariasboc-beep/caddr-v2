@@ -26,6 +26,9 @@ export interface Task {
   completedAt?: { [dateKey: string]: string }; // heure de validation « HH:mm » (analyse des heures productives)
   assignmentId?: string;  // tâche reçue d'un autre utilisateur Caddr (document Firestore « assignments »)
   assignedBy?: string;    // nom ou e-mail de la personne qui l'a confiée
+  minVersion?: string;    // version minimale pour les jours difficiles (ex. « 2 min de sport »)
+  why?: string;           // raison profonde, rappelée au moment d'hésiter
+  identityId?: string;    // identité renforcée par cette tâche (« Je suis une personne sportive »)
 }
 
 export interface Block {
@@ -94,7 +97,11 @@ export interface AppData {
   focusSessions?: FocusSession[];
   skips?: SkipRecord[];
   taskLog?: TaskEvent[];                     // mouvements de tâches (reports, annulations, imprévus, affectations)
-  daySnapshots?: { [dateKey: string]: string[] }; // tâches prévues au premier affichage du jour (détection des imprévus)
+  daySnapshots?: { [dateKey: string]: string[] };
+  hardDays?: string[];                       // jours passés en mode « Jour difficile » (AAAA-MM-JJ)
+  streakJokers?: string[];                   // jours protégés par un joker de série
+  identities?: Identity[];                   // « Qui je deviens » : phrases d'identité
+  rewards?: RewardCard[];                    // cartes surprises gagnées lors des journées parfaites // tâches prévues au premier affichage du jour (détection des imprévus)
   journal?: { [dateKey: string]: JournalEntry }; // journal de gratitude et de fierté
   assistantMemory?: AssistantMemoryItem[];      // ce que l'assistant Claude retient (préférences durables)
   lifeReviews?: { [quarterKey: string]: LifeReview }; // revues trimestrielles (roue de la vie), clé « AAAA-Tn »
@@ -139,6 +146,8 @@ export interface AppSettings {
   weekPlanDismissed?: string;       // rappel du rituel masqué pour cette semaine
   calendars?: ExternalCalendar[];
   smartReminders?: 'off' | 'important' | 'all'; // rappels des tâches à heure fixe non faites
+  perfectCelebratedOn?: string;     // écran « journée parfaite » déjà montré ce jour-là
+  jokerOfferDismissed?: string;     // proposition de joker masquée (jour concerné)
   motivation?: boolean;             // message de motivation du jour (activé par défaut)
   motivationHiddenOn?: string;      // message du jour masqué ce jour-là
   briefingHiddenOn?: string;        // briefing du matin masqué ce jour-là
@@ -171,6 +180,9 @@ export interface SkipRecord {
   reason: string;
   kind?: 'skip' | 'cancel' | 'postpone' | 'assign'; // absent = sautée (ancien format)
 }
+
+export interface Identity { id: string; text: string; createdAt: string; deleted?: boolean }
+export interface RewardCard { id: string; cardId: string; date: string }
 
 // Journal des mouvements de tâches (rapports PDF) : reports, annulations, imprévus, affectations
 export type TaskEventKind = 'postponed' | 'cancelled' | 'unplanned' | 'assigned';

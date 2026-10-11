@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { X, CalendarClock, CalendarX2, UserPlus, ListPlus, BookOpen, Settings2, Copy, Trash2, Undo2, ChevronLeft, Send, Loader2, ArrowRight } from 'lucide-react';
-import type { Task, SkipRecord } from '../types';
+import { X, CalendarClock, CalendarX2, UserPlus, ListPlus, BookOpen, Settings2, Copy, Trash2, Undo2, ChevronLeft, Send, Loader2, ArrowRight, Compass, Heart } from 'lucide-react';
+import type { Task, SkipRecord, Identity } from '../types';
 import { addDaysKey, fmtDayShort } from '../taskActions';
 import { validEmail } from '../services/assignService';
 
@@ -21,12 +21,14 @@ interface Props {
   onDelete: () => void;
   onSignIn: () => void;
   onClose: () => void;
+  identities?: Identity[];
+  onSaveMeaning?: (f: { why?: string; identityId?: string; minVersion?: string }) => void;
 }
 
 const ink = 'text-[#18181B] dark:text-[#E6E8E6]';
 const muted = 'text-[#18181B]/60 dark:text-[#E6E8E6]/55';
 const field = `w-full bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 px-3.5 py-3 rounded-xl text-sm font-semibold border border-[#18181B]/10 dark:border-[#E6E8E6]/10 outline-none focus:border-accent ${ink}`;
-type View = 'menu' | 'postpone' | 'cancel' | 'assign' | 'sub';
+type View = 'menu' | 'postpone' | 'cancel' | 'assign' | 'sub' | 'meaning';
 
 // Feuille d'actions d'une tâche de la Routine (toujours accessible, y compris au doigt)
 const TaskActionsSheet: React.FC<Props> = (p) => {
@@ -37,6 +39,10 @@ const TaskActionsSheet: React.FC<Props> = (p) => {
   const [note, setNote] = useState('');
   const [sub, setSub] = useState('');
   const [busy, setBusy] = useState(false);
+  const [why, setWhy] = useState(p.task.why || '');
+  const [minV, setMinV] = useState(p.task.minVersion || '');
+  const [idt, setIdt] = useState(p.task.identityId || '');
+  const identity = (p.identities || []).find(i => i.id === p.task.identityId);
   const [err, setErr] = useState('');
   const tomorrow = addDaysKey(p.dateKey, 1);
   const nextMonday = (() => { const d = new Date(p.dateKey + 'T12:00:00'); const add = ((8 - d.getDay()) % 7) || 7; return addDaysKey(p.dateKey, add); })();
@@ -61,6 +67,12 @@ const TaskActionsSheet: React.FC<Props> = (p) => {
           <button onClick={p.onClose} aria-label="Fermer" className={`p-1.5 rounded-full hover:text-accent ${muted}`}><X size={18} /></button>
         </div>
 
+        {(p.task.why || identity) && (view === 'menu' || view === 'postpone' || view === 'cancel') && (
+          <div className="mx-1 mb-1 px-3.5 py-3 rounded-2xl bg-accent/[0.07] border border-accent/20 space-y-0.5">
+            {p.task.why && <p className={`text-[12px] font-semibold ${ink}`}><Heart size={11} className="inline -mt-0.5 mr-1 text-accent" />Ton pourquoi : {p.task.why}</p>}
+            {identity && <p className={`text-[11px] font-semibold ${muted}`}>Chaque fois que tu la fais : un vote pour « {identity.text} »</p>}
+          </div>
+        )}
         {view === 'menu' && (
           <div className="space-y-0.5">
             {p.status && (
@@ -73,6 +85,7 @@ const TaskActionsSheet: React.FC<Props> = (p) => {
             {!p.status && <Row icon={<CalendarX2 size={18} />} label="Annuler pour ce jour" hint="Elle reste visible, barrée, et ne compte pas dans ton taux" onClick={() => setView('cancel')} />}
             {!p.status && !p.isSub && <Row icon={<UserPlus size={18} />} label="Affecter à quelqu'un" hint="À un autre utilisateur Caddr., avec son adresse e-mail" onClick={() => setView('assign')} />}
             {!p.isSub && <Row icon={<ListPlus size={18} />} label="Ajouter une sous-tâche" onClick={() => setView('sub')} />}
+            {p.onSaveMeaning && <Row icon={<Compass size={18} />} label="Sens et version minimale" hint={p.task.minVersion ? `Version minimale : ${p.task.minVersion}` : 'Pourquoi, identité, version pour les jours difficiles'} onClick={() => setView('meaning')} />}
             <div className="h-px bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 my-1" />
             <Row icon={<BookOpen size={18} />} label="Journal de bord" onClick={() => { p.onClose(); p.onOpenLog(); }} />
             <Row icon={<Settings2 size={18} />} label="Modifier (heure, durée, priorité…)" onClick={() => { p.onClose(); p.onConfigure(); }} />
@@ -126,6 +139,26 @@ const TaskActionsSheet: React.FC<Props> = (p) => {
                 <p className={`text-[10px] font-semibold ${muted}`}>La personne doit avoir un compte Caddr. avec cette adresse. Elle pourra accepter ou refuser, et tu suivras le statut. La tâche sort de ta journée.</p>
               </>
             )}
+          </div>
+        )}
+
+        {view === 'meaning' && (
+          <div className="space-y-3 px-1">
+            <Back />
+            <label className="block space-y-1.5"><span className={`text-[10px] font-black uppercase tracking-widest ${muted}`}>Pourquoi c'est important pour toi</span>
+              <input value={why} onChange={e => setWhy(e.target.value)} placeholder="Ex. être en forme pour mes enfants" className={field} /></label>
+            <label className="block space-y-1.5"><span className={`text-[10px] font-black uppercase tracking-widest ${muted}`}>Version minimale (jours difficiles)</span>
+              <input value={minV} onChange={e => setMinV(e.target.value)} placeholder="Ex. 2 minutes, 1 page, 5 pompes" className={field} /></label>
+            <div className="space-y-1.5"><span className={`text-[10px] font-black uppercase tracking-widest ${muted}`}>Identité renforcée</span>
+              {(p.identities || []).length ? (
+                <div className="flex flex-wrap gap-1.5">
+                  <button onClick={() => setIdt('')} className={`px-2.5 py-1.5 rounded-lg text-[11px] font-bold border ${!idt ? 'border-accent bg-accent/10 text-accent' : `border-[#18181B]/10 dark:border-[#E6E8E6]/10 ${muted}`}`}>Aucune</button>
+                  {(p.identities || []).map(i => <button key={i.id} onClick={() => setIdt(i.id)} className={`px-2.5 py-1.5 rounded-lg text-[11px] font-bold border text-left ${idt === i.id ? 'border-accent bg-accent/10 text-accent' : `border-[#18181B]/10 dark:border-[#E6E8E6]/10 ${muted}`}`}>{i.text}</button>)}
+                </div>
+              ) : <p className={`text-[11px] font-semibold ${muted}`}>Crée d'abord tes identités dans Croissance › Objectifs de vie (« Qui je deviens »).</p>}
+            </div>
+            <button onClick={() => { p.onSaveMeaning!({ why: why.trim() || undefined, minVersion: minV.trim() || undefined, identityId: idt || undefined }); p.onClose(); }} className={primary}><Compass size={14} /> Enregistrer</button>
+            <p className={`text-[10px] font-semibold ${muted}`}>S'applique à cette tâche tous les jours où elle est prévue.</p>
           </div>
         )}
 

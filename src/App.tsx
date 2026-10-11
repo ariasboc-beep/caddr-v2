@@ -1,4 +1,12 @@
 
+import BuddyPanel, { BuddyCard } from './components/BuddyPanel';
+import { inviteBuddy, listBuddyLinks, answerInvite, removeBuddyLink, publishStats, sendCheer, unreadCheers, markCheerRead, loadBuddies, type Buddy, type BuddyLink, type Cheer } from './services/buddyService';
+import DayRing from './components/DayRing';
+import PerfectDay from './components/PerfectDay';
+import IdentityPanel from './components/IdentityPanel';
+import RewardsCollection from './components/RewardsCollection';
+import { isHardDay, setHardDay, useJoker, jokerOffer, identityVotes, activeIdentities, addIdentity, removeIdentity, patchTaskEverywhere, drawCard, addReward, mastery, type CardDef } from './progress';
+import { activeHabits as activeStandaloneHabits, habitStats as standaloneHabitStats } from './habits';
 import ShareSheet from './components/ShareSheet';
 import type { SharePeriod } from './shareCard';
 import DailyMotivation from './components/DailyMotivation';
@@ -2220,6 +2228,101 @@ const App: React.FC = () => {
   const [actionTask, setActionTask] = useState<{ task: Task; blockId: string; parentId?: string } | null>(null);
   const [incoming, setIncoming] = useState<Assignment[]>([]);
   const [shareFor, setShareFor] = useState<SharePeriod | null>(null);
+
+  // ---------- Leviers de constance ----------
+  const todayStat = useMemo(() => computeDay(appData, todayKeyNow, todayKeyNow), [appData, todayKeyNow]);
+  const streakNow = useMemo(() => perfectStreak(appData, todayKeyNow), [appData, todayKeyNow]);
+  const hardToday = isHardDay(appData, todayKeyNow);
+  const offer = useMemo(() => appData.settings?.jokerOfferDismissed === todayKeyNow ? null : jokerOffer(appData, todayKeyNow), [appData, todayKeyNow]);
+  const votes = useMemo(() => identityVotes(appData), [appData]);
+  const [perfect, setPerfect] = useState<{ card: CardDef | null } | null>(null);
+
+  // Journée parfaite : célébration une fois par jour, avec une carte surprise éventuelle
+  useEffect(() => {
+    if (isLoading || (user && !cloudReady.current)) return;
+    if (todayStat.total > 0 && todayStat.done >= todayStat.total && appData.settings?.perfectCelebratedOn !== todayKeyNow) {
+      const card = drawCard(todayKeyNow);
+      setPerfect({ card });
+      updateAppData(prev => { const next = card ? addReward(prev, card, todayKeyNow) : prev; return { ...next, settings: { ...(next.settings || {}), perfectCelebratedOn: todayKeyNow } }; });
+      try { navigator.vibrate?.([30, 60, 30]); } catch { /* rien */ }
+    }
+  }, [todayStat.done, todayStat.total, todayKeyNow, isLoading, user]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Petits retours immédiats : bloc bouclé, vote d'identité, nouveau palier d'habitude
+  const feedbackRef = useRef<{ day: string; blocks: Set<string>; votes: Record<string, number>; mastery: Record<string, string>; done: number } | null>(null);
+  useEffect(() => {
+    if (isLoading) return;
+    const blocksDone = new Set(todayStat.blocks.filter(b => b.total > 0 && b.done === b.total).map(b => b.title));
+    const mast: Record<string, string> = {};
+    activeStandaloneHabits(appData.habits).forEach(h => { mast[h.id] = mastery(standaloneHabitStats(h).done).label; });
+    const scanHabit = (tasks: Task[]) => tasks.forEach(t => { if (t.isHabit) { const n = new Set([...(t.completedDates || [])]).size; mast[t.id] = mastery(n).label; } });
+    appData.blocks.forEach(b => scanHabit(b.tasks));
+    const prev = feedbackRef.current;
+    feedbackRef.current = { day: todayKeyNow, blocks: blocksDone, votes, mastery: mast, done: todayStat.done };
+    if (!prev || prev.day !== todayKeyNow) return;
+    const msgs: string[] = [];
+    blocksDone.forEach(t => { if (!prev.blocks.has(t) && blocksDone.size < todayStat.blocks.length) msgs.push(`Bloc « ${t} » bouclé ✓`); });
+    activeIdentities(appData).forEach(i => { const n = votes[i.id] || 0; if (n > (prev.votes[i.id] || 0)) msgs.push(`+1 vote : ${i.text} (${n})`); });
+    Object.entries(mast).forEach(([id, l]) => { if (prev.mastery[id] && prev.mastery[id] !== l && ['Pousse', 'Arbre', 'Forêt'].indexOf(l) > ['Pousse', 'Arbre', 'Forêt'].indexOf(prev.mastery[id])) { const name = activeStandaloneHabits(appData.habits).find(h => h.id === id)?.name || appData.blocks.flatMap(b => b.tasks).find(t => t.id === id)?.title; msgs.push(`🌱 « ${name} » passe au palier ${l} !`); } });
+    if (todayStat.done > prev.done) { try { navigator.vibrate?.(12); } catch { /* rien */ } }
+    if (msgs.length) notify(msgs.join(' · '), 3200);
+  }, [todayStat, votes, appData.habits, appData.blocks, todayKeyNow, isLoading]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ---------- Binôme de discipline ----------
+  const [buddyLinks, setBuddyLinks] = useState<{ incoming: BuddyLink[]; mine: BuddyLink[] }>({ incoming: [], mine: [] });
+  const [buddies, setBuddies] = useState<Buddy[]>([]);
+  const [cheersIn, setCheersIn] = useState<Cheer[]>([]);
+  const meBuddy = () => ({ uid: user!.uid, name: user!.displayName?.split(' ')[0] || user!.email || 'Un utilisateur Caddr.', email: user!.email || '' });
+  const refreshBuddies = useCallback(async () => {
+    if (!user?.email) return;
+    try {
+      const links = await listBuddyLinks(user.uid, user.email);
+      setBuddyLinks(links);
+      setBuddies(await loadBuddies(user.uid, links.mine));
+      setCheersIn(await unreadCheers(user.uid));
+    } catch (e) { console.warn('buddies', e); }
+  }, [user]);
+  useEffect(() => {
+    if (!user?.email) { setBuddyLinks({ incoming: [], mine: [] }); setBuddies([]); setCheersIn([]); return; }
+    refreshBuddies();
+    const id = setInterval(refreshBuddies, 5 * 60 * 1000);
+    const onVis = () => { if (document.visibilityState === 'visible') refreshBuddies(); };
+    document.addEventListener('visibilitychange', onVis);
+    return () => { clearInterval(id); document.removeEventListener('visibilitychange', onVis); };
+  }, [user, refreshBuddies]);
+  // Publication de mon résumé pour mes binômes (séries et taux, jamais les tâches)
+  useEffect(() => {
+    if (!user || !buddyLinks.mine.length) return;
+    const viewers = Array.from(new Set(buddyLinks.mine.filter(l => l.status !== 'declined').map(l => l.fromUid === user.uid ? l.toEmail : l.fromEmail).filter(Boolean)));
+    const t = setTimeout(() => {
+      const wk = getPeriod('week', new Date()); const w = computePeriod(appData, wk.start, new Date(), todayKeyNow);
+      const m30 = computePeriod(appData, new Date(Date.now() - 29 * 86400000), new Date(), todayKeyNow);
+      publishStats(user.uid, { name: meBuddy().name, streak: streakNow.current, best: streakNow.best, todayRate: todayStat.rate, todayDone: todayStat.done, todayTotal: todayStat.total, weekRate: w.rate, perfect30: m30.perfectDays, hard: hardToday, day: todayKeyNow, viewers }).catch(e => console.warn('publishStats', e));
+    }, 8000);
+    return () => clearTimeout(t);
+  }, [user, buddyLinks, todayStat.done, todayStat.total, streakNow.current, hardToday, todayKeyNow]); // eslint-disable-line react-hooks/exhaustive-deps
+  const inviteBuddyByEmail = async (email: string): Promise<string | null> => {
+    if (!user?.email) return 'Connecte-toi pour inviter un binôme.';
+    if (normEmail(email) === normEmail(user.email)) return "C'est ta propre adresse : invite une autre personne.";
+    if (buddyLinks.mine.some(l => (l.fromUid === user.uid ? l.toEmail : l.fromEmail) === normEmail(email))) return 'Cette personne est déjà ton binôme ou invitée.';
+    try { await inviteBuddy(meBuddy(), email); await refreshBuddies(); return null; }
+    catch (e) { console.error(e); return "L'invitation a échoué. Vérifie ta connexion et les règles Firestore (voir SECURITY.md)."; }
+  };
+  const answerBuddy = async (l: BuddyLink, accept: boolean) => {
+    try { await answerInvite(l, meBuddy(), accept); notify(accept ? `Vous êtes maintenant binômes, ${l.fromName || l.fromEmail} et toi. 🤝` : 'Invitation refusée.'); await refreshBuddies(); }
+    catch (e) { console.error(e); notify("Impossible de répondre pour l'instant."); }
+  };
+  const removeBuddy = async (linkId: string) => { try { await removeBuddyLink(linkId); await refreshBuddies(); } catch (e) { console.error(e); notify("Impossible pour l'instant."); } };
+  const cheerBuddy = async (b: Buddy, emoji: string, message: string) => {
+    try { await sendCheer(meBuddy(), b.uid, emoji, message); notify(`Encouragement envoyé à ${b.name} ${emoji}`, 2200); }
+    catch (e) { console.error(e); notify("L'encouragement n'a pas pu partir."); }
+  };
+
+  const saveMeaning = (taskId: string, f: { why?: string; identityId?: string; minVersion?: string }) => {
+    saveToHistory();
+    updateAppData(prev => patchTaskEverywhere(prev, taskId, f));
+    notify('Sens enregistré ✓', 2000);
+  };
   const notify = (msg: string, ms = 3000) => { setActiveNotification(msg); setTimeout(() => setActiveNotification(null), ms); };
 
   const postponeFromRoutine = (taskId: string, toKey: string) => {
@@ -2792,6 +2895,38 @@ const App: React.FC = () => {
                 ))}
               </div>
             )}
+            {!isReorderMode && dateKey === todayKeyNow && (
+              <DayRing done={todayStat.done} total={todayStat.total} hard={hardToday} streak={streakNow.current}
+                onToggleHard={() => { updateAppData(prev => setHardDay(prev, todayKeyNow, !hardToday)); notify(hardToday ? 'Retour à une journée normale.' : "Mode jour difficile : fais la version minimale de l'essentiel. Une tâche suffit pour tenir ta série. 🌿", 4500); }} />
+            )}
+            {!isReorderMode && dateKey === todayKeyNow && offer && (
+              <div className="glass rounded-[2rem] p-4 sm:p-5 border border-[#FDCA40]/30 space-y-2.5 animate-in slide-in-from-top-2" aria-label="Joker de série">
+                <p className="text-[10px] font-black uppercase tracking-widest text-[#B8900A] dark:text-[#FDCA40]">🃏 Protège ta série</p>
+                <p className="text-[13px] font-semibold text-[#18181B] dark:text-[#E6E8E6]">Hier n'a pas été tenu. Ta série de {offer.streak} jours peut continuer avec un joker{offer.ok ? ` (${offer.left} restant${offer.left > 1 ? 's' : ''} ce mois-ci).` : '.'}</p>
+                {!offer.ok && <p className="text-[11px] font-semibold text-[#18181B]/60 dark:text-[#E6E8E6]/55">{offer.reason}</p>}
+                <div className="flex flex-wrap gap-2">
+                  {offer.ok && <button onClick={() => { updateAppData(prev => useJoker(prev, offer.date)); notify(`Joker utilisé : ta série de ${offer.streak} jours continue. Aujourd'hui, on repart. 💪`, 4000); }} className="px-4 py-2.5 rounded-xl bg-[#FDCA40] text-[#111213] text-[10px] font-black uppercase tracking-wider">Utiliser un joker</button>}
+                  <button onClick={() => updateAppData(prev => ({ ...prev, settings: { ...(prev.settings || {}), jokerOfferDismissed: todayKeyNow } }))} className="px-4 py-2.5 rounded-xl bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 text-[10px] font-black uppercase tracking-wider text-[#18181B] dark:text-[#E6E8E6]">Repartir de zéro</button>
+                </div>
+                <p className="text-[10px] font-semibold text-[#18181B]/55 dark:text-[#E6E8E6]/50">2 jokers par mois, jamais deux jours de suite.</p>
+              </div>
+            )}
+            {!isReorderMode && dateKey === todayKeyNow && cheersIn.map(c => (
+              <div key={c.id} className="glass rounded-[2rem] px-5 py-4 flex items-center gap-3 border border-accent/25 animate-in slide-in-from-top-2" aria-label="Encouragement reçu">
+                <span className="text-2xl">{c.emoji}</span>
+                <p className="flex-1 text-[13px] font-semibold text-[#18181B] dark:text-[#E6E8E6]"><strong>{c.fromName}</strong> t'encourage : « {c.message} »</p>
+                <button onClick={() => { markCheerRead(c.id).catch(() => {}); setCheersIn(l => l.filter(x => x.id !== c.id)); }} aria-label="Merci" className="px-3 py-2 rounded-xl bg-accent/10 text-accent text-[10px] font-black uppercase tracking-wider">Merci</button>
+              </div>
+            ))}
+            {!isReorderMode && dateKey === todayKeyNow && buddies.length > 0 && (
+              <div className="space-y-2" aria-label="Mes binômes">
+                <p className="px-2 text-[9px] font-black uppercase tracking-widest text-[#18181B]/55 dark:text-[#E6E8E6]/55">Mon binôme aujourd'hui</p>
+                {buddies.map(b => <BuddyCard key={b.linkId} buddy={b} onCheer={cheerBuddy} compact />)}
+              </div>
+            )}
+            {!isReorderMode && dateKey === todayKeyNow && buddyLinks.incoming.length > 0 && (
+              <button onClick={() => setActiveTab('goals')} className="w-full glass rounded-[2rem] px-5 py-4 text-left border border-accent/30 text-[13px] font-semibold text-[#18181B] dark:text-[#E6E8E6]">🤝 {buddyLinks.incoming[0].fromName || buddyLinks.incoming[0].fromEmail} t'invite à devenir son binôme de discipline · <span className="text-accent font-black">Voir</span></button>
+            )}
             {!isReorderMode && dateKey === todayKeyNow && appData.settings?.motivation !== false && appData.settings?.motivationHiddenOn !== todayKeyNow && (() => {
               const y = new Date(todayKeyNow + 'T12:00:00'); y.setDate(y.getDate() - 1);
               return <DailyMotivation dateKey={todayKeyNow} yesterdayRate={computeDay(appData, getKeyFromDate(y), todayKeyNow).rate} streak={perfectStreak(appData, todayKeyNow).current}
@@ -3048,6 +3183,7 @@ const App: React.FC = () => {
                                               </span>
                                             )}
                                           </div>
+                                          {isHardDay(appData, dateKey) && !dStatus && !task.completedDates?.includes(dateKey) && (task.minVersion || task.why) && <p className="text-[10px] font-bold text-accent mb-0.5">{task.minVersion ? `Version minimale : ${task.minVersion}` : ''}{task.minVersion && task.why ? ' · ' : ''}{task.why ? <span className="font-semibold italic text-[#18181B]/60 dark:text-[#E6E8E6]/55">{task.why}</span> : null}</p>}
                                           {dStatus && <p className={`text-[9px] font-black uppercase tracking-widest mb-0.5 ${dStatus.kind === 'cancel' ? 'text-[#DF2935]' : 'text-[#18181B]/60 dark:text-[#E6E8E6]/60'}`}>{dStatus.kind === 'cancel' ? `Annulée${dStatus.reason && dStatus.reason !== 'Annulée' ? ` · ${dStatus.reason}` : ''}` : dStatus.reason || 'Sautée'}</p>}
                                           {task.description && !task.completedDates?.includes(dateKey) && (
                                             <p className="text-[10px] text-[#18181B]/50 dark:text-[#E6E8E6]/50 font-medium mb-1 line-clamp-2 leading-relaxed">
@@ -3482,10 +3618,16 @@ const App: React.FC = () => {
 
         {activeTab === 'goals' && (
           <div className="space-y-6 animate-in fade-in duration-500 pb-20">
+            <IdentityPanel identities={activeIdentities(appData)} votes={votes}
+              linked={Object.fromEntries(activeIdentities(appData).map(i => [i.id, Array.from(new Set(appData.blocks.flatMap(b => b.tasks).filter(t => t.identityId === i.id).map(t => t.title)))]))}
+              onAdd={(t) => updateAppData(prev => addIdentity(prev, t))} onRemove={(id) => updateAppData(prev => removeIdentity(prev, id))} />
             <LongTermGoals
               goals={appData.longTermGoals || []} appData={appData} onAskClaude={askClaude}
               onChange={(goals) => updateAppData(prev => ({ ...prev, longTermGoals: goals }))}
             />
+            <BuddyPanel signedIn={!!user} buddies={buddies} incoming={buddyLinks.incoming} pendingSent={buddyLinks.mine.filter(l => l.status === 'pending' && l.fromUid === user?.uid)}
+              onInvite={inviteBuddyByEmail} onAnswer={answerBuddy} onRemove={removeBuddy} onCheer={cheerBuddy} onSignIn={() => setShowAuth(true)} />
+            <RewardsCollection rewards={appData.rewards || []} />
           </div>
         )}
 
@@ -3814,6 +3956,10 @@ const App: React.FC = () => {
         )}
       </Suspense>
 
+      {/* Journée parfaite */}
+      {perfect && <PerfectDay count={computePeriod(appData, new Date(Date.now() - 365 * 86400000), new Date(), todayKeyNow).perfectDays} streak={streakNow.current} card={perfect.card} name={user?.displayName?.split(' ')[0] || undefined}
+        onShare={() => { setPerfect(null); setShareFor('day'); }} onClose={() => setPerfect(null)} />}
+
       {/* Partage des performances */}
       {shareFor && <ShareSheet appData={appData} initialPeriod={shareFor} name={user?.displayName?.split(' ')[0] || undefined} onClose={() => setShareFor(null)} notify={(m) => notify(m, 4000)} />}
 
@@ -3832,6 +3978,7 @@ const App: React.FC = () => {
             onDuplicate={() => parentId ? handleDuplicate('subtask', t.id, parentId, blockId) : handleDuplicate('task', t.id, blockId)}
             onDelete={() => { saveToHistory(); handleRoutineStructureChange(blocks => blocks.map(b => b.id !== blockId ? b : parentId ? { ...b, tasks: b.tasks.map(x => x.id === parentId ? { ...x, subTasks: (x.subTasks || []).filter(s => s.id !== t.id) } : x) } : { ...b, tasks: b.tasks.filter(x => x.id !== t.id) })); }}
             onSignIn={() => setShowAuth(true)}
+            identities={activeIdentities(appData)} onSaveMeaning={(f) => saveMeaning(t.id, f)}
             onClose={() => setActionTask(null)} />
         );
       })()}

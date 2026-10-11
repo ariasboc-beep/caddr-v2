@@ -41,6 +41,10 @@ destinataire (adresse e-mail du compte) peuvent lire une tâche confiée ; seul 
 destinataire peut l'accepter, la refuser ou la marquer comme faite.
 **Sans cette mise à jour, l'envoi de tâches à un autre utilisateur échoue.**
 
+Elles couvrent aussi le **binôme de discipline** : invitations (`buddyLinks`), résumé publié
+(`publicStats`, lisible uniquement par les binômes dont l'e-mail figure dans `viewers` ;
+il contient séries et taux, jamais les tâches) et encouragements (`cheers`).
+
 Si vos règles contiennent `allow read, write: if true;` → faille critique à corriger
 immédiatement.
 

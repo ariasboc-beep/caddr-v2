@@ -108,3 +108,5 @@ body {
 :where(html:not(.dark)) .text-\[\#DF2935\] { color: #C21F2B; }
 :where(html:not(.dark)) .bg-accent .text-accent,
 :where(html:not(.dark)) .bg-\[\#FDCA40\] { color: #1b1b1b; }
+/* Cartes toujours sombres (célébrations) : l'or reste l'or vif, même en thème clair */
+:where(html:not(.dark)) .force-dark .text-\[\#FDCA40\] { color: #FDCA40; }

@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { MasteryChip, MasteryCard } from './MasteryBadge';
 import { BRAND_SWATCHES, brandColor } from '../palette';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell } from 'recharts';
 import {
@@ -203,6 +204,8 @@ const HabitDetail: React.FC<{ habit: StandaloneHabit; accentHex: string; onUpdat
         <div><p className={`text-[9px] font-black uppercase tracking-widest ${muted}`}>Record</p><p className={`text-3xl font-black ${ink}`}>{stats.best} j</p></div>
         <div><p className={`text-[9px] font-black uppercase tracking-widest ${muted}`}>Réussite</p><p className={`text-3xl font-black ${ink}`}>{stats.rate === null ? '—' : `${stats.rate} %`}</p></div>
       </div>
+
+      <MasteryCard days={stats.done} />
 
       {/* Onglets */}
       <div className="flex p-1 bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 rounded-2xl">
@@ -439,7 +442,8 @@ const HabitsView: React.FC<Props> = ({ habits, onChange, accentHex }) => {
                     <span className="min-w-0">
                       <span className={`block text-sm font-bold truncate group-hover:text-accent ${ink}`}>{h.name}</span>
                       <span className={`flex flex-wrap items-center gap-x-2 text-[10px] font-bold ${muted}`}>
-                        <span className="flex items-center gap-0.5"><Flame size={11} style={{ color }} />{s.current} j</span>
+                        <MasteryChip days={s.done} />
+                        <span className="flex items-center gap-0.5">· <Flame size={11} style={{ color }} />{s.current} j</span>
                         {h.kind === 'quit' && <span>· {s.sinceLastFail} j sans rechute</span>}
                         <span>· {s.rate === null ? '—' : `${s.rate} %`}</span>
                         <span className={faint}>· {freqLabel(h)}</span>
