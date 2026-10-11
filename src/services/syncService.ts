@@ -229,5 +229,7 @@ export const mergeAppData = (local: AppData, cloud: AppData): AppData => {
     monthlyReviews: { ...(cloud.monthlyReviews || {}), ...(local.monthlyReviews || {}) },
     habits: mergeHabits(local.habits || [], cloud.habits || []),
     journal: mergeJournal(local.journal || {}, cloud.journal || {}),
+    assistantMemory: mergeById(local.assistantMemory || [], cloud.assistantMemory || []),
+    lifeReviews: (() => { const out = { ...(cloud.lifeReviews || {}) }; Object.entries(local.lifeReviews || {}).forEach(([k, r]) => { if (!out[k] || r.updatedAt > out[k].updatedAt) out[k] = r; }); return out; })(),
   };
 };

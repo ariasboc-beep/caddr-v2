@@ -92,6 +92,8 @@ export interface AppData {
   focusSessions?: FocusSession[];
   skips?: SkipRecord[];
   journal?: { [dateKey: string]: JournalEntry }; // journal de gratitude et de fierté
+  assistantMemory?: AssistantMemoryItem[];      // ce que l'assistant Claude retient (préférences durables)
+  lifeReviews?: { [quarterKey: string]: LifeReview }; // revues trimestrielles (roue de la vie), clé « AAAA-Tn »
 }
 
 // Objectif long terme relié aux habitudes quotidiennes
@@ -104,6 +106,7 @@ export interface LongTermGoal {
   autoProgress?: boolean;   // progression calculée à partir des tâches reliées
   linkedBlocks?: string[];  // titres des blocs reliés
   linkedTasks?: string[];   // identifiants des tâches reliées
+  milestones?: Milestone[]; // étapes intermédiaires du plan d'action
   createdAt: string;
   color?: string;
 }
@@ -131,6 +134,9 @@ export interface AppSettings {
   weekPlanDone?: string;            // dernière semaine planifiée avec le rituel (clé AAAA-Www)
   weekPlanDismissed?: string;       // rappel du rituel masqué pour cette semaine
   calendars?: ExternalCalendar[];
+  smartReminders?: 'off' | 'important' | 'all'; // rappels des tâches à heure fixe non faites
+  briefingHiddenOn?: string;        // briefing du matin masqué ce jour-là
+  eveningDoneOn?: string;           // bilan du soir fait ce jour-là
   weeklyTarget?: number;            // objectif de discipline hebdomadaire (%) pour les bonus XP   // agendas externes affichés dans le Planning (lecture seule)
 }
 
@@ -203,4 +209,20 @@ export interface JournalEntry {
   pride: string[];       // 3 choses dont je suis fier·e
   note?: string;         // phrase libre pour retenir la journée
   updatedAt: string;     // ISO, sert à la fusion entre appareils
+}
+
+// Étape d'un objectif long terme
+export interface Milestone { id: string; title: string; date?: string; done?: boolean }
+
+// Préférence durable retenue par l'assistant (« pas de travail après 21 h »…)
+export interface AssistantMemoryItem { id: string; text: string; createdAt: string; deleted?: boolean }
+
+// Revue trimestrielle : note de 1 à 10 par domaine de vie
+export interface LifeReview {
+  quarter: string;                       // « 2026-T4 »
+  scores: { [domain: string]: number };
+  notes?: { [domain: string]: string };
+  focus?: string[];                      // domaines choisis comme priorités du trimestre
+  createdAt: string;
+  updatedAt: string;
 }

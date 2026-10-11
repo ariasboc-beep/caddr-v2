@@ -62,8 +62,7 @@ export function executeTool(data: AppData, name: string, input: Record<string, a
   const read = (result: unknown): ToolOutcome => ({ data, result, changed: false });
   const fail = (error: string): ToolOutcome => ({ data, result: { error }, changed: false });
 
-  switch (name) {
-    case 'create_task': {
+  const createTask = (): ToolOutcome => {
       if (!input.title?.trim()) return fail('Titre manquant.');
       const rec: string = input.recurrence || 'once';
       const date = validDate(input.date) ? input.date : todayKey;
@@ -88,8 +87,17 @@ export function executeTool(data: AppData, name: string, input: Record<string, a
       } else if (validDate(input.start_date)) task.startDate = input.start_date;
       const r = addRecurring(data, input.block, task, todayKey);
       return ok(r.data, { task_id: task.id, block: r.blockTitle, recurrence: rec }, `Tâche « ${task.title} » ajoutée ${RECUR_LABEL[rec] || ''}${task.startTime ? ` à ${task.startTime}` : ''} (${r.blockTitle})`);
-    }
+    };
 
+  switch (name) {
+    case 'create_task': {
+      const linkGoal = (o: ToolOutcome): ToolOutcome => {
+        const tid = (o.result as any)?.task_id; const gid = input.goal_id;
+        if (!tid || !gid || !(o.data.longTermGoals || []).some(g => g.id === gid)) return o;
+        return { ...o, data: { ...o.data, longTermGoals: (o.data.longTermGoals || []).map(g => g.id === gid ? { ...g, linkedTasks: [...(g.linkedTasks || []), tid], autoProgress: true } : g) } };
+      };
+      return linkGoal(createTask());
+    }
     case 'update_task': {
       const f = findTask(data, input.task_id);
       if (!f) return fail('Tâche introuvable.');
@@ -220,6 +228,38 @@ export function executeTool(data: AppData, name: string, input: Record<string, a
       return ok({ ...data, journal: { ...(data.journal || {}), [k]: entry } }, { ok: true }, `Journal du ${fmtDay(k)} complété`);
     }
 
+    case 'add_milestones': {
+      const g = (data.longTermGoals || []).find(x => x.id === input.goal_id);
+      if (!g) return fail('Objectif introuvable.');
+      const ms = (input.milestones || []).filter((m: any) => m?.title).map((m: any) => ({ id: generateId(), title: String(m.title).trim(), date: validDate(m.date) ? m.date : undefined }));
+      if (!ms.length) return fail('Aucune étape.');
+      const all = [...(g.milestones || []), ...ms].sort((a, b) => (a.date || '9999').localeCompare(b.date || '9999'));
+      return ok({ ...data, longTermGoals: (data.longTermGoals || []).map(x => x.id === g.id ? { ...x, milestones: all } : x) }, { milestones: ms.map((m: any) => ({ milestone_id: m.id, title: m.title })) }, `${ms.length} étape${ms.length > 1 ? 's' : ''} ajoutée${ms.length > 1 ? 's' : ''} à « ${g.title} »`);
+    }
+
+    case 'set_milestone_done': {
+      const g = (data.longTermGoals || []).find(x => x.id === input.goal_id);
+      const m = g?.milestones?.find(x => x.id === input.milestone_id);
+      if (!g || !m) return fail('Étape introuvable.');
+      return ok({ ...data, longTermGoals: (data.longTermGoals || []).map(x => x.id === g.id ? { ...x, milestones: (x.milestones || []).map(y => y.id === m.id ? { ...y, done: !!input.done } : y) } : x) }, { ok: true }, `Étape « ${m.title} » ${input.done ? 'atteinte' : 'rouverte'}`);
+    }
+
+    case 'remember': {
+      const text = String(input.text || '').trim().slice(0, 200);
+      if (!text) return fail('Rien à retenir.');
+      const mem = (data.assistantMemory || []).filter(x => !x.deleted);
+      if (mem.some(x => norm(x.text) === norm(text))) return read({ already: true });
+      if (mem.length >= 40) return fail('Mémoire pleine (40 éléments) : demande à l’utilisateur ce qu’il faut oublier.');
+      const item = { id: generateId(), text, createdAt: new Date().toISOString() };
+      return ok({ ...data, assistantMemory: [...(data.assistantMemory || []), item] }, { memory_id: item.id }, `Retenu : « ${text} »`);
+    }
+
+    case 'forget': {
+      const m = (data.assistantMemory || []).find(x => x.id === input.memory_id && !x.deleted);
+      if (!m) return fail('Élément introuvable.');
+      return ok({ ...data, assistantMemory: (data.assistantMemory || []).map(x => x.id === m.id ? { ...x, deleted: true } : x) }, { ok: true }, `Oublié : « ${m.text} »`);
+    }
+
     case 'get_day': {
       if (!validDate(input.date)) return fail('Date invalide.');
       return read(dayDetail(data, input.date, todayKey, ctx));
@@ -309,7 +349,11 @@ export function buildContext(data: AppData, ctx: ToolCtx, userName?: string): st
   if (inbox.length) lines.push(`\nBOÎTE DE TÂCHES (${inbox.length}) : ${JSON.stringify(inbox.slice(0, 30).map(x => ({ inbox_id: x.id, titre: x.title, echeance: x.deadline })))}`);
   const habits = activeHabits(data.habits);
   if (habits.length) lines.push(`\nHABITUDES : ${JSON.stringify(habits.map(h => ({ habit_id: h.id, nom: h.name, type: h.kind, aujourdhui: stateOn(h, todayKey, todayKey) })))}`);
-  if (data.longTermGoals?.length) lines.push(`\nOBJECTIFS LONG TERME : ${JSON.stringify(data.longTermGoals.map(g => ({ titre: g.title, echeance: g.targetDate, progression: g.progress })))}`);
+  if (data.longTermGoals?.length) lines.push(`\nOBJECTIFS LONG TERME : ${JSON.stringify(data.longTermGoals.map(g => ({ goal_id: g.id, titre: g.title, echeance: g.targetDate, progression_manuelle: g.autoProgress ? undefined : g.progress, blocs_relies: g.linkedBlocks, nb_taches_reliees: g.linkedTasks?.length, etapes: g.milestones?.map(m => ({ milestone_id: m.id, titre: m.title, date: m.date, atteinte: !!m.done })) })))}`);
+  const mem = (data.assistantMemory || []).filter(x => !x.deleted);
+  lines.push(`\nMÉMOIRE (préférences durables à respecter) : ${mem.length ? JSON.stringify(mem.map(m => ({ memory_id: m.id, texte: m.text }))) : 'aucune pour l’instant'}`);
+  const lr = Object.values(data.lifeReviews || {}).sort((a, b) => b.quarter.localeCompare(a.quarter))[0];
+  if (lr) lines.push(`\nROUE DE LA VIE (${lr.quarter}, notes sur 10) : ${JSON.stringify(lr.scores)}${lr.focus?.length ? ` · priorités du trimestre : ${lr.focus.join(', ')}` : ''}`);
   const w = getPeriod('week', ctx.now), m = getPeriod('month', ctx.now);
   const ws = computePeriod(data, w.start, w.end, todayKey), ms = computePeriod(data, m.start, m.end, todayKey);
   const j = data.journal?.[todayKey];

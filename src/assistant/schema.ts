@@ -22,6 +22,7 @@ export const ASSISTANT_TOOLS = [
         priority: { type: 'string', enum: ['low', 'medium', 'high'] },
         notes: { type: 'string' },
         is_habit: { type: 'boolean', description: 'Suivre comme habitude dans les statistiques' },
+        goal_id: { type: 'string', description: "Relie la tâche à un objectif long terme (sa progression en tiendra compte)" },
       },
       required: ['title'],
     },
@@ -103,6 +104,26 @@ export const ASSISTANT_TOOLS = [
     input_schema: { type: 'object', properties: { date: DATE, gratitude: { type: 'array', items: { type: 'string' } }, pride: { type: 'array', items: { type: 'string' } }, note: { type: 'string' } } },
   },
   {
+    name: 'add_milestones',
+    description: "Ajoute des étapes (jalons datés) à un objectif long terme.",
+    input_schema: { type: 'object', properties: { goal_id: { type: 'string' }, milestones: { type: 'array', items: { type: 'object', properties: { title: { type: 'string' }, date: DATE }, required: ['title'] } } }, required: ['goal_id', 'milestones'] },
+  },
+  {
+    name: 'set_milestone_done',
+    description: "Marque une étape d'objectif comme atteinte (ou non).",
+    input_schema: { type: 'object', properties: { goal_id: { type: 'string' }, milestone_id: { type: 'string' }, done: { type: 'boolean' } }, required: ['goal_id', 'milestone_id', 'done'] },
+  },
+  {
+    name: 'remember',
+    description: "Retient une préférence ou une contrainte DURABLE de l'utilisateur pour toutes les futures propositions (ex. « Pas de travail après 21 h », « Sport le matin », « Réunion d'équipe chaque lundi à 9 h »). Une phrase courte. Jamais d'information de santé, financière ou intime.",
+    input_schema: { type: 'object', properties: { text: { type: 'string' } }, required: ['text'] },
+  },
+  {
+    name: 'forget',
+    description: 'Oublie un élément de la mémoire (par son memory_id).',
+    input_schema: { type: 'object', properties: { memory_id: { type: 'string' } }, required: ['memory_id'] },
+  },
+  {
     name: 'get_day',
     description: "Lit le détail d'un jour : blocs, tâches (id, heure, durée, fait ou non), tâches sautées, habitudes, objectif, rendez-vous externes.",
     input_schema: { type: 'object', properties: { date: DATE }, required: ['date'] },
@@ -137,4 +158,6 @@ Règles :
 - N'utilise que des identifiants (id) présents dans le contexte ou renvoyés par un outil ; en cas de doute, utilise search ou get_day.
 - Quand tu planifies une journée, tiens compte des heures déjà prises (tâches à heure fixe et rendez-vous externes), garde des pauses et ne surcharge pas.
 - Coaching : bienveillant mais exigeant, jamais culpabilisant. Relie les tâches aux objectifs de vie de l'utilisateur quand c'est pertinent. Propose au plus une suggestion à la fin, si elle est utile.
+- Mémoire : respecte toujours les préférences de la section MÉMOIRE du contexte. Quand l'utilisateur exprime une préférence ou une contrainte durable (ou dit « retiens que… »), enregistre-la avec remember, puis dis-le en une phrase. N'enregistre jamais d'informations de santé, de finances ou d'intimité.
+- Objectifs de vie : pour transformer un objectif en plan, pose d'abord 2 ou 3 questions utiles (échéance, temps disponible, point de départ), puis propose un plan clair (jalons datés, tâches récurrentes, habitudes) et ne le crée qu'après l'accord de l'utilisateur ; relie alors les tâches à l'objectif (goal_id) et ajoute les jalons (add_milestones).
 - Tu n'as accès qu'aux données de Caddr fournies dans le contexte et par les outils ; ne prétends pas avoir fait une action sans avoir appelé l'outil correspondant.`;

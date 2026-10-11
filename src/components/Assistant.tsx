@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { X, Send, Mic, MicOff, Sparkles, Loader2, Undo2, Volume2, VolumeX, Trash2, Check, AlertCircle, LogIn } from 'lucide-react';
+import { X, Send, Mic, MicOff, Sparkles, Loader2, Undo2, Volume2, VolumeX, Trash2, Check, AlertCircle, LogIn, Brain, Plus } from 'lucide-react';
+import { generateId } from '../utils';
 import type { AppData, TabType } from '../types';
 import { callAssistant, ApiMessage, ApiBlock } from '../services/assistantService';
 import { executeTool, buildContext, ToolCtx } from '../assistant/tools';
@@ -16,6 +17,8 @@ interface Props {
   signedIn: boolean;
   onSignIn: () => void;
   userName?: string;
+  initialPrompt?: string | null;            // demande envoyée automatiquement à l'ouverture
+  onInitialConsumed?: () => void;
 }
 
 interface UiMsg { id: string; role: 'user' | 'assistant'; text: string; actions?: string[]; undoable?: boolean; undone?: boolean; error?: boolean }
@@ -64,7 +67,7 @@ function trimHistory(msgs: ApiMessage[], max = 30): ApiMessage[] {
 
 type SR = { lang: string; interimResults: boolean; continuous: boolean; start: () => void; stop: () => void; onresult: (e: any) => void; onend: () => void; onerror: (e: any) => void };
 
-const Assistant: React.FC<Props> = ({ open, onClose, getData, commit, undo, navigate, externalEvents, signedIn, onSignIn, userName }) => {
+const Assistant: React.FC<Props> = ({ open, onClose, getData, commit, undo, navigate, externalEvents, signedIn, onSignIn, userName, initialPrompt, onInitialConsumed }) => {
   const [msgs, setMsgs] = useState<UiMsg[]>(() => { try { return JSON.parse(localStorage.getItem(STORE) || '{}').ui || []; } catch { return []; } });
   const api = useRef<ApiMessage[]>((() => { try { return JSON.parse(localStorage.getItem(STORE) || '{}').api || []; } catch { return []; } })());
   const [input, setInput] = useState('');
@@ -150,6 +153,30 @@ const Assistant: React.FC<Props> = ({ open, onClose, getData, commit, undo, navi
     }
   };
 
+  // Demande préremplie (briefing, bilan du soir, plan d'action…) : envoyée une seule fois
+  const sentInitial = useRef<string | null>(null);
+  useEffect(() => {
+    if (open && initialPrompt && signedIn && !busy && sentInitial.current !== initialPrompt) {
+      sentInitial.current = initialPrompt;
+      onInitialConsumed?.();
+      send(initialPrompt);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, initialPrompt, signedIn]);
+
+  // Mémoire de l'assistant (préférences durables), visible et modifiable
+  const [showMemory, setShowMemory] = useState(false);
+  const [memDraft, setMemDraft] = useState('');
+  const [, force] = useState(0);
+  const memory = (getData().assistantMemory || []).filter(m => !m.deleted);
+  const addMemory = () => {
+    const t = memDraft.trim(); if (!t) return;
+    const d = getData();
+    commit({ ...d, assistantMemory: [...(d.assistantMemory || []), { id: generateId(), text: t.slice(0, 200), createdAt: new Date().toISOString() }] });
+    setMemDraft(''); setTimeout(() => force(x => x + 1), 50);
+  };
+  const delMemory = (id: string) => { const d = getData(); commit({ ...d, assistantMemory: (d.assistantMemory || []).map(m => m.id === id ? { ...m, deleted: true } : m) }); setTimeout(() => force(x => x + 1), 50); };
+
   const toggleMic = () => {
     if (!SpeechRec) return;
     if (listening) { rec.current?.stop(); return; }
@@ -187,10 +214,29 @@ const Assistant: React.FC<Props> = ({ open, onClose, getData, commit, undo, navi
             <p className={`text-sm font-black ${ink}`}>Assistant Claude</p>
             <p className={`text-[10px] font-semibold ${muted}`}>Dis-lui quoi programmer, déplacer ou suivre</p>
           </div>
+          <button onClick={() => setShowMemory(v => !v)} aria-label="Mémoire de l'assistant" title="Ce que Claude retient" className={`relative p-2 rounded-lg hover:text-accent ${showMemory ? 'text-accent' : muted}`}><Brain size={16} />{memory.length > 0 && <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-accent" />}</button>
           {'speechSynthesis' in window && <button onClick={() => { const v = !speak; setSpeak(v); try { localStorage.setItem('caddr_assistant_tts', v ? '1' : '0'); if (!v) window.speechSynthesis.cancel(); } catch { /* rien */ } }} aria-label={speak ? 'Ne plus lire les réponses' : 'Lire les réponses à voix haute'} title={speak ? 'Lecture à voix haute activée' : 'Lire les réponses à voix haute'} className={`p-2 rounded-lg hover:text-accent ${speak ? 'text-accent' : muted}`}>{speak ? <Volume2 size={16} /> : <VolumeX size={16} />}</button>}
           {msgs.length > 0 && <button onClick={clear} aria-label="Nouvelle discussion" title="Nouvelle discussion" className={`p-2 rounded-lg hover:text-accent ${muted}`}><Trash2 size={16} /></button>}
           <button onClick={onClose} aria-label="Fermer l'assistant" className={`p-2 rounded-lg hover:text-accent ${muted}`}><X size={18} /></button>
         </div>
+
+        {showMemory && (
+          <div className="px-4 py-3 border-b border-[#18181B]/5 dark:border-[#E6E8E6]/5 space-y-2 bg-accent/[0.04] max-h-[45%] overflow-y-auto custom-scrollbar">
+            <p className={`text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 text-accent`}><Brain size={12} /> Ce que Claude retient</p>
+            <p className={`text-[11px] font-medium ${muted}`}>Tes préférences durables, respectées dans toutes ses propositions. Dis « retiens que… » ou ajoute-les ici.</p>
+            {memory.length === 0 && <p className={`text-[11px] font-semibold ${muted}`}>Rien pour l'instant.</p>}
+            {memory.map(m => (
+              <div key={m.id} className="flex items-start gap-2 rounded-xl bg-white dark:bg-[#18181B] px-3 py-2">
+                <p className={`flex-1 text-[12px] font-semibold ${ink}`}>{m.text}</p>
+                <button onClick={() => delMemory(m.id)} aria-label={`Oublier : ${m.text}`} className={`p-0.5 hover:text-[#DF2935] ${muted}`}><X size={14} /></button>
+              </div>
+            ))}
+            <div className="flex gap-2">
+              <input value={memDraft} onChange={e => setMemDraft(e.target.value)} onKeyDown={e => e.key === 'Enter' && addMemory()} placeholder="Ex. Pas de travail après 21 h" aria-label="Nouvelle préférence" className={`flex-1 bg-white dark:bg-[#18181B] rounded-xl px-3 py-2 text-[12px] font-semibold outline-none border border-[#18181B]/10 dark:border-[#E6E8E6]/10 focus:border-accent ${ink}`} />
+              <button onClick={addMemory} disabled={!memDraft.trim()} aria-label="Ajouter" className="px-3 rounded-xl bg-accent text-white disabled:opacity-40"><Plus size={14} /></button>
+            </div>
+          </div>
+        )}
 
         {/* Messages */}
         <div className="flex-1 overflow-y-auto custom-scrollbar px-4 py-4 space-y-3">

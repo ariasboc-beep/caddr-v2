@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
-import { Plus, Trash2, CalendarClock, Flag, Link2, Wand2, ChevronDown, ChevronUp, Check } from 'lucide-react';
+import { Plus, Trash2, CalendarClock, Flag, Link2, Wand2, ChevronDown, ChevronUp, Check, Sparkles, Milestone as MilestoneIcon, X } from 'lucide-react';
+import { PROMPTS } from '../assistant/prompts';
 import { AppData, LongTermGoal } from '../types';
 import { generateId, getKeyFromDate } from '../utils';
 import { goalProgress } from '../deepStats';
@@ -8,6 +9,7 @@ interface Props {
   goals: LongTermGoal[];
   onChange: (goals: LongTermGoal[]) => void;
   appData?: AppData; // pour la progression automatique (tâches reliées)
+  onAskClaude?: (prompt: string) => void;
 }
 
 const daysUntil = (dateStr?: string): number | null => {
@@ -21,7 +23,8 @@ const daysUntil = (dateStr?: string): number | null => {
 const ink = 'text-[#18181B] dark:text-[#E6E8E6]';
 const muted = 'text-[#18181B]/50 dark:text-[#E6E8E6]/50';
 
-const LongTermGoals: React.FC<Props> = ({ goals, onChange, appData }) => {
+const LongTermGoals: React.FC<Props> = ({ goals, onChange, appData, onAskClaude }) => {
+  const [msDraft, setMsDraft] = useState<Record<string, { title: string; date: string }>>({});
   const [newTitle, setNewTitle] = useState('');
   const [linking, setLinking] = useState<string | null>(null);
   const todayKey = getKeyFromDate(new Date());
@@ -56,7 +59,10 @@ const LongTermGoals: React.FC<Props> = ({ goals, onChange, appData }) => {
 
   return (
     <div className="glass p-6 rounded-[2rem] space-y-4">
-      <h2 className="font-black uppercase tracking-wider text-sm flex items-center gap-2"><Flag size={16} className="text-accent" /> Objectifs long terme</h2>
+      <div className="flex flex-wrap items-center gap-2">
+        <h2 className="flex-1 font-black uppercase tracking-wider text-sm flex items-center gap-2"><Flag size={16} className="text-accent" /> Objectifs long terme</h2>
+        {onAskClaude && <button onClick={() => onAskClaude(PROMPTS.newGoal)} className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-accent/10 text-accent text-[10px] font-black uppercase tracking-wider hover:bg-accent hover:text-white transition-all"><Sparkles size={13} /> Objectif guidé par Claude</button>}
+      </div>
 
       <div className="flex gap-2">
         <input
@@ -136,6 +142,28 @@ const LongTermGoals: React.FC<Props> = ({ goals, onChange, appData }) => {
                     </>
                   )}
                 </div>
+
+                {/* Étapes (jalons) */}
+                {(g.milestones?.length || 0) > 0 && (
+                  <ul className="space-y-1">
+                    {g.milestones!.map(m => (
+                      <li key={m.id} className="flex items-center gap-2 group">
+                        <button onClick={() => patch(g.id, { milestones: g.milestones!.map(x => x.id === m.id ? { ...x, done: !x.done } : x) })} aria-label={m.done ? 'Rouvrir l’étape' : 'Marquer l’étape comme atteinte'} className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${m.done ? 'bg-accent border-accent' : 'border-[#18181B]/25 dark:border-[#E6E8E6]/25'}`}>{m.done && <Check size={9} strokeWidth={4} className="text-white" />}</button>
+                        <span className={`flex-1 text-[12px] font-semibold ${m.done ? 'line-through opacity-50' : ink}`}>{m.title}</span>
+                        {m.date && <span className={`text-[10px] font-bold ${!m.done && m.date < todayKey ? 'text-[#DF2935]' : muted}`}>{new Date(m.date + 'T12:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}</span>}
+                        <button onClick={() => patch(g.id, { milestones: g.milestones!.filter(x => x.id !== m.id) })} aria-label="Supprimer l’étape" className={`opacity-0 group-hover:opacity-100 [@media(hover:none)]:opacity-60 p-0.5 hover:text-[#DF2935] ${muted}`}><X size={12} /></button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                <div className="flex items-center gap-1.5">
+                  <MilestoneIcon size={13} className={`shrink-0 ${muted}`} />
+                  <input value={msDraft[g.id]?.title || ''} onChange={e => setMsDraft(p => ({ ...p, [g.id]: { title: e.target.value, date: p[g.id]?.date || '' } }))}
+                    onKeyDown={e => { if (e.key === 'Enter' && msDraft[g.id]?.title?.trim()) { const dd = msDraft[g.id]; patch(g.id, { milestones: [...(g.milestones || []), { id: generateId(), title: dd.title.trim(), date: dd.date || undefined }].sort((a, b) => (a.date || '9999').localeCompare(b.date || '9999')) }); setMsDraft(p => ({ ...p, [g.id]: { title: '', date: '' } })); } }}
+                    placeholder="Ajouter une étape (Entrée)" aria-label="Nouvelle étape" className={`flex-1 min-w-0 bg-transparent text-[12px] font-semibold outline-none ${ink}`} />
+                  <input type="date" value={msDraft[g.id]?.date || ''} onChange={e => setMsDraft(p => ({ ...p, [g.id]: { title: p[g.id]?.title || '', date: e.target.value } }))} aria-label="Date de l'étape" className={`bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 px-1.5 py-1 rounded-lg text-[10px] font-bold outline-none [color-scheme:dark] ${ink}`} />
+                </div>
+                {onAskClaude && <button onClick={() => onAskClaude(PROMPTS.goalPlan(g.title, g.targetDate))} className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-accent"><Sparkles size={12} /> Plan d'action avec Claude</button>}
 
                 {linking === g.id && (
                   <div className="space-y-2 pt-1">

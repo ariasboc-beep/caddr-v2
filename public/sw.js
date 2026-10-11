@@ -1,5 +1,5 @@
 // Service Worker Caddr. — cache des assets pour un fonctionnement hors-ligne.
-const CACHE = 'caddr-v4';
+const CACHE = 'caddr-v5';
 const OFFLINE_URL = '/index.html';
 
 self.addEventListener('install', (e) => {
@@ -61,7 +61,21 @@ self.addEventListener('push', (event) => {
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const url = (event.notification.data && event.notification.data.url) || '/';
+  const data = event.notification.data || {};
+  // Rappel intelligent : bouton « Fait » / « Demain » / « Sauter » → transmis à l'app
+  if (data.kind === 'caddr-reminder') {
+    const action = event.action || 'open';
+    const msg = { type: 'caddr-reminder', action, taskId: data.taskId, date: data.date };
+    const url = `/?reminder=${encodeURIComponent(action)}&task=${encodeURIComponent(data.taskId)}&date=${encodeURIComponent(data.date)}`;
+    event.waitUntil(
+      self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
+        for (const c of list) { c.postMessage(msg); if ('focus' in c) return c.focus(); }
+        if (self.clients.openWindow) return self.clients.openWindow(url);
+      })
+    );
+    return;
+  }
+  const url = data.url || '/';
   event.waitUntil(
     self.clients.matchAll({ type: 'window' }).then((list) => {
       for (const c of list) { if ('focus' in c) return c.focus(); }

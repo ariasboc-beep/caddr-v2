@@ -6,6 +6,13 @@ import BackupsPanel from './components/BackupsPanel';
 const Assistant = lazyRetry(() => import('./components/Assistant'));
 import { occurrencesBetween } from './icsImport';
 import { devAssistant } from './services/assistantService';
+import MorningBriefing from './components/MorningBriefing';
+import { computeBriefing } from './briefing';
+const EveningReview = lazyRetry(() => import('./components/EveningReview'));
+const LifeWheel = lazyRetry(() => import('./components/LifeWheel'));
+import { PROMPTS } from './assistant/prompts';
+import { lateTasks, alreadyReminded, markReminded, notifyLate } from './reminders';
+import { executeTool } from './assistant/tools';
 import { 
   Check, ChevronLeft, ChevronRight, Target, 
   Plus, Trash2, Layout, BarChart3, 
@@ -173,6 +180,11 @@ const App: React.FC = () => {
   const [showCalendars, setShowCalendars] = useState(false);
   const [coachBusy, setCoachBusy] = useState(false);
   const [showAssistant, setShowAssistant] = useState(false);
+  const [assistantPrompt, setAssistantPrompt] = useState<string | null>(null);
+  const [showEvening, setShowEvening] = useState(false);
+  const [tplApply, setTplApply] = useState<{ key: string; mode: 'always' | 'period'; days: number } | null>(null);
+  const [routineIdea, setRoutineIdea] = useState('');
+  const askClaude = (prompt: string) => { setAssistantPrompt(prompt); setShowAssistant(true); };
   const [daysAway, setDaysAway] = useState<number | null>(null);
   const [showFullResetModal, setShowFullResetModal] = useState(false);
   const [resetInput, setResetInput] = useState('');
@@ -822,7 +834,15 @@ const App: React.FC = () => {
     (appData.habits || []).filter(h => !h.deleted && h.entries?.[k]?.s === 'done').forEach(h => titles.push(h.name));
     return [...new Set(titles)];
   }, [appData]);
-  const showJournalPrompt = currentTime.getHours() >= 18 && !journalWritten(appData.journal?.[todayKeyNow]);
+  const eveningDue = currentTime.getHours() >= 18 && appData.settings?.eveningDoneOn !== todayKeyNow;
+  const showJournalPrompt = currentTime.getHours() >= 18 && !eveningDue && !journalWritten(appData.journal?.[todayKeyNow]);
+  const showBriefing = currentTime.getHours() >= 4 && currentTime.getHours() < 13 && appData.settings?.briefingHiddenOn !== todayKeyNow;
+  const briefing = useMemo(() => {
+    if (!showBriefing) return null;
+    const from = new Date(currentTime); from.setHours(0, 0, 0, 0); const to = new Date(from); to.setDate(from.getDate() + 1);
+    return computeBriefing(appData, currentTime, occurrencesBetween(externalCalendars, cal.eventsOf, from, to));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [appData, showBriefing, todayKeyNow, externalCalendars, cal.version]);
 
   // Bonus de discipline (XP) : attribués une seule fois chacun, dès qu'ils sont mérités
   useEffect(() => {
@@ -847,6 +867,47 @@ const App: React.FC = () => {
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [appData.days, appData.blocks, appData.journal, appData.settings?.weekPlanDone, todayKeyNow, isLoading, user]);
+
+  // Rappels intelligents : tâches à heure fixe non faites après leur créneau
+  const reminderMode = appData.settings?.smartReminders ?? 'important';
+  const [lateDismissed, setLateDismissed] = useState<string[]>([]);
+  const late = useMemo(() => lateTasks(appData, currentTime, reminderMode).filter(t => !lateDismissed.includes(t.id)), [appData, currentTime, reminderMode, lateDismissed]);
+  useEffect(() => {
+    if (!late.length) return;
+    const done = alreadyReminded(todayKeyNow);
+    const fresh = late.filter(t => !done.has(t.id));
+    if (!fresh.length) return;
+    markReminded(todayKeyNow, fresh.map(t => t.id));
+    fresh.slice(0, 3).forEach(t => notifyLate(t, todayKeyNow));
+  }, [late, todayKeyNow]);
+  const handleReminderAction = useCallback((action: string, taskId: string, date: string) => {
+    if (action !== 'done' && action !== 'later') { setActiveTab('routine'); return; }
+    let label = '';
+    updateAppData(prev => {
+      const f = prev.blocks.concat(prev.days[date]?.blocks || []).flatMap(b => b.tasks).find(t => t.id === taskId);
+      if (!f) return prev;
+      const oneOff = f.recurrence === 'specific' || f.recurrence === 'once' || !prev.blocks.some(b => b.tasks.some(t => t.id === taskId));
+      const tomorrow = new Date(date + 'T12:00:00'); tomorrow.setDate(tomorrow.getDate() + 1);
+      const r = action === 'done' ? executeTool(prev, 'set_task_done', { task_id: taskId, date, done: true }, { now: new Date() })
+        : oneOff ? executeTool(prev, 'reschedule_task', { task_id: taskId, date: getKeyFromDate(tomorrow) }, { now: new Date() })
+        : executeTool(prev, 'skip_task', { task_id: taskId, date, reason: 'Rappel : sautée' }, { now: new Date() });
+      label = r.summary || '';
+      return r.data;
+    });
+    setLateDismissed(d => [...d, taskId]);
+    setTimeout(() => { if (label) { setActiveNotification(label); setTimeout(() => setActiveNotification(null), 3000); } }, 50);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  useEffect(() => {
+    const onMsg = (e: MessageEvent) => { if (e.data?.type === 'caddr-reminder') handleReminderAction(e.data.action, e.data.taskId, e.data.date); };
+    navigator.serviceWorker?.addEventListener('message', onMsg);
+    const q = new URLSearchParams(window.location.search);
+    if (q.get('reminder') && q.get('task') && q.get('date')) {
+      handleReminderAction(q.get('reminder')!, q.get('task')!, q.get('date')!);
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+    return () => navigator.serviceWorker?.removeEventListener('message', onMsg);
+  }, [handleReminderAction]);
 
   // Discipline du mois en cours (jours écoulés) + écart avec le mois précédent
   const headerBar = appData.settings?.headerBar || 'discipline';
@@ -1618,6 +1679,29 @@ const App: React.FC = () => {
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
+  };
+
+  // Ajoute les blocs d'un modèle à la routine actuelle (sans rien remplacer), éventuellement sur une période
+  const addTemplateToRoutine = (tplBlocks: Block[], days?: number, name?: string) => {
+    const today = getKeyFromDate(new Date());
+    const end = days ? getKeyFromDate(new Date(Date.now() + (days - 1) * 86400000)) : undefined;
+    const fresh: Block[] = JSON.parse(JSON.stringify(tplBlocks)).map((b: Block) => {
+      const tasks = b.tasks.map(t => ({ ...t, id: generateId(), completedDates: [], recurrence: days && b.recurrence !== 'daily' ? b.recurrence : t.recurrence }));
+      return days ? { ...b, id: generateId(), tasks, recurrence: 'period' as const, startDate: today, endDate: end } : { ...b, id: generateId(), tasks };
+    });
+    saveToHistory();
+    updateAppData(prev => {
+      const daysMap = { ...prev.days };
+      Object.keys(daysMap).forEach(k => {
+        const d = daysMap[k]; if (!d?.blocks || k < today) return;
+        const dt = new Date(k + 'T12:00:00');
+        const add = fresh.filter(b => isDateInRange(dt, b.recurrence, b.specificDate, b.startDate, b.endDate, b.stopDate));
+        if (add.length) daysMap[k] = { ...d, blocks: [...d.blocks, ...JSON.parse(JSON.stringify(add))] };
+      });
+      return { ...prev, blocks: [...prev.blocks, ...fresh], days: daysMap };
+    });
+    setActiveNotification(`« ${name || 'Modèle'} » ajouté à ta routine${days ? ` pour ${days} jours` : ''} ✓`);
+    setTimeout(() => setActiveNotification(null), 3500);
   };
 
   const applyTemplate = (tplId: string) => {
@@ -2551,6 +2635,38 @@ const App: React.FC = () => {
                 <button onClick={() => setDaysAway(null)} className="shrink-0 p-1.5 rounded-lg text-[#18181B]/40 dark:text-[#E6E8E6]/40 hover:text-accent"><X size={16} /></button>
               </div>
             )}
+            {!isReorderMode && dateKey === todayKeyNow && late.length > 0 && (
+              <div className="glass rounded-[2rem] p-4 sm:p-5 border border-[#e66767]/30 space-y-2.5 animate-in slide-in-from-top-2" role="alert" aria-label="Tâches en retard">
+                <p className="text-[10px] font-black uppercase tracking-widest text-[#e66767] flex items-center gap-1.5"><AlarmClock size={13} /> Pas encore fait{late.length > 1 ? ` (${late.length})` : ''}</p>
+                {late.slice(0, 3).map(t => (
+                  <div key={t.id} className="flex flex-wrap items-center gap-2">
+                    <div className="flex-1 min-w-[150px]">
+                      <p className="text-[13px] font-bold text-[#18181B] dark:text-[#E6E8E6]">{t.title}</p>
+                      <p className="text-[10px] font-semibold text-[#18181B]/55 dark:text-[#E6E8E6]/55">Prévue à {t.start.replace(':', 'h')} · {t.block}</p>
+                    </div>
+                    <button onClick={() => handleReminderAction('done', t.id, todayKeyNow)} className="px-3 py-2 rounded-xl bg-[#199e70] text-white text-[10px] font-black uppercase tracking-wider">Fait</button>
+                    <button onClick={() => handleReminderAction('later', t.id, todayKeyNow)} className="px-3 py-2 rounded-xl bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 text-[10px] font-black uppercase tracking-wider text-[#18181B] dark:text-[#E6E8E6] hover:text-accent">{t.oneOff ? 'Demain' : 'Sauter'}</button>
+                    <button onClick={() => setLateDismissed(d => [...d, t.id])} aria-label="Ignorer" className="p-2 rounded-xl text-[#18181B]/40 dark:text-[#E6E8E6]/40 hover:text-accent"><X size={14} /></button>
+                  </div>
+                ))}
+              </div>
+            )}
+            {!isReorderMode && dateKey === todayKeyNow && briefing && (
+              <MorningBriefing b={briefing} name={user?.displayName?.split(' ')[0] || undefined}
+                onAskClaude={() => askClaude(PROMPTS.morning)} onOpenPlanning={() => setActiveTab('schedule')}
+                onHide={() => updateAppData(prev => ({ ...prev, settings: { ...(prev.settings || {}), briefingHiddenOn: todayKeyNow } }))} />
+            )}
+            {!isReorderMode && dateKey === todayKeyNow && eveningDue && (
+              <div className="glass p-4 sm:p-5 rounded-[2rem] border border-accent/25 flex flex-wrap items-center gap-3 animate-in slide-in-from-top-2">
+                <div className="w-10 h-10 rounded-xl bg-accent/15 flex items-center justify-center shrink-0"><Moon size={18} className="text-accent" /></div>
+                <div className="flex-1 min-w-[160px]">
+                  <p className="text-sm font-black text-[#18181B] dark:text-[#E6E8E6]">Bilan du soir</p>
+                  <p className="text-[11px] font-semibold text-[#18181B]/55 dark:text-[#E6E8E6]/55">Coche, reporte, note ton ressenti et ton journal : 3 minutes.</p>
+                </div>
+                <button onClick={() => setShowEvening(true)} className="px-4 py-2.5 rounded-xl bg-accent text-white text-[10px] font-black uppercase tracking-wider shadow-lg shadow-accent/20">Commencer</button>
+                <button onClick={() => askClaude(PROMPTS.evening)} className="flex items-center gap-1 px-3 py-2.5 rounded-xl bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 text-[10px] font-black uppercase tracking-wider text-[#18181B] dark:text-[#E6E8E6] hover:text-accent"><Sparkles size={12} /> Avec Claude</button>
+              </div>
+            )}
             {!isReorderMode && dateKey === todayKeyNow && showJournalPrompt && (
               <button onClick={() => setActiveTab('journal')} className="w-full glass p-4 sm:p-5 rounded-[2rem] border border-[#c98500]/25 flex items-center gap-3 text-left animate-in slide-in-from-top-2 hover:border-[#c98500]/50 transition-all">
                 <div className="w-10 h-10 rounded-xl bg-[#c98500]/15 flex items-center justify-center shrink-0"><BookHeart size={18} className="text-[#c98500]" /></div>
@@ -2950,7 +3066,7 @@ const App: React.FC = () => {
             )}
             {!templateEditState && (
               <LongTermGoals
-                goals={appData.longTermGoals || []} appData={appData}
+                goals={appData.longTermGoals || []} appData={appData} onAskClaude={askClaude}
                 onChange={(goals) => updateAppData(prev => ({ ...prev, longTermGoals: goals }))}
               />
             )}
@@ -3144,6 +3260,19 @@ const App: React.FC = () => {
         {/* TAB: TEMPLATES */}
         {activeTab === 'templates' && (
           <div className="space-y-6 animate-in fade-in duration-500 pb-20">
+            {/* Routine sur mesure par Claude */}
+            <div className="glass p-6 rounded-[2rem] space-y-3 border border-accent/25">
+              <h2 className="font-black uppercase tracking-wider text-sm flex items-center gap-2"><Sparkles size={16} className="text-accent" /> Routine sur mesure avec Claude</h2>
+              <p className="text-[11px] font-semibold text-[#18181B]/55 dark:text-[#E6E8E6]/55">Décris la routine voulue : Claude l'adapte à ton emploi du temps et à tes préférences, puis la crée après ton accord.</p>
+              <div className="flex gap-2">
+                <input value={routineIdea} onChange={e => setRoutineIdea(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && routineIdea.trim()) { askClaude(PROMPTS.routine(routineIdea.trim())); setRoutineIdea(''); } }} placeholder="Ex. matin productif avant le travail à 8 h" aria-label="Routine souhaitée" className="flex-1 min-w-0 bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 px-4 py-3 rounded-xl text-sm font-bold border border-[#18181B]/5 dark:border-[#E6E8E6]/5 outline-none focus:border-accent text-[#18181B] dark:text-[#E6E8E6]" />
+                <button onClick={() => { if (routineIdea.trim()) { askClaude(PROMPTS.routine(routineIdea.trim())); setRoutineIdea(''); } }} disabled={!routineIdea.trim()} className="px-4 rounded-xl bg-accent text-white text-[10px] font-black uppercase tracking-wider disabled:opacity-40">Créer</button>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {['Matin productif', 'Semaine d’examen', 'Retour de vacances', 'Journée de télétravail', 'Préparation d’un audit', 'Soirée détente'].map(k => <button key={k} onClick={() => askClaude(PROMPTS.routine(k))} className="px-3 py-1.5 rounded-lg bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 text-[11px] font-bold text-[#18181B] dark:text-[#E6E8E6] hover:text-accent">{k}</button>)}
+              </div>
+            </div>
+
             {/* Bibliothèque de routines de départ */}
             <div className="glass p-6 rounded-[2rem] space-y-4">
               <div>
@@ -3158,17 +3287,32 @@ const App: React.FC = () => {
                       <h4 className="font-black text-sm text-[#18181B] dark:text-[#E6E8E6]">{st.name}</h4>
                     </div>
                     <p className="text-[10px] font-medium text-[#18181B]/50 dark:text-[#E6E8E6]/50 leading-snug">{stripHtml(st.description)}</p>
-                    <button
-                      onClick={() => {
-                        const built = st.build();
-                        updateAppData(prev => ({ ...prev, templates: [...(prev.templates || []), { id: generateId(), name: st.name, blocks: built.blocks, recurringGoals: built.recurringGoals, templateGoal: st.templateGoal }] }));
-                        setActiveNotification(`Modèle « ${st.name} » ajouté à vos architectures`);
-                        setTimeout(() => setActiveNotification(null), 3500);
-                      }}
-                      className="w-full py-2.5 rounded-xl bg-accent text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-accent/20 active:scale-95 transition-all"
-                    >
-                      Ajouter à mes modèles
-                    </button>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button onClick={() => { setTplApply(tplApply?.key === st.key ? null : { key: st.key, mode: st.periodDays ? 'period' : 'always', days: st.periodDays || 7 }); }}
+                        className="py-2.5 rounded-xl bg-accent text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-accent/20 active:scale-95 transition-all">Ajouter à ma routine</button>
+                      <button
+                        onClick={() => {
+                          const built = st.build();
+                          updateAppData(prev => ({ ...prev, templates: [...(prev.templates || []), { id: generateId(), name: st.name, blocks: built.blocks, recurringGoals: built.recurringGoals, templateGoal: st.templateGoal }] }));
+                          setActiveNotification(`Modèle « ${st.name} » ajouté à vos architectures`);
+                          setTimeout(() => setActiveNotification(null), 3500);
+                        }}
+                        className="py-2.5 rounded-xl bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 text-[10px] font-black uppercase tracking-widest text-[#18181B] dark:text-[#E6E8E6] hover:text-accent transition-all">Garder en modèle</button>
+                    </div>
+                    {tplApply?.key === st.key && (
+                      <div className="rounded-xl bg-[#18181B]/[0.04] dark:bg-[#E6E8E6]/[0.04] p-3 space-y-2">
+                        <div className="flex p-1 bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 rounded-xl">
+                          {([['always', 'Dès aujourd’hui'], ['period', 'Sur une période']] as const).map(([m, l]) => <button key={m} onClick={() => setTplApply({ ...tplApply, mode: m })} className={`flex-1 py-2 rounded-lg text-[10px] font-black uppercase tracking-wider ${tplApply.mode === m ? 'bg-accent text-white' : 'text-[#18181B]/60 dark:text-[#E6E8E6]/60'}`}>{l}</button>)}
+                        </div>
+                        {tplApply.mode === 'period' && (
+                          <label className="flex items-center gap-2 text-[11px] font-bold text-[#18181B] dark:text-[#E6E8E6]">Pendant
+                            <input type="number" min={1} max={120} value={tplApply.days} onChange={e => setTplApply({ ...tplApply, days: Math.max(1, Math.min(120, Number(e.target.value) || 1)) })} className="w-16 bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 px-2 py-1.5 rounded-lg text-sm font-black outline-none" aria-label="Nombre de jours" />
+                            jours, à partir d'aujourd'hui</label>
+                        )}
+                        <p className="text-[10px] font-medium text-[#18181B]/50 dark:text-[#E6E8E6]/50">Les blocs s'ajoutent à ta routine actuelle, sans rien remplacer.</p>
+                        <button onClick={() => { addTemplateToRoutine(st.build().blocks, tplApply.mode === 'period' ? tplApply.days : undefined, st.name); setTplApply(null); }} className="w-full py-2.5 rounded-xl bg-accent text-white text-[10px] font-black uppercase tracking-widest">Confirmer</button>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -3218,6 +3362,11 @@ const App: React.FC = () => {
                   return res ? { feedback: (res as any).feedback, focusNextWeek: (res as any).focusTomorrow } : null;
                 }}
               />
+            </Section>
+            <Section id="wheel" title="Roue de la vie" icon={<Target size={16} />} subtitle="Revue trimestrielle : équilibre de tes domaines de vie" defaultOpen={false}>
+              <LifeWheel reviews={appData.lifeReviews || {}} accentHex={accentHex}
+                onSave={(r) => { updateAppData(prev => ({ ...prev, lifeReviews: { ...(prev.lifeReviews || {}), [r.quarter]: r } })); setActiveNotification('Revue du trimestre enregistrée ✓'); setTimeout(() => setActiveNotification(null), 2500); }}
+                onAskClaude={(domains) => askClaude(PROMPTS.wheelHabits(domains))} />
             </Section>
             <Section id="mood" title="Humeur et performance" icon={<Smile size={16} />} subtitle="Ta constance selon ton humeur du jour" defaultOpen={false} embedded>
               <MoodPerfChart days={appData.days} history={yearStats.history} />
@@ -3316,6 +3465,20 @@ const App: React.FC = () => {
                 </div>
               </div>
               <BackupsPanel onRestore={(data) => { saveToHistory(); updateAppData(() => data); setActiveNotification('Sauvegarde restaurée ✓'); setTimeout(() => setActiveNotification(null), 3000); }} />
+              {/* Rappels intelligents */}
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-[#18181B]/50 dark:text-[#E6E8E6]/50">Rappels intelligents</label>
+                <p className="text-[10px] font-medium text-[#18181B]/50 dark:text-[#E6E8E6]/50">Quand une tâche à heure fixe n'est pas cochée après son créneau : un rappel avec « Fait » ou « Reporter » en un geste. Importantes = priorité haute, habitudes et tâches reliées à un objectif.</p>
+                <div className="flex p-1 bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 rounded-2xl border border-[#18181B]/5 dark:border-[#E6E8E6]/5">
+                  {([['off', 'Désactivés'], ['important', 'Importantes'], ['all', 'Toutes']] as const).map(([v, l]) => (
+                    <button key={v} onClick={() => updateAppData(prev => ({ ...prev, settings: { ...(prev.settings || {}), smartReminders: v } }))} className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${reminderMode === v ? 'bg-accent text-white shadow-lg' : 'text-[#18181B]/60 dark:text-[#E6E8E6]/60'}`}>{l}</button>
+                  ))}
+                </div>
+                {typeof Notification !== 'undefined' && Notification.permission !== 'granted' && reminderMode !== 'off' && (
+                  <button onClick={requestNotificationPermission} className="w-full py-2.5 rounded-xl bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 text-[10px] font-black uppercase tracking-widest text-accent">Autoriser les notifications sur cet appareil</button>
+                )}
+                <p className="text-[10px] font-medium text-[#18181B]/40 dark:text-[#E6E8E6]/40">Les rappels arrivent tant que l'app est ouverte ou en arrière-plan ; l'app fermée, ils s'affichent à la prochaine ouverture.</p>
+              </div>
               {/* XP et discipline */}
               <div className="space-y-2">
                 <label className="text-[10px] font-black uppercase tracking-widest text-[#18181B]/50 dark:text-[#E6E8E6]/50">XP et discipline</label>
@@ -3452,6 +3615,11 @@ const App: React.FC = () => {
           <CalendarsPanel calendars={externalCalendars} onChange={setCalendars} onClose={() => setShowCalendars(false)}
             errors={cal.errors} loading={cal.loading} lastSync={cal.lastSync} eventCount={(c) => cal.eventsOf(c).length} onRefresh={cal.refresh} />
         )}
+        {showEvening && (
+          <EveningReview appData={appData} onClose={() => setShowEvening(false)}
+            onAskClaude={() => { setShowEvening(false); askClaude(PROMPTS.evening); }}
+            onFinish={(d, msg) => { saveToHistory(); updateAppData(() => d); setShowEvening(false); setActiveNotification(msg); setTimeout(() => setActiveNotification(null), 3500); }} />
+        )}
         </Suspense>
       </main>
       <Suspense fallback={null}>
@@ -3463,7 +3631,8 @@ const App: React.FC = () => {
             navigate={(t) => setActiveTab(t)}
             externalEvents={(from, to) => occurrencesBetween(externalCalendars, cal.eventsOf, from, to)}
             signedIn={!!user || devAssistant()} onSignIn={() => { setShowAssistant(false); setShowAuth(true); }}
-            userName={user?.displayName?.split(' ')[0] || undefined} />
+            userName={user?.displayName?.split(' ')[0] || undefined}
+            initialPrompt={assistantPrompt} onInitialConsumed={() => setAssistantPrompt(null)} />
         )}
       </Suspense>
 
