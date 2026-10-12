@@ -257,6 +257,7 @@ export interface StandaloneHabit {
   kind: 'build' | 'quit';     // build = prendre une habitude ; quit = arrêter (ex. fumer)
   days?: number[];            // jours prévus (0 = dimanche … 6 = samedi) ; vide = tous les jours
   startDate: string;          // AAAA-MM-JJ
+  endDate?: string;           // AAAA-MM-JJ ; dernier jour prévu (habitude à durée limitée) ; vide = pas de fin
   description?: string;
   color?: string;             // couleur d'accent de l'habitude (hex)
   createdAt: string;

@@ -175,6 +175,7 @@ export function executeTool(data: AppData, name: string, input: Record<string, a
       const h: StandaloneHabit = {
         id: generateId(), name: input.name.trim(), kind: input.kind === 'quit' ? 'quit' : 'build',
         days: Array.isArray(input.days) ? input.days.filter((x: number) => x >= 0 && x <= 6) : [], startDate: todayKey,
+        endDate: validDate(input.end_date) && input.end_date >= todayKey ? input.end_date : undefined,
         description: input.description || undefined, createdAt: new Date().toISOString(), showInRoutine: input.show_in_routine !== false, entries: {},
       };
       return ok({ ...data, habits: [...(data.habits || []), h] }, { habit_id: h.id }, `Habitude « ${h.name} » créée`);

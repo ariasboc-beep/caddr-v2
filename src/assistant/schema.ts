@@ -68,6 +68,7 @@ export const ASSISTANT_TOOLS = [
       properties: {
         name: { type: 'string' }, kind: { type: 'string', enum: ['build', 'quit'] },
         days: { type: 'array', items: { type: 'integer' }, description: 'Jours prévus : 0 = dimanche … 6 = samedi ; vide = tous les jours' },
+        end_date: { ...DATE, description: 'Dernier jour prévu, si l’habitude a une durée limitée (ex. un défi de 30 jours). Absent = pas de fin.' },
         description: { type: 'string' }, show_in_routine: { type: 'boolean' },
       },
       required: ['name', 'kind'],

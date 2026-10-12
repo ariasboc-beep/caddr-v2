@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import { StandaloneHabit, HabitDayStatus } from '../types';
 import { generateId, getKeyFromDate } from '../utils';
-import { habitStats, monthlyRates, stateOn, isScheduled, labelsFor, nextStatus, activeHabits, DayState, isEmptyNote } from '../habits';
+import { habitStats, monthlyRates, stateOn, isScheduled, isEnded, labelsFor, nextStatus, activeHabits, DayState, isEmptyNote } from '../habits';
 import RichText, { RichTextView } from './RichText';
 import { DayDot } from './DayDot';
 export { DayDot };
@@ -44,6 +44,8 @@ const HabitForm: React.FC<{ initial?: StandaloneHabit; accentHex: string; onSave
   const [kind, setKind] = useState<'build' | 'quit'>(initial?.kind || 'build');
   const [days, setDays] = useState<number[]>(initial?.days?.length ? initial.days : []);
   const [startDate, setStartDate] = useState(initial?.startDate || getKeyFromDate(new Date()));
+  const [hasEndDate, setHasEndDate] = useState(!!initial?.endDate);
+  const [endDate, setEndDate] = useState(initial?.endDate || '');
   const [color, setColor] = useState(initial?.color || '');
   const [description, setDescription] = useState(initial?.description || '');
   const [showInRoutine, setShowInRoutine] = useState(initial?.showInRoutine !== false);
@@ -57,9 +59,10 @@ const HabitForm: React.FC<{ initial?: StandaloneHabit; accentHex: string; onSave
   const label = `text-[9px] font-black uppercase tracking-widest ${muted}`;
   const save = () => {
     if (!name.trim()) return;
+    const end = hasEndDate && endDate && endDate >= startDate ? endDate : undefined;
     onSave({
       ...(initial || { id: generateId(), createdAt: new Date().toISOString(), entries: {} }),
-      name: name.trim(), kind, days: every ? [] : days, startDate, color: color || undefined, description: description.trim() || undefined, showInRoutine,
+      name: name.trim(), kind, days: every ? [] : days, startDate, endDate: end, color: color || undefined, description: description.trim() || undefined, showInRoutine,
     } as StandaloneHabit);
   };
   return (
@@ -116,6 +119,25 @@ const HabitForm: React.FC<{ initial?: StandaloneHabit; accentHex: string; onSave
             ))}
           </div>
         </div>
+      </div>
+      <div className="space-y-1.5">
+        <button type="button" onClick={() => setHasEndDate(v => !v)} aria-pressed={hasEndDate}
+          className={`w-full flex items-center justify-between gap-3 p-4 rounded-2xl border transition-all ${hasEndDate ? 'bg-accent/10 border-accent/40' : 'bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 border-transparent'}`}>
+          <span className="text-left">
+            <span className={`block text-[10px] font-black uppercase tracking-wider ${ink}`}>Date de fin</span>
+            <span className={`block text-[10px] font-medium ${muted}`}>{hasEndDate ? 'L’habitude s’arrête automatiquement après cette date' : 'Habitude sans durée limitée (par défaut)'}</span>
+          </span>
+          <span className={`w-9 h-5 rounded-full p-0.5 transition-all shrink-0 ${hasEndDate ? 'bg-accent' : 'bg-[#18181B]/15 dark:bg-[#E6E8E6]/15'}`}>
+            <span className={`block w-4 h-4 rounded-full bg-white shadow transition-transform ${hasEndDate ? 'translate-x-4' : ''}`} />
+          </span>
+        </button>
+        {hasEndDate && (
+          <label className="block space-y-1.5 pt-1">
+            <span className={label}>Dernier jour prévu</span>
+            <input type="date" className={input} min={startDate} value={endDate} onChange={e => setEndDate(e.target.value)} />
+            {endDate && endDate < startDate && <span className="block text-[10px] font-bold text-[#DF2935]">La date de fin doit être après la date de début.</span>}
+          </label>
+        )}
       </div>
       <label className="block space-y-1.5"><span className={label}>Pourquoi ? (facultatif)</span>
         <textarea rows={2} className={`${input} resize-none font-medium`} placeholder="Ta motivation, à relire dans les moments difficiles…" value={description} onChange={e => setDescription(e.target.value)} />
@@ -188,7 +210,7 @@ const HabitDetail: React.FC<{ habit: StandaloneHabit; accentHex: string; onUpdat
       <div className="flex items-start gap-3">
         <button onClick={onBack} aria-label="Retour à la liste" className={`p-2.5 rounded-xl bg-[#18181B]/5 dark:bg-[#E6E8E6]/5 hover:text-accent ${muted}`}><ArrowLeft size={18} /></button>
         <div className="flex-1 min-w-0">
-          <p className="text-[9px] font-black uppercase tracking-widest" style={{ color }}>{habit.kind === 'quit' ? 'Arrêter' : 'Prendre'} · {freqLabel(habit)}</p>
+          <p className="text-[9px] font-black uppercase tracking-widest" style={{ color }}>{habit.kind === 'quit' ? 'Arrêter' : 'Prendre'} · {freqLabel(habit)}{habit.endDate ? ` · ${isEnded(habit, tk) ? 'terminée le' : 'jusqu’au'} ${fmt(habit.endDate, { day: 'numeric', month: 'long' })}` : ''}</p>
           <h2 className={`text-xl font-black leading-tight ${ink}`}>{habit.name}</h2>
           {habit.description && <p className={`text-xs font-medium mt-1 ${muted}`}>« {habit.description} »</p>}
         </div>
@@ -447,6 +469,7 @@ const HabitsView: React.FC<Props> = ({ habits, onChange, accentHex }) => {
                         {h.kind === 'quit' && <span>· {s.sinceLastFail} j sans rechute</span>}
                         <span>· {s.rate === null ? '—' : `${s.rate} %`}</span>
                         <span className={faint}>· {freqLabel(h)}</span>
+                        {h.endDate && <span className={faint}>· {isEnded(h, tk) ? 'terminée le' : 'jusqu’au'} {fmt(h.endDate, { day: 'numeric', month: 'short' })}</span>}
                         {h.showInRoutine === false && <span className={`flex items-center gap-0.5 ${faint}`} title="Masquée d'Aujourd'hui">· <EyeOff size={10} /> hors Aujourd'hui</span>}
                       </span>
                     </span>

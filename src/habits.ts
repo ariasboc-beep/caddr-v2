@@ -14,9 +14,13 @@ export const todayKey = () => getKeyFromDate(new Date());
 
 export const isScheduled = (h: StandaloneHabit, k: string) => {
   if (k < h.startDate) return false;
+  if (h.endDate && k > h.endDate) return false;
   if (!h.days || h.days.length === 0 || h.days.length === 7) return true;
   return h.days.includes(noon(k).getDay());
 };
+
+// Habitude à durée limitée dont le dernier jour prévu est déjà passé
+export const isEnded = (h: StandaloneHabit, tk = todayKey()) => !!h.endDate && h.endDate < tk;
 
 export const stateOn = (h: StandaloneHabit, k: string, tk = todayKey()): DayState => {
   if (k < h.startDate) return 'before';
