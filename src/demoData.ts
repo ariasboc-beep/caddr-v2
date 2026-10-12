@@ -101,7 +101,12 @@ export function demoData(): AppData {
         ],
       },
     ],
-    habits: [habit('h1', 'Boire 2 L d’eau', 'build', '', .7), habit('h2', 'Pas de sucre ajouté', 'quit', '#FDCA40', .75)],
+    habits: [habit('h1', 'Boire 2 L d’eau', 'build', '', .7), habit('h2', 'Pas de sucre ajouté', 'quit', '#FDCA40', .75), (() => {
+      // Habitude à durée limitée : défi de 30 jours commencé il y a 20 jours
+      const h = habit('h3', 'Défi 30 jours : marcher 30 min', 'build', '', .8);
+      Object.keys(h.entries).forEach(k => { if (k < key(-20)) delete h.entries[k]; });
+      return { ...h, startDate: key(-20), endDate: key(9) };
+    })()],
     journal,
     assistantMemory: [{ id: 'am1', text: 'Pas de travail après 21 h', createdAt: new Date().toISOString() }, { id: 'am2', text: 'Sport le matin avant 7 h', createdAt: new Date().toISOString() }],
     lifeReviews: {},
