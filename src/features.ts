@@ -6,7 +6,7 @@ import type { AppData } from './types';
 export type FeatureId =
   | 'dayRing' | 'motivation' | 'briefing' | 'nowNext' | 'habitsToday' | 'carryOver' | 'weekPlan' | 'evening' | 'journalPrompt' | 'headerBar'
   | 'hardDay' | 'jokers' | 'perfectDay' | 'identities' | 'mastery' | 'buddy'
-  | 'cady' | 'journal' | 'share' | 'assign' | 'unplanned';
+  | 'cady' | 'journal' | 'projects' | 'share' | 'assign' | 'unplanned';
 
 export interface FeatureDef { id: FeatureId; label: string; hint: string }
 export const FEATURE_GROUPS: { title: string; items: FeatureDef[] }[] = [
@@ -33,6 +33,7 @@ export const FEATURE_GROUPS: { title: string; items: FeatureDef[] }[] = [
   { title: 'Outils', items: [
     { id: 'cady', label: 'Cady, ton assistante', hint: 'Bouton central et suggestions de Cady' },
     { id: 'journal', label: 'Journal de gratitude', hint: 'Sous-onglet Journal de Croissance' },
+    { id: 'projects', label: 'Projets', hint: 'Étapes et tâches, de A à Z' },
     { id: 'share', label: 'Partage des performances', hint: 'Image à partager sur les réseaux' },
     { id: 'assign', label: "Affecter à quelqu'un", hint: 'Confier une tâche par e-mail' },
     { id: 'unplanned', label: 'Badge « Imprévue »', hint: 'Toujours compté dans les rapports' },
@@ -43,7 +44,7 @@ export const FEATURE_GROUPS: { title: string; items: FeatureDef[] }[] = [
 export type AppMode = 'essentiel' | 'complet' | 'custom';
 
 /** Désactivé en mode Essentiel : les couches en plus, jamais le contenu déjà créé. */
-export const ESSENTIEL_OFF: FeatureId[] = ['briefing', 'nowNext', 'weekPlan', 'evening', 'journalPrompt', 'jokers', 'identities', 'mastery', 'buddy', 'assign'];
+export const ESSENTIEL_OFF: FeatureId[] = ['briefing', 'nowNext', 'weekPlan', 'evening', 'journalPrompt', 'jokers', 'identities', 'mastery', 'buddy', 'assign', 'projects'];
 
 export const essentielFeatures = (): Record<string, boolean> =>
   Object.fromEntries(ESSENTIEL_OFF.map(id => [id, false]));
@@ -61,6 +62,7 @@ export interface UnlockStep { at: number; ids: FeatureId[]; title: string; text:
 export const UNLOCKS: UnlockStep[] = [
   { at: 3, ids: ['briefing', 'evening'], title: 'Ouvrir et fermer tes journées', text: "Trois jours sur Caddr. Veux-tu la priorité du matin et le bilan de 3 minutes le soir ?" },
   { at: 7, ids: ['identities'], title: 'Qui je deviens', text: "Une semaine tenue. Chaque tâche cochée peut devenir un vote pour la personne que tu deviens." },
+  { at: 10, ids: ['projects'], title: 'Gérer tes projets', text: "Dix jours tenus. Tes journées sont en place : veux-tu y ajouter ce que tu construis — projets, étapes, tâches, reliés à tes objectifs de vie ?" },
   { at: 14, ids: ['jokers', 'mastery'], title: 'Jokers et paliers de maîtrise', text: "Deux semaines. Protège ta série les jours d'écart et vois tes habitudes passer de Graine à Forêt." },
   { at: 21, ids: ['buddy'], title: 'Un binôme de discipline', text: "Vingt-et-un jours : l'habitude est prise. Veux-tu avancer à deux, avec séries partagées et encouragements ?" },
   { at: 30, ids: ['weekPlan', 'nowNext'], title: 'Prendre de l’avance', text: "Un mois. Le rituel du dimanche et la carte « En cours / Ensuite » t'aident à garder le cap." },

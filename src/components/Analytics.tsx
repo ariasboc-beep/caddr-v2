@@ -6,6 +6,7 @@ import {
   Flame, Trophy, Target, Layers, Repeat, Check, CalendarDays, Star, ListChecks, Settings2, Loader2, Share2,
 } from 'lucide-react';
 import { AppData, TimeframeType } from '../types';
+import { liveProjects, projectStats, HEALTH_LABEL } from '../projects';
 import { getKeyFromDate } from '../utils';
 import {
   getPeriod, shiftAnchor, previousPeriod, computePeriod, blockAggregates, buildBuckets,
@@ -77,13 +78,14 @@ interface Props {
   onDownloadPDF: (tf: TimeframeType, period: ReturnType<typeof getPeriod>) => void | Promise<void>;
   children?: React.ReactNode; // sections complémentaires (rendues en bas)
   onOpenHabits?: () => void;
+  onOpenProjects?: () => void;
   onShare?: (tf: TimeframeType) => void;
 }
 
 const TF_LABEL: Record<TimeframeType, string> = { day: 'Jour', week: 'Semaine', month: 'Mois', year: 'Année', custom: 'Période' };
 const REPORT_NAME: Record<TimeframeType, string> = { day: 'rapport du jour', week: 'rapport hebdomadaire', month: 'rapport mensuel', year: 'rapport annuel', custom: 'rapport de la période' };
 
-const Analytics: React.FC<Props> = ({ appData, accentHex, onToggleHabit, onDownloadPDF, children, onOpenHabits, onShare }) => {
+const Analytics: React.FC<Props> = ({ appData, accentHex, onToggleHabit, onDownloadPDF, children, onOpenHabits, onOpenProjects, onShare }) => {
   const todayKey = getKeyFromDate(new Date());
   const [tf, setTf] = useState<TimeframeType>(() => { try { return (localStorage.getItem('caddr_analytics_tf') as TimeframeType) || 'week'; } catch { return 'week'; } });
   const [anchor, setAnchor] = useState<Date>(new Date());
@@ -423,6 +425,40 @@ const Analytics: React.FC<Props> = ({ appData, accentHex, onToggleHabit, onDownl
       <Section id="deep" title="Analyse fine" icon={<Microscope size={16} />} subtitle="Discipline pondérée, heures productives, ponctualité, prévu vs réalisé" defaultOpen={false}>
         <DeepStats appData={appData} start={period.start} end={period.end} todayKey={todayKey} accentHex={accentHex} />
       </Section>
+
+      {/* Projets : où en est ce que l'utilisateur construit */}
+      {(() => {
+        const live = liveProjects(appData);
+        if (!live.length) return null;
+        const stats = live.map(p => ({ p, s: projectStats(p, todayKey) })).sort((a, b) => {
+          const rank = (h: string) => ({ late: 0, risk: 1, ok: 2, idle: 3, done: 4 } as Record<string, number>)[h] ?? 5;
+          return rank(a.s.health) - rank(b.s.health);
+        });
+        const pFrom = getKeyFromDate(period.start), pTo = getKeyFromDate(period.end);
+        const doneInPeriod = live.reduce((n, p) => n + p.tasks.filter(t => t.done && t.doneAt && t.doneAt.slice(0, 10) >= pFrom && t.doneAt.slice(0, 10) <= pTo).length, 0);
+        const late = stats.filter(x => x.s.health === 'late').length;
+        return (
+          <Section id="projects" title="Projets" icon={<Layers size={16} />}
+            subtitle={`${live.length} projet${live.length > 1 ? 's' : ''} en cours · ${doneInPeriod} tâche${doneInPeriod > 1 ? 's' : ''} de projet faite${doneInPeriod > 1 ? 's' : ''} sur la période${late ? ` · ${late} en retard` : ''}`}
+            action={onOpenProjects ? <button onClick={onOpenProjects} className="px-3 py-2 rounded-xl bg-accent/10 text-accent text-[9px] font-black uppercase tracking-wider hover:bg-accent hover:text-white transition-all">Ouvrir</button> : undefined}>
+            <div className="space-y-3">
+              {stats.map(({ p, s }) => (
+                <div key={p.id} className="space-y-1.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className={`text-[12px] font-bold truncate ${ink}`}>{p.title}</span>
+                    <span className={`text-[10px] font-black tabular-nums shrink-0 ${s.health === 'late' ? 'text-[#DF2935]' : s.health === 'risk' ? 'text-[#B8900A] dark:text-[#FDCA40]' : 'text-accent'}`}>{s.pct}% · {s.done}/{s.total}</span>
+                  </div>
+                  <div className="relative h-2 rounded-full bg-[#18181B]/[0.07] dark:bg-[#E6E8E6]/[0.07] overflow-hidden">
+                    <div className="h-full rounded-full transition-all duration-700" style={{ width: `${s.pct}%`, background: p.color || accentHex }} />
+                    {s.expected !== null && <div className="absolute top-0 bottom-0 w-0.5 bg-[#18181B]/45 dark:bg-[#E6E8E6]/45" style={{ left: `${s.expected}%` }} title={`Rythme attendu : ${s.expected} %`} />}
+                  </div>
+                  <p className={`text-[10px] font-semibold ${muted}`}>{HEALTH_LABEL[s.health]}{p.dueDate ? ` · échéance le ${new Date(p.dueDate + 'T12:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}` : ''}{s.next ? ` · ensuite : ${s.next.title}` : ''}</p>
+                </div>
+              ))}
+            </div>
+          </Section>
+        );
+      })()}
 
       <Section id="habits" title="Habitudes" icon={<Repeat size={16} />}
         subtitle={allHabits.length ? `${allHabits.length} habitude${allHabits.length > 1 ? 's' : ''} suivie${allHabits.length > 1 ? 's' : ''}` : 'Choisis les tâches à suivre comme habitudes'}

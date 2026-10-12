@@ -20,6 +20,7 @@ import {
 } from 'firebase/firestore';
 import { auth, googleProvider, db } from '../firebase';
 import { AppData } from '../types';
+import { mergeProjects } from '../projects';
 
 // App installée sur l'écran d'accueil : la popup ne peut pas renvoyer le résultat à
 // l'app → connexion par redirection. Dans un onglet de navigateur (ordinateur ou
@@ -234,6 +235,7 @@ export const mergeAppData = (local: AppData, cloud: AppData): AppData => {
     daySnapshots: (() => { const out: { [k: string]: string[] } = { ...(cloud.daySnapshots || {}) }; Object.entries(local.daySnapshots || {}).forEach(([k, ids]) => { out[k] = Array.from(new Set([...(out[k] || []), ...ids])); }); return out; })(),
     monthlyReviews: { ...(cloud.monthlyReviews || {}), ...(local.monthlyReviews || {}) },
     habits: mergeHabits(local.habits || [], cloud.habits || []),
+    projects: mergeProjects(local.projects, cloud.projects),
     journal: mergeJournal(local.journal || {}, cloud.journal || {}),
     assistantMemory: mergeById(local.assistantMemory || [], cloud.assistantMemory || []),
     lifeReviews: (() => { const out = { ...(cloud.lifeReviews || {}) }; Object.entries(local.lifeReviews || {}).forEach(([k, r]) => { if (!out[k] || r.updatedAt > out[k].updatedAt) out[k] = r; }); return out; })(),

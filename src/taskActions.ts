@@ -69,12 +69,12 @@ export function syncAssignmentStatuses(data: AppData, statuses: Record<string, T
 // ---------- Tâches imprévues ----------
 
 /** Tâches (niveau principal) prévues le jour k, telles que la Routine les affiche. */
-export function visibleTaskIds(data: AppData, k: string): { id: string; title: string }[] {
+export function visibleTaskIds(data: AppData, k: string): { id: string; title: string; projectTaskId?: string }[] {
   const d = atNoon(k);
   const src: Block[] = data.days[k]?.blocks || data.blocks;
-  const out: { id: string; title: string }[] = [];
+  const out: { id: string; title: string; projectTaskId?: string }[] = [];
   src.filter(b => isDateInRange(d, b.recurrence, b.specificDate, b.startDate, b.endDate, b.stopDate))
-    .forEach(b => b.tasks.filter(t => isDateInRange(d, t.recurrence, t.specificDate, t.startDate, t.endDate, t.stopDate)).forEach(t => out.push({ id: t.id, title: t.title })));
+    .forEach(b => b.tasks.filter(t => isDateInRange(d, t.recurrence, t.specificDate, t.startDate, t.endDate, t.stopDate)).forEach(t => out.push({ id: t.id, title: t.title, projectTaskId: t.projectTaskId })));
   return out;
 }
 
@@ -95,7 +95,8 @@ export function trackUnplanned(data: AppData, todayKey: string): AppData {
   const planned = new Set(snaps[todayKey]);
   const logged = new Set((data.taskLog || []).filter(e => e.kind === 'unplanned' && e.date === todayKey).map(e => e.taskId));
   const movedIn = new Set((data.taskLog || []).filter(e => e.kind === 'postponed' && e.to === todayKey).flatMap(e => [e.taskId, e.newTaskId || '']));
-  const fresh = now.filter(t => !planned.has(t.id) && !logged.has(t.id) && !movedIn.has(t.id));
+  // Une tâche posée depuis un projet est un travail voulu, pas un imprévu.
+  const fresh = now.filter(t => !planned.has(t.id) && !logged.has(t.id) && !movedIn.has(t.id) && !t.projectTaskId);
   if (!fresh.length) return data;
   const at = new Date().toISOString();
   return {

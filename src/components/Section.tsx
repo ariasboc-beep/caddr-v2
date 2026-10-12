@@ -11,6 +11,7 @@ export const ANALYTICS_SECTIONS: { id: string; title: string }[] = [
   { id: 'blocks', title: 'Constance par bloc' },
   { id: 'deep', title: 'Analyse fine' },
   { id: 'habits', title: 'Habitudes' },
+  { id: 'projects', title: 'Projets' },
   { id: 'year', title: "L'année en un coup d'œil" },
   { id: 'insights', title: 'Observations' },
   { id: 'weekly-review', title: 'Bilans de la semaine et du mois' },

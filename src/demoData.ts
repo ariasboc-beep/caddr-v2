@@ -70,6 +70,37 @@ export function demoData(): AppData {
       { id: 'g2', title: 'Parler anglais avec aisance', progress: 0, createdAt: new Date(today.getTime() - 30 * 86400000).toISOString(), targetDate: key(240), autoProgress: true, linkedTasks: ['s1'] },
     ],
     weeklyReviews: { [getWeekKey(new Date(today.getTime() - 7 * 86400000))]: { weekKey: getWeekKey(new Date(today.getTime() - 7 * 86400000)), wins: 'Sport tenu 4 jours sur 5', improve: 'Moins de mails le matin', createdAt: new Date().toISOString() } },
+    projects: [
+      {
+        id: 'p1', title: 'Certification ISO 22000 de l’usine', why: 'Ouvrir les marchés à l’export et rassurer nos clients',
+        status: 'active', createdAt: new Date(today.getTime() - 35 * 86400000).toISOString(), startDate: key(-35), dueDate: key(70),
+        goalId: 'g1', color: '',
+        steps: [
+          { id: 'p1s1', title: 'Diagnostic et périmètre', order: 0 },
+          { id: 'p1s2', title: 'Documentation du système', order: 1 },
+          { id: 'p1s3', title: 'Audit à blanc', order: 2 },
+        ],
+        tasks: [
+          { id: 'p1t1', title: 'Cartographier les dangers par atelier', stepId: 'p1s1', done: true, doneAt: `${key(-28)}T10:30`, createdAt: new Date().toISOString(), order: 0, estimateMin: 180 },
+          { id: 'p1t2', title: 'Constituer l’équipe HACCP', stepId: 'p1s1', done: true, doneAt: `${key(-21)}T09:00`, createdAt: new Date().toISOString(), order: 1, estimateMin: 60 },
+          { id: 'p1t3', title: 'Rédiger le manuel de sécurité des aliments', stepId: 'p1s2', due: key(12), estimateMin: 300, priority: 'high', createdAt: new Date().toISOString(), order: 2 },
+          { id: 'p1t4', title: 'Mettre à jour les 12 instructions de nettoyage', stepId: 'p1s2', due: key(20), estimateMin: 240, createdAt: new Date().toISOString(), order: 3 },
+          { id: 'p1t5', title: 'Former les chefs d’équipe aux PRP', stepId: 'p1s2', due: key(30), estimateMin: 120, createdAt: new Date().toISOString(), order: 4 },
+          { id: 'p1t6', title: 'Planifier l’audit à blanc avec le cabinet', stepId: 'p1s3', due: key(45), estimateMin: 45, createdAt: new Date().toISOString(), order: 5 },
+        ],
+      },
+      {
+        id: 'p2', title: 'Lancer la gamme épices Goût Unik', why: 'Une deuxième source de revenus, et un produit dont je suis fière',
+        status: 'active', createdAt: new Date(today.getTime() - 14 * 86400000).toISOString(), startDate: key(-14), dueDate: key(25), color: '#FDCA40',
+        steps: [{ id: 'p2s1', title: 'Produit', order: 0 }, { id: 'p2s2', title: 'Mise sur le marché', order: 1 }],
+        tasks: [
+          { id: 'p2t1', title: 'Figer les trois recettes', stepId: 'p2s1', done: true, doneAt: `${key(-9)}T18:00`, createdAt: new Date().toISOString(), order: 0 },
+          { id: 'p2t2', title: 'Valider l’étiquetage réglementaire', stepId: 'p2s1', due: key(-2), estimateMin: 90, priority: 'high', createdAt: new Date().toISOString(), order: 1 },
+          { id: 'p2t3', title: 'Devis pour 500 sachets', stepId: 'p2s2', due: key(6), estimateMin: 45, createdAt: new Date().toISOString(), order: 2 },
+          { id: 'p2t4', title: 'Séance photo des produits', stepId: 'p2s2', due: key(14), estimateMin: 180, createdAt: new Date().toISOString(), order: 3 },
+        ],
+      },
+    ],
     habits: [habit('h1', 'Boire 2 L d’eau', 'build', '', .7), habit('h2', 'Pas de sucre ajouté', 'quit', '#FDCA40', .75)],
     journal,
     assistantMemory: [{ id: 'am1', text: 'Pas de travail après 21 h', createdAt: new Date().toISOString() }, { id: 'am2', text: 'Sport le matin avant 7 h', createdAt: new Date().toISOString() }],

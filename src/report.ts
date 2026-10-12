@@ -6,6 +6,7 @@ import autoTable from 'jspdf-autotable';
 import { AppData, TimeframeType } from './types';
 import { getKeyFromDate, fontUrl } from './utils';
 import { getWeekKey } from './streaks';
+import { liveProjects, projectStats, HEALTH_LABEL } from './projects';
 import {
   computePeriod, previousPeriod, blockAggregates, buildBuckets, habitAggregates,
   perfectStreak, eachDay, PeriodRange, objectiveStats,
@@ -270,6 +271,41 @@ export async function generateReport(appData: AppData, tf: TimeframeType, period
           },
         });
       font('normal', 7.5); doc.text('Les tâches annulées, reportées, affectées ou sautées ne comptent pas dans le taux de réalisation du jour concerné.', M, y - 6); y += 2;
+    }
+  }
+
+  // ---------- Projets : ce que l'utilisateur construit ----------
+  {
+    const from = getKeyFromDate(period.start), to = getKeyFromDate(period.end);
+    const live = liveProjects(appData).map(p => ({ p, s: projectStats(p, todayKey) }));
+    if (live.length) {
+      const doneInPeriod = live.reduce((n, { p }) => n + p.tasks.filter(t => t.done && t.doneAt && t.doneAt.slice(0, 10) >= from && t.doneAt.slice(0, 10) <= to).length, 0);
+      const late = live.filter(x => x.s.health === 'late').length;
+      sectionTitle('Projets', `${live.length} en cours  ·  ${doneInPeriod} tâche${doneInPeriod > 1 ? 's' : ''} de projet accomplie${doneInPeriod > 1 ? 's' : ''} sur la période${late ? `  ·  ${late} en retard` : ''}`);
+      table(['Projet', 'Avancement', 'Échéance', 'État', 'Prochaine action'],
+        live.sort((a, b) => a.s.pct - b.s.pct).map(({ p, s }) => [
+          p.title,
+          `${s.pct} %  (${s.done}/${s.total})`,
+          p.dueDate ? fmt(p.dueDate, { day: 'numeric', month: 'short' }) : '—',
+          HEALTH_LABEL[s.health],
+          s.next ? s.next.title : '—',
+        ]),
+        {
+          columnStyles: { 0: { cellWidth: 42, fontStyle: 'bold' }, 1: { cellWidth: 28, halign: 'right' }, 2: { cellWidth: 22 }, 3: { cellWidth: 26 } },
+          didParseCell: (h: any) => {
+            if (h.section !== 'body' || h.column.index !== 3) return;
+            h.cell.styles.textColor = h.cell.raw === 'En retard' ? RED : h.cell.raw === 'Terminé' ? ACC_DARK : INK;
+          },
+        });
+      // Tâches de projet faites sur la période : la preuve de l'avancement
+      const rows = live.flatMap(({ p }) => p.tasks
+        .filter(t => t.done && t.doneAt && t.doneAt.slice(0, 10) >= from && t.doneAt.slice(0, 10) <= to)
+        .map(t => [fmt(t.doneAt!.slice(0, 10), { weekday: 'short', day: 'numeric', month: 'short' }), p.title, t.title]));
+      if (rows.length) {
+        font('bold', 8.5); doc.text('Tâches de projet accomplies', M, y + 2); y += 6;
+        table(['Date', 'Projet', 'Tâche'], rows.sort((a, b) => a[0].localeCompare(b[0])),
+          { columnStyles: { 0: { cellWidth: 30 }, 1: { cellWidth: 48, fontStyle: 'bold' } } });
+      }
     }
   }
 

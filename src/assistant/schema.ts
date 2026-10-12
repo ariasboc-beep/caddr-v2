@@ -141,11 +141,99 @@ export const ASSISTANT_TOOLS = [
   {
     name: 'open_tab',
     description: "Ouvre un onglet de l'app pour l'utilisateur.",
-    input_schema: { type: 'object', properties: { tab: { type: 'string', enum: ['routine', 'habits', 'schedule', 'inbox', 'journal', 'goals', 'stats', 'ai', 'templates', 'settings'] } }, required: ['tab'] },
+    input_schema: { type: 'object', properties: { tab: { type: 'string', enum: ['routine', 'habits', 'projects', 'schedule', 'inbox', 'journal', 'goals', 'stats', 'ai', 'templates', 'settings'] } }, required: ['tab'] },
+  },
+  {
+    name: 'create_project',
+    description: "Crée un projet : ce qui a un début et une fin (certification, lancement, déménagement…). Tu peux lui donner ses étapes et ses premières tâches dans la foulée. Relie-le à un objectif de vie quand il en sert un.",
+    input_schema: {
+      type: 'object',
+      properties: {
+        title: { type: 'string', description: 'Nom du projet' },
+        why: { type: 'string', description: 'Pourquoi ce projet compte pour la personne' },
+        due_date: { ...DATE, description: 'Échéance du projet' },
+        goal_id: { type: 'string', description: "Objectif de vie servi par ce projet (son id)" },
+        steps: { type: 'array', items: { type: 'string' }, description: 'Étapes du projet, dans l\'ordre (ex. « Préparer », « Rédiger », « Déposer »)' },
+        tasks: {
+          type: 'array',
+          description: 'Premières tâches concrètes',
+          items: {
+            type: 'object',
+            properties: {
+              title: { type: 'string' },
+              step: { type: 'string', description: "Nom de l'étape à laquelle rattacher la tâche" },
+              due: DATE,
+              estimate_min: { type: 'integer', description: 'Durée estimée en minutes' },
+              priority: { type: 'string', enum: ['low', 'medium', 'high'] },
+            },
+            required: ['title'],
+          },
+        },
+      },
+      required: ['title'],
+    },
+  },
+  {
+    name: 'add_project_tasks',
+    description: "Ajoute des étapes et des tâches à un projet existant. Découpe en actions concrètes, faisables en une séance.",
+    input_schema: {
+      type: 'object',
+      properties: {
+        project: { type: 'string', description: 'Identifiant ou nom du projet' },
+        steps: { type: 'array', items: { type: 'string' } },
+        tasks: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: { title: { type: 'string' }, step: { type: 'string' }, due: DATE, estimate_min: { type: 'integer' }, priority: { type: 'string', enum: ['low', 'medium', 'high'] } },
+            required: ['title'],
+          },
+        },
+      },
+      required: ['project'],
+    },
+  },
+  {
+    name: 'plan_project_task',
+    description: "Pose une tâche de projet dans la journée : elle apparaît dans la Routine du jour choisi, et la cocher là-bas la coche dans le projet.",
+    input_schema: {
+      type: 'object',
+      properties: {
+        project: { type: 'string', description: 'Identifiant ou nom du projet' },
+        task: { type: 'string', description: 'Identifiant ou intitulé de la tâche de projet' },
+        date: DATE,
+        block: { type: 'string', description: 'Bloc de la journée où la poser' },
+      },
+      required: ['project', 'task'],
+    },
+  },
+  {
+    name: 'set_project_task_done',
+    description: 'Coche ou décoche une tâche de projet. Le projet passe en « terminé » tout seul quand toutes ses tâches sont faites.',
+    input_schema: {
+      type: 'object',
+      properties: { project: { type: 'string' }, task: { type: 'string' }, done: { type: 'boolean' } },
+      required: ['project', 'task'],
+    },
+  },
+  {
+    name: 'update_project',
+    description: "Modifie un projet : titre, pourquoi, échéance, objectif de vie relié, ou statut (en cours, en pause, terminé, abandonné).",
+    input_schema: {
+      type: 'object',
+      properties: {
+        project: { type: 'string' }, title: { type: 'string' }, why: { type: 'string' },
+        due_date: DATE, goal_id: { type: 'string' },
+        status: { type: 'string', enum: ['active', 'paused', 'done', 'dropped'] },
+      },
+      required: ['project'],
+    },
   },
 ] as const;
 
-export const ASSISTANT_SYSTEM = `Tu es Cady, l'assistante intégrée à Caddr (propulsée par Claude, d'Anthropic), une application francophone de discipline personnelle organisée en 5 onglets : Aujourd'hui (routine du jour), Planning (Agenda, Boîte de tâches, Modèles), Cady (toi et tes outils), Croissance (Habitudes, Journal de gratitude et de fierté, Objectifs de vie) et Analytics. Les Réglages s'ouvrent par l'icône engrenage en haut.
+export const ASSISTANT_SYSTEM = `Tu es Cady, l'assistante intégrée à Caddr (propulsée par Claude, d'Anthropic), une application francophone de discipline personnelle organisée en 5 onglets : Aujourd'hui (routine du jour), Planning (Agenda, Boîte de tâches, Modèles), Cady (toi et tes outils), Croissance (Habitudes, Projets, Journal de gratitude et de fierté, Objectifs de vie) et Analytics. Les Réglages s'ouvrent par l'icône engrenage en haut.
+
+Les PROJETS (Croissance › Projets) sont ce que la personne construit : un projet a un début et une fin, des étapes, et des tâches concrètes. Une tâche de projet se « pose » dans une journée (plan_project_task) : elle apparaît alors dans la Routine, et la cocher là-bas la coche dans le projet. L'avancement d'un projet nourrit l'objectif de vie auquel il est relié. Quand la personne parle de quelque chose à mener à bout (certification, lancement, déménagement, dossier), propose un projet plutôt qu'une pile de tâches isolées : découpe en 3 à 6 étapes, puis en premières tâches faisables en une séance, et pose la première dans sa journée.
 
 L'app a deux allures, réglables dans Réglages › Allure de l'app : « Essentiel » (par défaut pour un nouvel utilisateur : l'écran Aujourd'hui ne montre que l'anneau du jour, le message du jour et la routine ; les autres leviers — briefing, bilan du soir, jokers, identités, paliers, binôme, rituel de la semaine — sont en veille et proposés un par un au fil des jours) et « Complet » (tout est actif). Sur Aujourd'hui, les cartes du jour ne s'empilent plus : une seule « carte du moment » est visible, les autres se dépliant par la pastille « + N ». Si l'utilisateur ne trouve pas une fonctionnalité, c'est le plus souvent qu'elle est en veille : dis-lui de passer en Complet ou de l'activer dans Réglages › Fonctionnalités.
 

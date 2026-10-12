@@ -4,12 +4,14 @@ import { PROMPTS } from '../assistant/prompts';
 import { AppData, LongTermGoal } from '../types';
 import { generateId, getKeyFromDate } from '../utils';
 import { goalProgress } from '../deepStats';
+import { goalProjects, HEALTH_LABEL } from '../projects';
 
 interface Props {
   goals: LongTermGoal[];
   onChange: (goals: LongTermGoal[]) => void;
   appData?: AppData; // pour la progression automatique (tâches reliées)
   onAskClaude?: (prompt: string) => void;
+  onOpenProjects?: () => void; // les projets qui servent cet objectif
 }
 
 const daysUntil = (dateStr?: string): number | null => {
@@ -23,7 +25,7 @@ const daysUntil = (dateStr?: string): number | null => {
 const ink = 'text-[#18181B] dark:text-[#E6E8E6]';
 const muted = 'text-[#18181B]/50 dark:text-[#E6E8E6]/50';
 
-const LongTermGoals: React.FC<Props> = ({ goals, onChange, appData, onAskClaude }) => {
+const LongTermGoals: React.FC<Props> = ({ goals, onChange, appData, onAskClaude, onOpenProjects }) => {
   const [msDraft, setMsDraft] = useState<Record<string, { title: string; date: string }>>({});
   const [newTitle, setNewTitle] = useState('');
   const [linking, setLinking] = useState<string | null>(null);
@@ -115,6 +117,28 @@ const LongTermGoals: React.FC<Props> = ({ goals, onChange, appData, onAskClaude 
                     className="w-full accent-[color:var(--accent)]"
                   />
                 )}
+
+                {(() => {
+                  // Les projets qui servent cet objectif : leur avancement le nourrit concrètement.
+                  const gp = appData ? goalProjects(appData, g.id, todayKey) : { list: [], pct: null };
+                  if (!gp.list.length) return null;
+                  return (
+                    <div className="rounded-xl bg-[#18181B]/[0.04] dark:bg-[#E6E8E6]/[0.04] p-3 space-y-2">
+                      <p className={`text-[9px] font-black uppercase tracking-widest ${muted}`}>Projets qui y mènent · {gp.pct} % en moyenne</p>
+                      {gp.list.map(({ project, stats }) => (
+                        <button key={project.id} onClick={onOpenProjects} className="w-full flex items-center gap-2 text-left group">
+                          <span className="flex-1 min-w-0">
+                            <span className={`block text-[12px] font-bold truncate ${ink} group-hover:text-accent transition-colors`}>{project.title}</span>
+                            <span className="block h-1.5 mt-1 rounded-full bg-[#18181B]/10 dark:bg-[#E6E8E6]/10 overflow-hidden">
+                              <span className="block h-full rounded-full transition-all duration-500" style={{ width: `${stats.pct}%`, background: project.color || 'var(--accent)' }} />
+                            </span>
+                          </span>
+                          <span className={`shrink-0 text-[10px] font-black tabular-nums ${stats.health === 'late' ? 'text-[#DF2935]' : stats.health === 'risk' ? 'text-[#B8900A] dark:text-[#FDCA40]' : 'text-accent'}`} title={HEALTH_LABEL[stats.health]}>{stats.pct}%</span>
+                        </button>
+                      ))}
+                    </div>
+                  );
+                })()}
 
                 <div className="flex items-center gap-2 flex-wrap">
                   <div className="flex items-center gap-1.5">

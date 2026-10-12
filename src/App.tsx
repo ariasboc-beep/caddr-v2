@@ -1,6 +1,8 @@
 
 import { featureOn, FEATURE_GROUPS, FeaturesContext, appMode, essentielFeatures, nextUnlock, ESSENTIEL_OFF, type FeatureId } from './features';
 import UnlockOffer from './components/UnlockOffer';
+import ProjectsView from './components/ProjectsView';
+import { findProject, patchProjectTask, routineTaskFor, removeRoutineTask, mirrorRoutineToProject, reconcileProjects, projectStats, allOpenTasks, activeProjects } from './projects';
 import SettingsGroup from './components/SettingsGroup';
 import BuddyPanel, { BuddyCard } from './components/BuddyPanel';
 import { inviteBuddy, listBuddyLinks, answerInvite, removeBuddyLink, publishStats, sendCheer, unreadCheers, markCheerRead, loadBuddies, type Buddy, type BuddyLink, type Cheer } from './services/buddyService';
@@ -461,12 +463,13 @@ const App: React.FC = () => {
     { id: 'today', label: "Aujourd'hui", icon: Layout, tabs: ['routine'] },
     { id: 'plan', label: 'Planning', icon: CalendarDays, tabs: ['schedule', 'inbox', 'templates'] },
     { id: 'cady', label: 'Cady', icon: Sparkles, tabs: ['ai'] },
-    { id: 'grow', label: 'Croissance', icon: Sprout, tabs: ['habits', 'journal', 'goals'] },
+    { id: 'grow', label: 'Croissance', icon: Sprout, tabs: ['habits', 'projects', 'journal', 'goals'] },
     { id: 'stats', label: 'Analytics', icon: BarChart3, tabs: ['stats'] },
   ];
-  const SUB_LABELS: Partial<Record<TabType, string>> = { schedule: 'Agenda', inbox: 'Boîte', templates: 'Modèles', habits: 'Habitudes', journal: 'Journal', goals: 'Objectifs de vie' };
+  const SUB_LABELS: Partial<Record<TabType, string>> = { schedule: 'Agenda', inbox: 'Boîte', templates: 'Modèles', habits: 'Habitudes', projects: 'Projets', journal: 'Journal', goals: 'Objectifs de vie' };
   if (!featureOn(appData, 'cady')) navGroups.splice(navGroups.findIndex(g => g.id === 'cady'), 1);
   if (!featureOn(appData, 'journal')) { const g = navGroups.find(x => x.id === 'grow'); if (g) g.tabs = g.tabs.filter(t => t !== 'journal'); }
+  if (!featureOn(appData, 'projects')) { const g = navGroups.find(x => x.id === 'grow'); if (g) g.tabs = g.tabs.filter(t => t !== 'projects'); }
   const currentGroup = navGroups.find(g => g.tabs.includes(activeTab));
   const goGroup = (g: typeof navGroups[number]) => {
     setIsReorderMode(false);
@@ -1061,7 +1064,7 @@ const App: React.FC = () => {
               return { ...b, tasks: b.tasks.map(updateTask) };
             });
 
-          return {
+          return mirrorRoutineToProject({
               ...prev,
               userProfile: profile,
               days: {
@@ -1071,14 +1074,14 @@ const App: React.FC = () => {
                       blocks: newBlocks
                   }
               }
-          }
+          }, taskId, dateKey);
       });
     } else {
        updateAppData(prev => {
         const { profile, leveledUp } = handleXpGain(prev.userProfile, xpDelta);
         if (leveledUp) setShowLevelUpModal(profile.level);
 
-        return {
+        return mirrorRoutineToProject({
           ...prev,
           userProfile: profile,
           blocks: prev.blocks.map(b => {
@@ -1087,7 +1090,7 @@ const App: React.FC = () => {
             if (parentTaskId) { return { ...b, tasks: b.tasks.map(t => t.id === parentTaskId ? { ...t, subTasks: (t.subTasks || []).map(updateTask) } : t) }; }
             return { ...b, tasks: b.tasks.map(updateTask) };
           })
-        };
+        }, taskId, dateKey);
       });
     }
   };
@@ -2234,6 +2237,25 @@ const App: React.FC = () => {
   const [perfect, setPerfect] = useState<{ card: CardDef | null } | null>(null);
   const [momentOpen, setMomentOpen] = useState(false); // « carte du moment » : les autres cartes dépliées
   const [restoreAsk, setRestoreAsk] = useState(false); // bouton « Jour personnalisé » : confirmation en deux temps
+
+  // ---------- Projets ----------
+  const blockChoices = useMemo(() => (appData.blocks || []).map(b => ({ id: b.id, title: b.title })), [appData.blocks]);
+  const projectById = useMemo(() => Object.fromEntries((appData.projects || []).filter(p => !p.deleted).map(p => [p.id, p])), [appData.projects]);
+  /** Pose une tâche de projet dans la routine d'un jour : elle devient une tâche ordinaire, reliée. */
+  const planProjectTask = (projectId: string, taskId: string, k: string, blockId?: string) => {
+    saveToHistory();
+    updateAppData(prev => {
+      const p = findProject(prev, projectId);
+      const t = p?.tasks.find(x => x.id === taskId);
+      if (!p || !t) return prev;
+      let next = t.routineTaskId ? removeRoutineTask(prev, t.routineTaskId) : prev;
+      const rt = routineTaskFor(p, t, k);
+      next = addOneOff(next, rt, k, blockId);
+      return patchProjectTask(next, projectId, taskId, { plannedFor: k, routineTaskId: rt.id });
+    });
+    const when = k === todayKeyNow ? "aujourd'hui" : new Date(k + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+    notify(`Posée dans ta journée · ${when}.`, 3500);
+  };
   const offCount = useMemo(() => Object.values(appData.settings?.features || {}).filter(v => v === false).length
     + (appData.settings?.motivation === false && appData.settings?.features?.motivation !== false ? 1 : 0), [appData.settings]);
 
@@ -3256,6 +3278,7 @@ const App: React.FC = () => {
                                             />
                                             {hasLogToday && <BookOpen size={10} className="text-accent shrink-0" />}
                                             {unplanned && !dStatus && featureOn(appData, 'unplanned') && <span title="Ajoutée aujourd'hui alors qu'elle n'était pas prévue" className="text-[7px] font-black uppercase px-1.5 py-0.5 rounded-md border border-[#18181B]/15 dark:border-[#E6E8E6]/15 text-[#18181B]/60 dark:text-[#E6E8E6]/60 tracking-widest shrink-0">Imprévue</span>}
+                                            {task.projectId && projectById[task.projectId] && <button onClick={(e) => { e.stopPropagation(); setActiveTab('projects'); }} title={`Projet : ${projectById[task.projectId].title}`} className="text-[7px] font-black uppercase px-1.5 py-0.5 rounded-md tracking-widest shrink-0 max-w-[120px] truncate" style={{ background: `${projectById[task.projectId].color || 'var(--accent)'}1F`, color: projectById[task.projectId].color || 'var(--accent)' }}>{projectById[task.projectId].title}</button>}
                                             {task.assignedBy && <span title={`Confiée par ${task.assignedBy}`} className="text-[7px] font-black uppercase px-1.5 py-0.5 rounded-md bg-accent/10 text-accent tracking-widest shrink-0 max-w-[110px] truncate">De {task.assignedBy}</span>}
                                             {!task.completedDates?.includes(dateKey) && task.priority && task.priority !== 'medium' && (
                                               <span className={`text-[7px] font-black uppercase px-1.5 py-0.5 rounded-md ${priorityInfo.bg} ${priorityInfo.color} tracking-widest shrink-0`}>
@@ -3703,12 +3726,20 @@ const App: React.FC = () => {
               onAdd={(t) => updateAppData(prev => addIdentity(prev, t))} onRemove={(id) => updateAppData(prev => removeIdentity(prev, id))} />}
             <LongTermGoals
               goals={appData.longTermGoals || []} appData={appData} onAskClaude={featureOn(appData, 'cady') ? askClaude : undefined}
+              onOpenProjects={featureOn(appData, 'projects') ? () => setActiveTab('projects') : undefined}
               onChange={(goals) => updateAppData(prev => ({ ...prev, longTermGoals: goals }))}
             />
             {featureOn(appData, 'buddy') && <BuddyPanel signedIn={!!user} buddies={buddies} incoming={buddyLinks.incoming} pendingSent={buddyLinks.mine.filter(l => l.status === 'pending' && l.fromUid === user?.uid)}
               onInvite={inviteBuddyByEmail} onAnswer={answerBuddy} onRemove={removeBuddy} onCheer={cheerBuddy} onSignIn={() => setShowAuth(true)} />}
             {featureOn(appData, 'perfectDay') && <RewardsCollection rewards={appData.rewards || []} />}
           </div>
+        )}
+
+        {activeTab === 'projects' && (
+          <ProjectsView appData={appData} update={(fn) => updateAppData(fn)} saveToHistory={saveToHistory} notify={notify}
+            onPlan={planProjectTask} blockChoices={blockChoices}
+            goals={appData.longTermGoals || []} identities={featureOn(appData, 'identities') ? activeIdentities(appData) : []}
+            onAskClaude={featureOn(appData, 'cady') ? askClaude : undefined} />
         )}
 
         {activeTab === 'journal' && (
@@ -3723,6 +3754,7 @@ const App: React.FC = () => {
             appData={appData}
             accentHex={accentHex}
             onShare={!featureOn(appData, 'share') ? undefined : (tf) => setShareFor(tf === 'day' || tf === 'week' ? tf : 'month')}
+            onOpenProjects={featureOn(appData, 'projects') ? () => setActiveTab('projects') : undefined}
             onDownloadPDF={async (tf, period) => (await import('./report')).generateReport(appData, tf, period, accentHex)}
             onOpenHabits={() => setActiveTab('habits')}
             onToggleHabit={(taskId, value) => updateAppData(prev => {
@@ -4051,7 +4083,7 @@ const App: React.FC = () => {
         {showEvening && (
           <EveningReview appData={appData} onClose={() => setShowEvening(false)}
             onAskClaude={featureOn(appData, 'cady') ? () => { setShowEvening(false); askClaude(PROMPTS.evening); } : undefined}
-            onFinish={(d, msg) => { saveToHistory(); updateAppData(() => d); setShowEvening(false); setActiveNotification(msg); setTimeout(() => setActiveNotification(null), 3500); }} />
+            onFinish={(d, msg) => { saveToHistory(); updateAppData(() => reconcileProjects(d)); setShowEvening(false); setActiveNotification(msg); setTimeout(() => setActiveNotification(null), 3500); }} />
         )}
         </Suspense>
       </main>

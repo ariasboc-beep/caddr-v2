@@ -7,6 +7,7 @@ import { resolveDay, computePeriod, getPeriod, perfectStreak, computeDay } from 
 import { relocateTask, addOneOff, insertOnDay, findTask } from '../reschedule';
 import { activeHabits, stateOn } from '../habits';
 import { filled } from '../journal';
+import { reconcileProjects, allProjects, activeProjects, projectStats, findProject, addProject, patchProject, addProjectTask, addStep, setProjectTaskDone, mirrorProjectToRoutine, patchProjectTask, routineTaskFor, removeRoutineTask, sortTasks, openTasks } from '../projects';
 import type { Occurrence } from '../icsImport';
 
 export interface ToolCtx { now: Date; navigate?: (tab: TabType) => void; externalEvents?: (from: Date, to: Date) => Occurrence[] }
@@ -144,7 +145,7 @@ export function executeTool(data: AppData, name: string, input: Record<string, a
       const upd = (bs: Block[]) => bs.map(b => ({ ...b, tasks: b.tasks.map(t => t.id === f.task.id ? flip(t) : t) }));
       const days = { ...data.days };
       if (days[k]?.blocks) days[k] = { ...days[k], blocks: upd(days[k].blocks!) };
-      const d = { ...data, blocks: days[k]?.blocks ? data.blocks : upd(data.blocks), days };
+      const d = reconcileProjects({ ...data, blocks: days[k]?.blocks ? data.blocks : upd(data.blocks), days });
       return ok(d, { ok: true }, `« ${f.task.title} » ${input.done ? 'cochée' : 'décochée'}${k !== todayKey ? ` (${fmtDay(k)})` : ''}`);
     }
 
@@ -291,6 +292,10 @@ export function executeTool(data: AppData, name: string, input: Record<string, a
         inbox: (data.inboxTasks || []).filter(t => norm(t.title).includes(q)).slice(0, 10).map(t => ({ inbox_id: t.id, title: t.title })),
         habits: activeHabits(data.habits).filter(h => norm(h.name).includes(q)).map(h => ({ habit_id: h.id, name: h.name, kind: h.kind })),
         goals: (data.longTermGoals || []).filter(g => norm(g.title).includes(q)).map(g => ({ goal_id: g.id, title: g.title })),
+        projects: allProjects(data).filter(p => norm(p.title).includes(q) || p.tasks.some(t => norm(t.title).includes(q))).slice(0, 8).map(p => ({
+          project_id: p.id, title: p.title, statut: p.status,
+          tasks: p.tasks.filter(t => norm(t.title).includes(q) || norm(p.title).includes(q)).slice(0, 10).map(t => ({ task_id: t.id, title: t.title, done: !!t.done, due: t.due })),
+        })),
       });
     }
 
@@ -314,8 +319,100 @@ export function executeTool(data: AppData, name: string, input: Record<string, a
       ctx.navigate?.(input.tab as TabType);
       return { data, result: { ok: true }, changed: false, summary: undefined };
     }
+
+    // ---------- Projets ----------
+    case 'create_project': {
+      if (!input.title?.trim()) return fail('Titre du projet manquant.');
+      const r = addProject(data, { title: input.title, why: input.why, dueDate: validDate(input.due_date) ? input.due_date : undefined, goalId: input.goal_id });
+      let d = r.data;
+      (input.steps || []).forEach((t: string) => { d = addStep(d, r.id, t); });
+      const added = addTasksTo(d, r.id, input.tasks || []);
+      d = added.data;
+      return ok(d, { project_id: r.id }, `Projet « ${input.title.trim()} » créé${input.steps?.length ? ` · ${input.steps.length} étape${input.steps.length > 1 ? 's' : ''}` : ''}${added.n ? ` · ${added.n} tâche${added.n > 1 ? 's' : ''}` : ''}`);
+    }
+
+    case 'add_project_tasks': {
+      const p = pickProject(data, input.project);
+      if (!p) return fail('Projet introuvable.');
+      let d = data;
+      (input.steps || []).forEach((t: string) => { d = addStep(d, p.id, t); });
+      const added = addTasksTo(d, p.id, input.tasks || []);
+      d = added.data;
+      if (!added.n && !(input.steps || []).length) return fail('Rien à ajouter.');
+      return ok(d, { ok: true }, `${added.n ? `${added.n} tâche${added.n > 1 ? 's' : ''}` : ''}${added.n && (input.steps || []).length ? ' et ' : ''}${(input.steps || []).length ? `${input.steps.length} étape${input.steps.length > 1 ? 's' : ''}` : ''} ajoutée${added.n > 1 || (input.steps || []).length > 1 ? 's' : ''} au projet « ${p.title} »`);
+    }
+
+    case 'plan_project_task': {
+      const p = pickProject(data, input.project);
+      if (!p) return fail('Projet introuvable.');
+      const t = pickProjectTask(p, input.task);
+      if (!t) return fail('Tâche de projet introuvable.');
+      const k = validDate(input.date) ? input.date : todayKey;
+      const block = matchBlock(data.blocks, input.block) || data.blocks[0];
+      let d = t.routineTaskId ? removeRoutineTask(data, t.routineTaskId) : data;
+      const rt = routineTaskFor(p, t, k);
+      d = addOneOff(d, rt, k, block?.id);
+      d = patchProjectTask(d, p.id, t.id, { plannedFor: k, routineTaskId: rt.id });
+      return ok(d, { ok: true }, `« ${t.title} » posée dans la journée du ${fmtDay(k)}${block ? ` (${block.title})` : ''}`);
+    }
+
+    case 'set_project_task_done': {
+      const p = pickProject(data, input.project);
+      if (!p) return fail('Projet introuvable.');
+      const t = pickProjectTask(p, input.task);
+      if (!t) return fail('Tâche de projet introuvable.');
+      const done = input.done !== false;
+      const d = mirrorProjectToRoutine(setProjectTaskDone(data, t.id, done, todayKey), t.id, done);
+      return ok(d, { ok: true }, `« ${t.title} » ${done ? 'cochée' : 'décochée'} dans le projet « ${p.title} »`);
+    }
+
+    case 'update_project': {
+      const p = pickProject(data, input.project);
+      if (!p) return fail('Projet introuvable.');
+      const fields: Record<string, unknown> = {};
+      if (input.title?.trim()) fields.title = input.title.trim();
+      if (input.why !== undefined) fields.why = input.why;
+      if (validDate(input.due_date)) fields.dueDate = input.due_date;
+      if (input.goal_id !== undefined) fields.goalId = input.goal_id || undefined;
+      if (input.status) fields.status = input.status;
+      if (!Object.keys(fields).length) return fail('Rien à modifier.');
+      return ok(patchProject(data, p.id, fields), { ok: true }, `Projet « ${p.title} » mis à jour`);
+    }
   }
   return fail(`Outil inconnu : ${name}`);
+}
+
+/** Retrouve un projet par son identifiant ou par son nom (approximatif). */
+function pickProject(data: AppData, ref?: string) {
+  if (!ref) return undefined;
+  const list = allProjects(data);
+  const n = norm(ref);
+  return list.find(p => p.id === ref) || list.find(p => norm(p.title) === n) || list.find(p => norm(p.title).includes(n) || n.includes(norm(p.title)));
+}
+
+/** Retrouve une tâche dans un projet, par identifiant ou intitulé. */
+function pickProjectTask(p: { tasks: { id: string; title: string }[] }, ref?: string) {
+  if (!ref) return undefined;
+  const n = norm(ref);
+  return (p.tasks.find(t => t.id === ref) || p.tasks.find(t => norm(t.title) === n) || p.tasks.find(t => norm(t.title).includes(n) || n.includes(norm(t.title)))) as any;
+}
+
+/** Ajoute une liste de tâches à un projet, en rattachant chacune à son étape si elle est nommée. */
+function addTasksTo(data: AppData, projectId: string, list: { title: string; step?: string; due?: string; estimate_min?: number; priority?: 'low' | 'medium' | 'high' }[]) {
+  let d = data, n = 0;
+  list.forEach(raw => {
+    if (!raw?.title?.trim()) return;
+    const p = findProject(d, projectId);
+    const step = raw.step ? p?.steps.find(s => norm(s.title) === norm(raw.step!)) || p?.steps.find(s => norm(s.title).includes(norm(raw.step!))) : undefined;
+    const r = addProjectTask(d, projectId, {
+      title: raw.title, stepId: step?.id,
+      due: /^\d{4}-\d{2}-\d{2}$/.test(raw.due || '') ? raw.due : undefined,
+      estimateMin: typeof raw.estimate_min === 'number' ? raw.estimate_min : undefined,
+      priority: raw.priority,
+    });
+    d = r.data; if (r.id) n++;
+  });
+  return { data: d, n };
 }
 
 // ---------------------------------------------------------------------------
@@ -362,6 +459,16 @@ export function buildContext(data: AppData, ctx: ToolCtx, userName?: string): st
   if (habits.length) lines.push(`\nHABITUDES : ${JSON.stringify(habits.map(h => ({ habit_id: h.id, nom: h.name, type: h.kind, aujourdhui: stateOn(h, todayKey, todayKey) })))}`);
   if (data.longTermGoals?.length) lines.push(`\nOBJECTIFS LONG TERME : ${JSON.stringify(data.longTermGoals.map(g => ({ goal_id: g.id, titre: g.title, echeance: g.targetDate, progression_manuelle: g.autoProgress ? undefined : g.progress, blocs_relies: g.linkedBlocks, nb_taches_reliees: g.linkedTasks?.length, etapes: g.milestones?.map(m => ({ milestone_id: m.id, titre: m.title, date: m.date, atteinte: !!m.done })) })))}`);
   const mem = (data.assistantMemory || []).filter(x => !x.deleted);
+  const projs = allProjects(data).filter(p => p.status === 'active' || p.status === 'paused');
+  if (projs.length) lines.push(`\nPROJETS : ${JSON.stringify(projs.map(p => {
+    const st = projectStats(p, todayKey);
+    return {
+      project_id: p.id, titre: p.title, statut: p.status, pourquoi: p.why, echeance: p.dueDate,
+      objectif_relie: p.goalId, avancement: `${st.pct} %`, faites: st.done, total: st.total, etat: st.health,
+      etapes: p.steps.map(x => ({ step_id: x.id, titre: x.title })),
+      taches_ouvertes: sortTasks(openTasks(p)).slice(0, 12).map(t => ({ task_id: t.id, titre: t.title, step_id: t.stepId, echeance: t.due, posee_le: t.plannedFor, duree_min: t.estimateMin })),
+    };
+  }))}`);
   lines.push(`\nMÉMOIRE (préférences durables à respecter) : ${mem.length ? JSON.stringify(mem.map(m => ({ memory_id: m.id, texte: m.text }))) : 'aucune pour l’instant'}`);
   const lr = Object.values(data.lifeReviews || {}).sort((a, b) => b.quarter.localeCompare(a.quarter))[0];
   if (lr) lines.push(`\nROUE DE LA VIE (${lr.quarter}, notes sur 10) : ${JSON.stringify(lr.scores)}${lr.focus?.length ? ` · priorités du trimestre : ${lr.focus.join(', ')}` : ''}`);

@@ -29,6 +29,49 @@ export interface Task {
   minVersion?: string;    // version minimale pour les jours difficiles (ex. « 2 min de sport »)
   why?: string;           // raison profonde, rappelée au moment d'hésiter
   identityId?: string;    // identité renforcée par cette tâche (« Je suis une personne sportive »)
+  projectId?: string;     // projet dont cette tâche est une étape posée dans la journée
+  projectTaskId?: string; // tâche du projet correspondante (cocher ici, c'est cocher là-bas)
+}
+
+// ---------- Projets : ce que l'utilisateur construit ----------
+export type ProjectStatus = 'active' | 'paused' | 'done' | 'dropped';
+
+/** Étape (phase) d'un projet : « Préparer », « Rédiger », « Déposer le dossier »… */
+export interface ProjectStep { id: string; title: string; order: number }
+
+/** Tâche de projet : l'action concrète, qui pourra être posée dans une journée. */
+export interface ProjectTask {
+  id: string;
+  title: string;
+  stepId?: string;        // étape à laquelle elle appartient
+  note?: string;
+  due?: string;           // échéance (AAAA-MM-JJ)
+  estimateMin?: number;   // durée estimée, en minutes
+  priority?: PriorityType;
+  done?: boolean;
+  doneAt?: string;        // « AAAA-MM-JJTHH:mm »
+  plannedFor?: string;    // jour où elle a été posée dans la routine
+  routineTaskId?: string; // tâche de routine créée pour la faire
+  createdAt: string;
+  order: number;
+}
+
+export interface Project {
+  id: string;
+  title: string;
+  why?: string;           // pourquoi ce projet compte
+  color?: string;
+  status: ProjectStatus;
+  createdAt: string;
+  startDate?: string;
+  dueDate?: string;       // échéance du projet
+  goalId?: string;        // objectif de vie servi par ce projet
+  identityId?: string;    // identité renforcée (« Je suis quelqu'un qui finit ce qu'il commence »)
+  steps: ProjectStep[];
+  tasks: ProjectTask[];
+  completedAt?: string;
+  updatedAt?: string;     // pour la fusion entre appareils
+  deleted?: boolean;      // pierre tombale
 }
 
 export interface Block {
@@ -93,6 +136,7 @@ export interface AppData {
   weeklyReviews?: { [weekKey: string]: WeeklyReview };
   monthlyReviews?: { [monthKey: string]: WeeklyReview }; // même forme ; weekKey contient la clé du mois « AAAA-MM »
   habits?: StandaloneHabit[]; // habitudes indépendantes des blocs (ex. « Ne plus fumer »)
+  projects?: Project[];       // projets : étapes et tâches, de A à Z
   settings?: AppSettings;
   focusSessions?: FocusSession[];
   skips?: SkipRecord[];
@@ -159,7 +203,7 @@ export interface AppSettings {
   weeklyTarget?: number;            // objectif de discipline hebdomadaire (%) pour les bonus XP   // agendas externes affichés dans le Planning (lecture seule)
 }
 
-export type TabType = 'routine' | 'stats' | 'schedule' | 'templates' | 'ai' | 'inbox' | 'settings' | 'habits' | 'journal' | 'goals';
+export type TabType = 'routine' | 'stats' | 'schedule' | 'templates' | 'ai' | 'inbox' | 'settings' | 'habits' | 'journal' | 'goals' | 'projects';
 export type TimeframeType = 'day' | 'week' | 'month' | 'year' | 'custom';
 
 // Session de concentration (mode Focus)
