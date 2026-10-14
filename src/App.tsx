@@ -1614,7 +1614,7 @@ const App: React.FC = () => {
             (t.subTasks || []).forEach(st => { if (st.completedDates?.includes(dateKey)) completedTasks.push(st.title); });
         });
     });
-    const feedback = await getDailyReviewFeedback(completedTasks, perfToday, currentDayData.reflection);
+    const feedback = await getDailyReviewFeedback(completedTasks, perfToday, currentDayData.reflection, { priority: currentGoal, mood: currentDayData.mood || '' });
     if (feedback) {
       updateAppData(prev => ({
         ...prev,
@@ -3155,7 +3155,7 @@ const App: React.FC = () => {
             })()}
 
             {/* Daily Summary Card if review exists */}
-            {currentDayData.reflection && (
+            {(currentDayData.reflection || currentDayData.aiFeedback) && (
                <div className="glass p-6 rounded-[2.5rem] border border-accent/10 bg-accent/[0.02] space-y-4 animate-in zoom-in-95">
                   <div className="flex items-center justify-between">
                      <div className="flex items-center gap-2">
@@ -3164,7 +3164,7 @@ const App: React.FC = () => {
                      </div>
                      {getMoodIcon(currentDayData.mood)}
                   </div>
-                  <div className="text-sm font-medium text-[#18181B] dark:text-[#E6E8E6] italic leading-relaxed flex gap-1"><span>«</span><RichTextView html={currentDayData.reflection || ''} /><span>»</span></div>
+                  {currentDayData.reflection && <div className="text-sm font-medium text-[#18181B] dark:text-[#E6E8E6] italic leading-relaxed flex gap-1"><span>«</span><RichTextView html={currentDayData.reflection || ''} /><span>»</span></div>}
                   
                   {currentDayData.aiFeedback && (
                     <div className="pt-4 border-t border-[#18181B]/5 dark:border-[#E6E8E6]/5 space-y-3">
@@ -4081,7 +4081,8 @@ const App: React.FC = () => {
             errors={cal.errors} loading={cal.loading} lastSync={cal.lastSync} eventCount={(c) => cal.eventsOf(c).length} onRefresh={cal.refresh} />
         )}
         {showEvening && (
-          <EveningReview appData={appData} onClose={() => setShowEvening(false)}
+          <EveningReview appData={appData} onClose={() => setShowEvening(false)} priority={currentGoal}
+            onAnalyze={user ? (i) => getDailyReviewFeedback(i.tasks, i.performance, i.reflection, { missed: i.missed, postponed: i.postponed, habits: i.habits, priority: i.priority, mood: i.mood, gratitude: i.gratitude, pride: i.pride }) : undefined}
             onAskClaude={featureOn(appData, 'cady') ? () => { setShowEvening(false); askClaude(PROMPTS.evening); } : undefined}
             onFinish={(d, msg) => { saveToHistory(); updateAppData(() => reconcileProjects(d)); setShowEvening(false); setActiveNotification(msg); setTimeout(() => setActiveNotification(null), 3500); }} />
         )}

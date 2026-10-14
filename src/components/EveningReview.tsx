@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { X, Moon, Check, ArrowRight, Minus, ChevronLeft, ChevronRight, Frown, Meh, Smile, Laugh, HandHeart, Trophy, Sparkles } from 'lucide-react';
+import { X, Moon, Check, ArrowRight, Minus, ChevronLeft, ChevronRight, Frown, Meh, Smile, Laugh, HandHeart, Trophy, Sparkles, Loader2, Zap, RefreshCw } from 'lucide-react';
 import type { AppData, Task, JournalEntry } from '../types';
 import { getKeyFromDate, isDateInRange } from '../utils';
 import { resolveDay } from '../analytics';
@@ -10,7 +10,12 @@ interface Props {
   onFinish: (data: AppData, summary: string) => void;
   onClose: () => void;
   onAskClaude?: () => void;
+  /** Analyse gratuite de la journée (Gemini). Absente si l'utilisateur n'est pas connecté. */
+  onAnalyze?: (input: DayInput) => Promise<{ feedback: string; focusTomorrow: string } | null>;
+  priority?: string;
 }
+
+export interface DayInput { tasks: string[]; missed: string[]; postponed: string[]; habits: string[]; performance: number; reflection: string; mood: string; gratitude: string[]; pride: string[]; priority: string }
 
 const ink = 'text-[#18181B] dark:text-[#E6E8E6]';
 const muted = 'text-[#18181B]/55 dark:text-[#E6E8E6]/55';
@@ -19,17 +24,17 @@ type Choice = 'done' | 'later' | 'leave';
 const MOODS = [{ id: 'bad', icon: Frown, label: 'Difficile' }, { id: 'neutral', icon: Meh, label: 'Moyenne' }, { id: 'good', icon: Smile, label: 'Bonne' }, { id: 'great', icon: Laugh, label: 'Excellente' }];
 
 // Bilan du soir en 3 étapes : la journée, le ressenti, le journal
-const EveningReview: React.FC<Props> = ({ appData, onFinish, onClose, onAskClaude }) => {
+const EveningReview: React.FC<Props> = ({ appData, onFinish, onClose, onAskClaude, onAnalyze, priority = '' }) => {
   const now = new Date();
   const k = getKeyFromDate(now);
   const d = new Date(k + 'T12:00:00');
   const tomorrow = getKeyFromDate(new Date(d.getTime() + 86400000));
   const planIds = useMemo(() => new Set(appData.blocks.flatMap(b => b.tasks.map(t => t.id))), [appData.blocks]);
-  const { open, doneCount } = useMemo(() => {
+  const { open, doneCount, doneTitles } = useMemo(() => {
     const skipped = new Set((appData.skips || []).filter(s => s.date === k).map(s => s.taskId));
     const all: { t: Task; block: string }[] = [];
     resolveDay(appData, d).forEach(b => b.tasks.filter(t => isDateInRange(d, t.recurrence, t.specificDate, t.startDate, t.endDate, t.stopDate) && !skipped.has(t.id)).forEach(t => all.push({ t, block: b.title })));
-    return { open: all.filter(x => !x.t.completedDates?.includes(k)), doneCount: all.filter(x => x.t.completedDates?.includes(k)).length };
+    return { open: all.filter(x => !x.t.completedDates?.includes(k)), doneCount: all.filter(x => x.t.completedDates?.includes(k)).length, doneTitles: all.filter(x => x.t.completedDates?.includes(k)).map(x => x.t.title) };
   }, [appData]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [step, setStep] = useState(0);
@@ -39,6 +44,23 @@ const EveningReview: React.FC<Props> = ({ appData, onFinish, onClose, onAskClaud
   const je = appData.journal?.[k];
   const [grat, setGrat] = useState<string[]>([0, 1, 2].map(i => je?.gratitude?.[i] || ''));
   const [pride, setPride] = useState<string[]>([0, 1, 2].map(i => je?.pride?.[i] || ''));
+  const [ai, setAi] = useState<{ feedback: string; focusTomorrow: string } | null>(appData.days[k]?.aiFeedback || null);
+  const [aiBusy, setAiBusy] = useState(false);
+  const analyze = async () => {
+    if (!onAnalyze || aiBusy) return;
+    const pick = (c: Choice) => open.filter(x => choices[x.t.id] === c).map(x => x.t.title);
+    const tasks = [...doneTitles, ...pick('done')];
+    const total = doneCount + open.length;
+    const habits = (appData.habits || []).filter(h => !h.deleted && h.entries?.[k]?.s).map(h => `${h.name} (${h.entries?.[k]?.s === 'done' ? 'tenue' : 'manquée'})`);
+    setAiBusy(true);
+    const res = await onAnalyze({
+      tasks, missed: open.filter(x => !choices[x.t.id] || choices[x.t.id] === 'leave').map(x => x.t.title), postponed: pick('later'), habits,
+      performance: total ? Math.round(tasks.length / total * 100) : 0, reflection: reflection.trim(),
+      mood: MOODS.find(m => m.id === mood)?.label || '', gratitude: grat.filter(x => x.trim()), pride: pride.filter(x => x.trim()), priority,
+    });
+    setAiBusy(false);
+    if (res?.feedback) setAi(res);
+  };
   const oneOff = (t: Task) => t.recurrence === 'specific' || t.recurrence === 'once' || !planIds.has(t.id);
 
   const finish = () => {
@@ -53,7 +75,7 @@ const EveningReview: React.FC<Props> = ({ appData, onFinish, onClose, onAskClaud
       }
     });
     const day = data.days[k] || { goalCompleted: false, note: '' };
-    data = { ...data, days: { ...data.days, [k]: { ...day, mood: mood || day.mood, reflection: reflection.trim() || day.reflection } } };
+    data = { ...data, days: { ...data.days, [k]: { ...day, mood: mood || day.mood, reflection: reflection.trim() || day.reflection, ...(ai ? { aiFeedback: ai } : {}) } } };
     if (grat.some(x => x.trim()) || pride.some(x => x.trim())) {
       const entry: JournalEntry = { ...(data.journal?.[k] || {}), gratitude: grat, pride, updatedAt: new Date().toISOString() } as JournalEntry;
       data = { ...data, journal: { ...(data.journal || {}), [k]: entry } };
@@ -133,6 +155,26 @@ const EveningReview: React.FC<Props> = ({ appData, onFinish, onClose, onAskClaud
               {grat.map((v, i) => <input key={'g' + i} value={v} onChange={e => setGrat(g => g.map((x, j) => j === i ? e.target.value : x))} placeholder={i === 0 ? 'Merci pour…' : ''} aria-label={`Gratitude ${i + 1}`} className={field} />)}
               <p className={`text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 pt-2 text-accent`}><Trophy size={13} /> 3 fiertés</p>
               {pride.map((v, i) => <input key={'p' + i} value={v} onChange={e => setPride(g => g.map((x, j) => j === i ? e.target.value : x))} placeholder={i === 0 ? 'J’ai réussi à…' : ''} aria-label={`Fierté ${i + 1}`} className={field} />)}
+              {onAnalyze && (
+                <div className="mt-3 rounded-2xl border border-accent/20 bg-accent/[0.06] p-4 space-y-2.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className={`text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 text-accent`}><Sparkles size={13} /> Analyse de ma journée</p>
+                    {ai && !aiBusy && <button onClick={analyze} aria-label="Relancer l'analyse" title="Relancer" className={`p-1 rounded-lg hover:text-accent ${muted}`}><RefreshCw size={13} /></button>}
+                  </div>
+                  {aiBusy ? <p className={`flex items-center gap-2 text-[12px] font-semibold ${muted}`}><Loader2 size={14} className="animate-spin text-accent" /> Analyse en cours…</p>
+                    : ai ? (
+                      <>
+                        <p className={`text-[13px] font-medium leading-snug ${ink}`}>{ai.feedback}</p>
+                        <p className={`text-[12px] font-bold flex items-start gap-2 ${ink}`}><Zap size={14} className="text-[#B8900A] dark:text-[#FDCA40] shrink-0 mt-0.5" /> <span><span className={`block text-[9px] font-black uppercase tracking-widest ${muted}`}>Demain</span>{ai.focusTomorrow}</span></p>
+                      </>
+                    ) : (
+                      <>
+                        <p className={`text-[11px] font-semibold ${muted}`}>Un regard extérieur sur ce qui a marché, ce qui a freiné, et une action pour demain.</p>
+                        <button onClick={analyze} className="w-full py-2.5 rounded-xl bg-accent text-white text-[10px] font-black uppercase tracking-wider flex items-center justify-center gap-1.5"><Sparkles size={13} /> Analyser ma journée</button>
+                      </>
+                    )}
+                </div>
+              )}
             </>
           )}
         </div>

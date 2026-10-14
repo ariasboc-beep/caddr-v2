@@ -7,6 +7,22 @@ const DAILY_MAX = Number(process.env.AI_DAILY_LIMIT || 40);
 // La clé reste côté serveur : jamais préfixée VITE_, donc jamais envoyée au navigateur.
 const API_KEY = process.env.GEMINI_API_KEY || "";
 
+// Modèles de l'offre gratuite de Gemini. Le premier est utilisé ; si Google le
+// refuse (modèle retiré, saturé, quota du modèle atteint), on essaie le suivant.
+// Modifiable sur Netlify avec la variable GEMINI_MODEL.
+const MODELS = [...new Set([process.env.GEMINI_MODEL || "gemini-3-flash-preview", "gemini-3.1-flash-lite", "gemini-2.5-flash"])];
+
+async function generate(ai: GoogleGenAI, contents: any, schema: any): Promise<string> {
+  let last: unknown;
+  for (const model of MODELS) {
+    try {
+      const response = await ai.models.generateContent({ model, contents, config: { responseMimeType: "application/json", responseSchema: schema } });
+      if (response.text) return response.text;
+    } catch (e) { last = e; console.warn(`Gemini ${model} indisponible, modèle suivant.`, e); }
+  }
+  throw last || new Error("Réponse vide");
+}
+
 // --- Schémas de réponse (identiques à l'ancienne logique client) ---
 
 const routineAdviceSchema = {
@@ -56,31 +72,29 @@ async function routineAdvice(ai: GoogleGenAI, payload: any) {
     Donne un conseil, une tâche "Power Move" et une citation motivante.
   `;
 
-  const response = await ai.models.generateContent({
-    model: "gemini-3-flash-preview",
-    contents: prompt,
-    config: { responseMimeType: "application/json", responseSchema: routineAdviceSchema },
-  });
-  return JSON.parse(response.text || "{}");
+  return JSON.parse(await generate(ai, prompt, routineAdviceSchema) || "{}");
 }
 
 async function dailyReview(ai: GoogleGenAI, payload: any) {
-  const { tasks = [], performance = 0, reflection = "" } = payload || {};
-  const prompt = `
-    Analyse ma journée sur Caddr. :
-    Tâches complétées : ${(tasks as string[]).join(", ")}
-    Score global : ${performance}%
-    Ma réflexion : "${reflection}"
+  const { tasks = [], performance = 0, reflection = "", missed = [], mood = "", gratitude = [], pride = [], priority = "", habits = [], postponed = [] } = payload || {};
+  const list = (a: unknown) => (Array.isArray(a) ? a : []).map(String).filter(Boolean).slice(0, 40).join(" ; ") || "—";
+  const prompt = `Tu es le coach bienveillant et exigeant de l'application de discipline Caddr.
+Analyse ma journée à partir de ces éléments :
+- Tâches faites : ${list(tasks)}
+- Tâches non faites : ${list(missed)}
+- Reportées à demain : ${list(postponed)}
+- Habitudes du jour : ${list(habits)}
+- Objectif prioritaire : ${String(priority || "—").slice(0, 200)}
+- Score de la journée : ${performance} %
+- Humeur : ${mood || "—"}
+- Ma réflexion : "${String(reflection).replace(/<[^>]+>/g, " ").slice(0, 1500)}"
+- Gratitudes : ${list(gratitude)} · Fiertés : ${list(pride)}
 
-    Donne un feedback constructif et encourageant (max 150 caractères) et un "Focus" pour demain.
-  `;
-
-  const response = await ai.models.generateContent({
-    model: "gemini-3-flash-preview",
-    contents: prompt,
-    config: { responseMimeType: "application/json", responseSchema: dailyReviewSchema },
-  });
-  return JSON.parse(response.text || "{}");
+Rédige en français, en tutoyant, sans jargon :
+- feedback : 2 ou 3 phrases (300 caractères maximum) qui disent honnêtement ce qui a marché et ce qui a freiné, en citant des éléments réels ;
+- focusTomorrow : UNE action précise et réaliste pour demain (une phrase courte).
+Ne culpabilise jamais. N'invente rien qui ne soit pas dans les données.`;
+  return JSON.parse(await generate(ai, prompt, dailyReviewSchema) || "{}");
 }
 
 async function generateFromGoal(ai: GoogleGenAI, payload: any) {
@@ -89,19 +103,12 @@ async function generateFromGoal(ai: GoogleGenAI, payload: any) {
   Structure la réponse en blocs logiques (ex: Matin, Travail, Soir).
   Chaque bloc doit avoir un titre et une liste de 3 à 5 tâches concrètes.`;
 
-  const response = await ai.models.generateContent({
-    model: "gemini-3-pro-preview",
-    contents: prompt,
-    config: { responseMimeType: "application/json", responseSchema: routineArraySchema },
-  });
-  return JSON.parse(response.text || "[]");
+  return JSON.parse(await generate(ai, prompt, routineArraySchema) || "[]");
 }
 
 async function extractFromImage(ai: GoogleGenAI, payload: any) {
   const { base64Image = "" } = payload || {};
-  const response = await ai.models.generateContent({
-    model: "gemini-3-flash-preview",
-    contents: {
+  return JSON.parse(await generate(ai, {
       parts: [
         { inlineData: { mimeType: "image/jpeg", data: base64Image } },
         {
@@ -109,10 +116,7 @@ async function extractFromImage(ai: GoogleGenAI, payload: any) {
             "Extrais les tâches de cette image pour l'application Caddr. et organise-les en blocs logiques avec des titres. Si c'est une liste simple, crée un bloc 'Import Image'.",
         },
       ],
-    },
-    config: { responseMimeType: "application/json", responseSchema: routineArraySchema },
-  });
-  return JSON.parse(response.text || "[]");
+    }, routineArraySchema) || "[]");
 }
 
 
@@ -142,12 +146,7 @@ Rédige en français, en tutoyant, sans jargon :
 - actions : exactement 3 actions précises et réalistes pour la semaine prochaine ;
 - focusNextWeek : une phrase courte qui donne le cap.
 Ne culpabilise jamais. Ne cite que des éléments présents dans les données.`;
-  const response = await ai.models.generateContent({
-    model: "gemini-3-flash-preview",
-    contents: prompt,
-    config: { responseMimeType: "application/json", responseSchema: weeklyCoachSchema },
-  });
-  return JSON.parse(response.text || "{}");
+  return JSON.parse(await generate(ai, prompt, weeklyCoachSchema) || "{}");
 }
 
 // --- Journée surchargée : proposition d'une version allégée ---
@@ -170,12 +169,7 @@ Propose :
 - reschedule : de nouvelles heures (HH:mm) pour supprimer les chevauchements, sans jamais toucher aux rendez-vous ;
 - summary : une phrase en français, en tutoyant, qui explique la logique.
 N'utilise que des id présents dans les données. Reporte le minimum nécessaire pour que la journée tienne dans le temps disponible.`;
-  const response = await ai.models.generateContent({
-    model: "gemini-3-flash-preview",
-    contents: prompt,
-    config: { responseMimeType: "application/json", responseSchema: lightenSchema },
-  });
-  return JSON.parse(response.text || "{}");
+  return JSON.parse(await generate(ai, prompt, lightenSchema) || "{}");
 }
 
 const HANDLERS: Record<string, (ai: GoogleGenAI, payload: any) => Promise<unknown>> = {

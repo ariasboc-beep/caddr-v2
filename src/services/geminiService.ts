@@ -42,8 +42,12 @@ export const getRoutineAdvice = (blocks: Block[], performance: number) =>
 export const getDailyReviewFeedback = (
   tasks: string[],
   performance: number,
-  reflection: string
-) => callGemini<{ feedback: string; focusTomorrow: string }>("dailyReview", { tasks, performance, reflection });
+  reflection: string,
+  extra: DayExtra = {}
+) => callGemini<{ feedback: string; focusTomorrow: string }>("dailyReview", { tasks, performance, reflection, ...extra });
+
+/** Contexte facultatif pour une analyse de journée plus juste. */
+export interface DayExtra { missed?: string[]; postponed?: string[]; habits?: string[]; priority?: string; mood?: string; gratitude?: string[]; pride?: string[] }
 
 export const generateRoutineFromGoal = (goal: string) =>
   callGemini<{ title: string; tasks: string[] }[]>("generateFromGoal", { goal });
