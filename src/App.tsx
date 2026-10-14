@@ -3169,7 +3169,7 @@ const App: React.FC = () => {
                   {currentDayData.aiFeedback && (
                     <div className="pt-4 border-t border-[#18181B]/5 dark:border-[#E6E8E6]/5 space-y-3">
                        <div className="p-4 bg-[#18181B]/[0.03] dark:bg-[#E6E8E6]/[0.03] rounded-2xl border border-[#18181B]/5 dark:border-[#E6E8E6]/5">
-                          <p className="text-[8px] font-black text-[#FDCA40] uppercase tracking-widest mb-1">Caddr. AI Insight</p>
+                          <p className="text-[8px] font-black text-[#FDCA40] uppercase tracking-widest mb-1">Analyse de la journée</p>
                           <p className="text-xs text-[#18181B]/80 dark:text-[#E6E8E6]/80 leading-snug">{currentDayData.aiFeedback.feedback}</p>
                        </div>
                        <div className="flex items-center gap-3 px-1">
@@ -4972,7 +4972,7 @@ const App: React.FC = () => {
 
               {currentDayData.aiFeedback ? (
                 <div className="bg-accent/10 p-6 rounded-3xl border border-accent/20 animate-in slide-in-from-top-2">
-                   <p className="text-[9px] font-black text-accent uppercase tracking-widest mb-2 flex items-center gap-2"><BrainCircuit size={12}/> Caddr. AI Insight</p>
+                   <p className="text-[9px] font-black text-accent uppercase tracking-widest mb-2 flex items-center gap-2"><BrainCircuit size={12}/> Analyse de la journée</p>
                    <p className="text-sm font-medium text-[#18181B] dark:text-[#E6E8E6] italic mb-4">"{currentDayData.aiFeedback.feedback}"</p>
                    <div className="bg-accent/20 p-4 rounded-2xl flex items-center gap-3">
                       <Zap size={16} className="text-accent" />
